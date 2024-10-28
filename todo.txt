@@ -1,0 +1,3 @@
+memory, reg file, and go on...
+
+regarding the readmes : use only ## max for readability, use X.x.x notations on title to avois confusion
