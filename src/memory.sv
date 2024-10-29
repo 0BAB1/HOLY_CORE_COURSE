@@ -1,4 +1,4 @@
-module moduleName #(
+module memory #(
     parameter WORDS = 64,
     parameter ADDR_WIDTH = $clog2(WORDS)
 ) (
