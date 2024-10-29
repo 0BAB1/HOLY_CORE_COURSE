@@ -1,3 +1,3 @@
-memory, reg file, and go on...
+run the testbenches on linux @ home , cofiguation etc
 
-regarding the readmes : use only ## max for readability, use X.x.x notations on title to avois confusion
+Add instructions on hoiw top run the tests in the readmes
