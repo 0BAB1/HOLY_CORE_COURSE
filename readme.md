@@ -24,27 +24,9 @@ You also need to install the stack described below.
 
 SystemVerilog
 
-### Simulator :  Verilator
+### Simulator :  Icarus verilog
 
-[docs](https://verilator.org/guide/latest/index.html)
-
-``sudo apt install verilator``
-
-On [debian 11 and other versions](https://repology.org/project/verilator/versions), the apt packages may not fot the versions requirements for cocotb. you can choose to use another simulator, or like me, use this **VERY CONVINIENT** (not) set of commands to build from git :
-
-```bash
-sudo apt install git make autoconf g++ flex bison help2man
-git clone https://github.com/verilator/verilator.git
-cd verilator
-git checkout stable
-autoconf
-./configure
-make -j$(nproc)
-sudo make install
-verilator --version
-```
-
-(Now you can imagine the pain it is to make it work on windows lol).
+*instert install tips here*
 
 ### TenstBenches : cocotb
 
@@ -57,3 +39,13 @@ verilator --version
 ``pip install cocotb``
 
 for the "makefile" : [docs](https://docs.cocotb.org/en/stable/quickstart.html#creating-a-makefile)
+
+## Repo description
+
+- **src**
+  - Contains the sv source code for all of the modules
+- **tb**
+  - Contains the testbenches, each tesbench is a subdir. ```cd``` into it and run ```make``` to run an individual testbench
+- **Makefile**
+  - To clean all the mess left by the tesbenches, run ```make clean``` from the root dit to make it work.
+
