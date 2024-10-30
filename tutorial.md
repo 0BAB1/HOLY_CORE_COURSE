@@ -1,8 +1,18 @@
 # Tutorial / Writeup
 
-> Tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs). PS :  the intro is legendary.
+Tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs). PS :  the intro is legendary.
 
-## 1 : Implementinge the "load word" instruction
+Here is what we'll aim to build in this tutorial :
+
+![finished single cycle](./Complete_single_cycle.png)
+
+In order to achieve this, we'll (more or less) follow the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube).
+
+The method consist in thinking about each kind of instruction we can encounter and implement the necessary building block whilst thinking about the datapath.
+
+Of course, the first instruction will necessitate the most as we'll start from 0.
+
+## 1 : Implementing the "load word" instruction
 
 [Lecture](https://www.youtube.com/watch?v=AoBkibslRBM)
 
@@ -23,10 +33,10 @@ We would translate it like this in binary and in hex, as an I-type instruction :
 
 here is a quick breakdown :
 
-|         | IMM [11:0]   | rs1          | f3                                            | rd           | op           |
-| ------- | ------------ | ------------ | --------------------------------------------- | ------------ | ------------ |
-| binary  | 111111111100 | 01001        | 010                                           | 00110        | 0000011      |
-| Value   | -4           | 9 (as in x9) | 2 (lw)                                        | 6 (as in x6) | I-type       |
+|        | IMM [11:0]   | rs1          | f3     | rd           | op      |
+| ------ | ------------ | ------------ | ------ | ------------ | ------- |
+| binary | 111111111100 | 01001        | 010    | 00110        | 0000011 |
+| Value  | -4           | 9 (as in x9) | 2 (lw) | 6 (as in x6) | I-type  |
 
 ## 1.1 : What do we need
 
@@ -35,8 +45,11 @@ Before doing any actual hardware digital interpretation of this instruction, the
 - A register file
 - An instruction memory
 - Some data memory too
+- A sign extender
+- A basic ALU we'll improve as time goes on
+- And a decoder/control unit we will improve as time goes on
 
-Gotta build it then !
+Gotta build it then ! We'll start by crezting basic versions of the different building blocks, test them seperatly and assemble them.
 
 ## 1.1.a : Implementing memory
 
@@ -92,7 +105,7 @@ end
 endmodule
 ```
 
-Note the trick here, we use a [byte adressed momory](https://youtu.be/P2oFPtdDgTg?feature=shared&t=233) (watch the video if you don't know the difference with word addressed memory). However, the memory stays fairly simple as we do not add support for non-aligned read and writes. It just add statements like ```mem[address[31:2]] <= write_data;``` which can be tricky to get your head around at first as a begginer, but do some research, take your time to understand if you don't. If you do, let's move on shall we ?
+Note the trick here, we use a [byte adressed momory](https://youtu.be/P2oFPtdDgTg?feature=shared&t=233) (watch the video if you don't know the difference with word addressed memory). However, the memory stays fairly simple as we do not add support for non-aligned read and writes. It just add statements like ``mem[address[31:2]] <= write_data;`` which can be tricky to get your head around at first as a begginer, but do some research, take your time to understand if you don't. If you do, let's move on shall we ?
 (If you know your way around HDL, this should be farly easy for you)
 
 Each and everytime we implement something, we also test it, as stated in the main [readme file](./readme.md), we will use cocotb and verilator to verify our HDL.
@@ -129,7 +142,7 @@ async def memory_data_test(dut):
         await Timer(1, units="ns")
         # just 32 zeroes, you can also use int()
         assert dut.read_data.value == "00000000000000000000000000000000"
-        
+      
     # Test: Write and read back data
     test_data = [
         (0, 0xDEADBEEF),
@@ -172,13 +185,13 @@ async def memory_data_test(dut):
 
 Once agin, we increment memory by 4 beacause it is byte addressed.
 
-To run this, I create a ```Makefile``` according to the [cocotb docs](https://docs.cocotb.org/en/stable/quickstart.html#creating-a-makefile) and, still in the memory tesbench subdir, I use ```gtkwave ./sim_build/memory.fst``` to visualize the waveforms. It's all open-source ! *But once again, without linux, you will have some troubles.*
+To run this, I create a ``Makefile`` according to the [cocotb docs](https://docs.cocotb.org/en/stable/quickstart.html#creating-a-makefile) and, still in the memory tesbench subdir, I use ``gtkwave ./sim_build/memory.fst`` to visualize the waveforms. It's all open-source ! *But once again, without linux, you will have some troubles.*
 
-After it's done, I can go back to the root dir and run ```make clean``` to clean out the simulation results.
+After it's done, I can go back to the root dir and run ``make clean`` to clean out the simulation results.
 
 ## 1.1.b : Implementing the regfile
 
-### Code
+### HDL Code
 
 For the reg file, it's just 32x32bits registers. we'll implement it like memory execpt the size is fixes the 32 bits with 5bits addressing.
 
@@ -224,7 +237,7 @@ always_comb begin : readLogic
     read_data1 = registers[address1];
     read_data2 = registers[address2];
 end
-    
+  
 endmodule
 ```
 
@@ -259,7 +272,7 @@ async def random_write_read_test(dut):
 
     await RisingEdge(dut.clk)   
     dut.rst_n.value = 1  # realease reset_n   
-    await RisingEdge(dut.clk)    
+    await RisingEdge(dut.clk)  
 
     # fill a heorical state of the regs, all 0s for starters
     theorical_regs = [0 for _ in range(32)]
@@ -307,7 +320,5 @@ async def random_write_read_test(dut):
     print("Random write/read test completed successfully.")
 ```
 
-## 1.2 Start to lay down the datapath
-
-The program counter is failry simple so we'll implement it directly in the cpu top module.
+## 1.1.c Implementing the ALU
 
