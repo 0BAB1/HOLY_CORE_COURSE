@@ -322,3 +322,169 @@ async def random_write_read_test(dut):
 
 ## 1.1.c Implementing the ALU
 
+### HDL Code
+
+For the Load Word datapath, we only need to add :
+
+- The content of a source register, containing an alged adress
+- A 12bits immediate / offset
+
+Here is a very basic implementation, **note that this design will evolve heavily !**.
+
+```sv
+module alu (
+    // IN
+    input logic [2:0] alu_control,
+    input logic [31:0] src1,
+    input logic [31:0] src2,
+    // OUT
+    output logic [31:0] alu_result,
+    output logic zero
+);
+
+always_comb begin
+    case (alu_control)
+        3'b000 : alu_result = src1 + src2;
+        default: alu_result = 32'b0;
+    endcase
+end
+
+assign zero = alu_result == 32'b0;
+    
+endmodule
+```
+
+We also add a ```alu_control``` option, to later select other arithmetic operation. We default the result to 0 if the requested arithmetic isn't iplemented and we add a "zero" flag that we'll use in later designs.
+
+### Verification
+
+Simple design, simple tesbench, but this time, the alu being pur combinational logic, we do not use a clock :
+
+```python
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, Timer
+import random
+
+
+@cocotb.test()
+async def alu_test(dut):
+    await Timer(1, units="ns")
+
+    # TEST ADD
+    # The alu simpply does a biwise add.
+    # The resulting 32 bits can be interpreted as signed,
+    # unsigned, just like the sources. It all depends on 
+    # our interpretation.
+
+    dut.alu_control.value = 0b000
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+        # We mask expected to not take account of overflows
+        expected = (src1 + src2) & 0xFFFFFFFF
+        # Await 1 ns for the infos to propagate
+        await Timer(1, units="ns")
+        assert int(dut.alu_result.value) == expected
+
+    # TEST DEFAULT ALU
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b111
+    src1 = random.randint(0,0xFFFFFFFF)
+    src2 = random.randint(0,0xFFFFFFFF)
+    dut.src1.value = src1
+    dut.src2.value = src2
+    expected = 0
+    # Await 1 ns for the infos to propagate
+    await Timer(1, units="ns")
+    assert int(dut.alu_result.value) == expected
+
+    # TEST ZERO FLAG
+    assert int(dut.zero.value) == 1
+```
+
+## 1.1.d Implementing the sign extender
+
+In odrer to manipulte the immediate in other computation block, we need to make it 32bit wide. Also, Immediates can be "scatered" around in the instruction in RISC-V (e.g. Sotre Word ```sw```). This means that we'll need to :
+
+- 1 Gather the immediate in the instruction, depending on the op code (ie, include some control inputs)
+- 2 Extend the gathered immediate sign to 32bits. Here is a basic implemention for our basic lw only with some preparations for the future :
+
+```sv
+module signext (
+    // IN
+    input logic [24:0] raw_src,
+    input logic imm_source,
+
+    // OUT (immediate)
+    output logic [31:0] immediate
+);
+
+logic [11:0] gathered_imm;
+
+always_comb begin
+    case (imm_source)
+        1'b0 : gathered_imm = raw_src[24:13];
+        default: gathered_imm = 12'b0;
+    endcase
+end
+
+assign immediate = {{20{gathered_imm[11]}}, gathered_imm};
+    
+endmodule
+```
+
+Simple enough right ? no magic here, simply an raw application of the DDCA lecture. Now we test this design !
+
+### Verification
+
+Here is the test benchench, if you are not used to bitwise operations, take a minute to get your head around these :
+
+```python
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, Timer
+import random
+import numpy as np
+
+@cocotb.test()
+async def random_write_read_test(dut):
+    # TEST POSITIVE IMM = 123 WITH SOURCE = 0
+    imm = 0b000001111011 #123
+    imm <<= 13 # leave "room" for ramdom junk
+    source = 0b0
+    # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
+    # masked to leave room for imm "test payload"
+    random_junk = 0b000000000000_1010101010101 
+    raw_data = random_junk | imm
+    await Timer(1, units="ns")
+    dut.raw_src.value = raw_data
+    dut.imm_source = source
+    await Timer(1, units="ns") # let it propagate ...
+    assert dut.immediate.value == "00000000000000000000000001111011", f"expected 00000000000000000000000001111011, got {dut.immediate.value}"
+    assert int(dut.immediate.value) == 123
+
+    # TEST Negative IMM = -42 WITH SOURCE = 0
+    imm = 0b111111010110 #-42
+    imm <<= 13 # leave "room" for ramdom junk
+    source = 0b0
+    # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
+    # masked to leave room for imm "test payload"
+    random_junk = 0b000000000000_1010101010101 
+    raw_data = random_junk | imm
+    await Timer(1, units="ns")
+    dut.raw_src.value = raw_data
+    dut.imm_source = source
+    await Timer(1, units="ns") # let it propagate ...
+    assert dut.immediate.value == "11111111111111111111111111010110", f"expected 11111111111111111111111111010110, got {dut.immediate.value}"
+    # Python interprets int as uint. we sub 1<<32 as int to get corresponding negative value
+    assert int(dut.immediate.value) - (1 << 32)  == -42
+```
+
+Once again, we'll add oher feature to this a bit later ;)
+
+## 1.1.e Implementing basic control
+
+todo

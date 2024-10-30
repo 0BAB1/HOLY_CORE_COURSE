@@ -40,4 +40,3 @@ async def alu_test(dut):
 
     # TEST ZERO FLAG
     assert int(dut.zero.value) == 1
-
