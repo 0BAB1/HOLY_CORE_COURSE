@@ -6,9 +6,7 @@ import random
 
 @cocotb.test()
 async def alu_test(dut):
-    # Start a 10 ns clock
-    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
-    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
 
     # TEST ADD
     # The alu simpply does a biwise add.
@@ -29,7 +27,7 @@ async def alu_test(dut):
         assert int(dut.alu_result.value) == expected
 
     # TEST DEFAULT ALU
-    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
     dut.alu_control.value = 0b111
     src1 = random.randint(0,0xFFFFFFFF)
     src2 = random.randint(0,0xFFFFFFFF)
@@ -39,7 +37,6 @@ async def alu_test(dut):
     # Await 1 ns for the infos to propagate
     await Timer(1, units="ns")
     assert int(dut.alu_result.value) == expected
-
 
     # TEST ZERO FLAG
     assert int(dut.zero.value) == 1
