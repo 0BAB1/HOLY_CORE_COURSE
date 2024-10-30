@@ -9,7 +9,7 @@ async def signext_test(dut):
     # TEST POSITIVE IMM = 123 WITH SOURCE = 0
     imm = 0b000001111011 #123
     imm <<= 13 # leave "room" for ramdom junk
-    source = 0b0
+    source = 0b00
     # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
     # masked to leave room for imm "test payload"
     random_junk = 0b000000000000_1010101010101 
@@ -24,7 +24,7 @@ async def signext_test(dut):
     # TEST Negative IMM = -42 WITH SOURCE = 0
     imm = 0b111111010110 #-42
     imm <<= 13 # leave "room" for ramdom junk
-    source = 0b0
+    source = 0b00
     # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
     # masked to leave room for imm "test payload"
     random_junk = 0b000000000000_1010101010101 

@@ -2,9 +2,14 @@
 
 Tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs). PS :  the intro is legendary.
 
+It is also based on the *Digital Design and
+Computer Architecture, RISC-V Edition* Book from Sarah & David Harris (The persons that teaches the youtube lectures mentionned above). I'll let you do your own research to get your hands on the PDF ;)
+
 Here is what we'll aim to build in this tutorial :
 
 ![finished single cycle](./Complete_single_cycle.png)
+
+You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
 In order to achieve this, we'll (more or less) follow the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube).
 
@@ -106,6 +111,7 @@ endmodule
 ```
 
 Note the trick here, we use a [byte adressed momory](https://youtu.be/P2oFPtdDgTg?feature=shared&t=233) (watch the video if you don't know the difference with word addressed memory). However, the memory stays fairly simple as we do not add support for non-aligned read and writes. It just add statements like ``mem[address[31:2]] <= write_data;`` which can be tricky to get your head around at first as a begginer, but do some research, take your time to understand if you don't. If you do, let's move on shall we ?
+
 (If you know your way around HDL, this should be farly easy for you)
 
 Each and everytime we implement something, we also test it, as stated in the main [readme file](./readme.md), we will use cocotb and verilator to verify our HDL.
@@ -416,7 +422,7 @@ In odrer to manipulte the immediate in other computation block, we need to make 
 module signext (
     // IN
     input logic [24:0] raw_src,
-    input logic imm_source,
+    input logic [1:0] imm_source,
 
     // OUT (immediate)
     output logic [31:0] immediate
@@ -426,7 +432,7 @@ logic [11:0] gathered_imm;
 
 always_comb begin
     case (imm_source)
-        1'b0 : gathered_imm = raw_src[24:13];
+        1'b00 : gathered_imm = raw_src[24:13];
         default: gathered_imm = 12'b0;
     endcase
 end
@@ -454,7 +460,7 @@ async def random_write_read_test(dut):
     # TEST POSITIVE IMM = 123 WITH SOURCE = 0
     imm = 0b000001111011 #123
     imm <<= 13 # leave "room" for ramdom junk
-    source = 0b0
+    source = 0b00
     # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
     # masked to leave room for imm "test payload"
     random_junk = 0b000000000000_1010101010101 
@@ -469,7 +475,7 @@ async def random_write_read_test(dut):
     # TEST Negative IMM = -42 WITH SOURCE = 0
     imm = 0b111111010110 #-42
     imm <<= 13 # leave "room" for ramdom junk
-    source = 0b0
+    source = 0b00
     # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
     # masked to leave room for imm "test payload"
     random_junk = 0b000000000000_1010101010101 
@@ -487,4 +493,137 @@ Once again, we'll add oher feature to this a bit later ;)
 
 ## 1.1.e Implementing basic control
 
-todo
+Below is an image of what we need to do implement for the control unit. Note that the following image contains the logic for the **FULL** controller, for now, we'll focus on implementing the ```lw``` logic.
+
+First we lay down the only I/Os we need so far for ```lw```:
+
+```sv
+module control (
+    // IN
+    input logic [6:0] op,
+    input logic [2:0] func3,
+    input logic [6:0] func7,
+    input logic alu_zero,
+
+    // OUT
+    output logic [2:0] alu_control,
+    output logic [1:0] imm_source,
+    output logic mem_write,
+    output logic reg_write
+);
+
+// lorem ipsum...
+
+endmodule
+```
+
+This will help us focus on the important stuff to get a first ```lw``` example working.
+
+![Controller logic img](./Controller_logic.png)
+
+As you can see, there is aan ALU control as well. This is because a single instruction type require different kinds of arithmetics (e.g. R-Types that can be ```add```, ```sub```, ```mul```, ...).
+
+So, the plan is to deduce a general ```alu_op``` and then add an ```alu_decoder``` unit will deduce the qrithmetic from indicators like ```func3``` (That i'll also call f3) and ```func7``` (That i'll also call f7). This will finally raise some ```alu_control``` control signals to tell the ALU what to do, here is another truth table to use that :
+
+![Alu_op truth table img](./Alu_op_tt.png)
+
+This process may seem weird as everything is in the same block at the end of the day but this makes the comb logics way easier to write and readable :
+
+```sv
+module control (
+    // IN
+    input logic [6:0] op,
+    input logic [2:0] func3,
+    input logic [6:0] func7,
+    input logic alu_zero,
+
+    // OUT
+    output logic [2:0] alu_control,
+    output logic [1:0] imm_source,
+    output logic mem_write,
+    output logic reg_write
+);
+
+/**
+* MAIN DECODER
+*/
+
+logic [1:0] alu_op;
+always_comb begin
+    case (op)
+        // LW
+        7'b0000011 : begin
+            reg_write = 1'b1;
+            imm_source = 2'b00;
+            mem_write = 1'b0;
+            alu_op = 2'b00;
+        end
+        // EVERYTHING ELSE
+        default: begin
+            reg_write = 1'b0;
+            imm_source = 2'b00;
+            mem_write = 1'b0;
+            alu_op = 2'b00;
+        end
+    endcase
+end
+
+/**
+* ALU DECODER
+*/
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        1'b00 : alu_control = 3'b000;
+        // EVERYTHING ELSE
+        default: alu_control = 3'b111;
+    endcase
+end
+    
+endmodule
+```
+
+And everything is ready for the future instruction to be added in control !
+
+### Verification
+
+The tesbench is veristraight forward, we emulate ONLY the important signals described in the truth tables for a given instruction (we don't care about the other one being ```X``` or ```Z``` in simulation). And we assert the outputs states :
+
+```python
+import cocotb
+from cocotb.triggers import Timer
+
+@cocotb.test()
+async def control_test(dut):
+    # TEST CONTROL SIGNALS FOR LW
+    await Timer(1, units="ns")
+    dut.op.value = 0b0000011 #lw
+    await Timer(1, units="ns")
+    assert dut.alu_control.value == "000"
+    assert dut.imm_source.value == "00"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+```
+
+For the curious who may ask "so what is the f3 for in the ```lw``` instruction then ?". Great question. We can use F3 to implement different flavors of the ```load``` instruction
+
+> "The LW instruction loads a 32-bit value from memory into rd. LH loads a 16-bit value from memory,
+then sign-extends to 32-bits before storing in rd. LHU loads a 16-bit value from memory but then
+zero extends to 32-bits before storing in rd. LB and LBU are defined analogously for 8-bit values."
+
+(from the [RISC-V Vol1 User-level ISA](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf), Page 19)
+
+Use the [tables](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) to check out different f3 values for ```loads```.
+
+### 1.2 : Laying down the ```lw``` datapath (finally)
+
+We can now start to edit ```cpu.sv``` and add the pieces toggether ! From tehere (a working lw datapath), we'll be able to add functionalities and build more advanced features !
+
+Here is the complete ```lw``` "assembly" :
+
+![lw partial datapath img](./Lw_partial_datapath.png)
+
+So we implement it !
+
+```

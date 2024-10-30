@@ -20,8 +20,9 @@ end
 * INSTRUCTION MEMORY
 */
 
-// We do not use write for insructions, it acts as a ROM.
+// Acts as a ROM.
 wire [31:0] instruction;
+
 memory instruction_memory (
     // Memory inputs
     .clk(clk),
@@ -37,6 +38,32 @@ memory instruction_memory (
 /**
 * CONTROL
 */
+
+// Intercepts instructions data, generate control signals accordignly
+// in control unit
+wire [6:0] op;
+assign op = instruction[6:0];
+wire [2:0] f3;
+assign f3 = instruction[14:12];
+wire alu_zero;
+// out of control unit
+wire [2:0] alu_control;
+wire [1:0] imm_source;
+wire mem_write;
+wire reg_write;
+
+control control_unit(
+    .op(op),
+    .func3(f3),
+    .func7(7'b0),
+    .alu_zero(alu_zero),
+
+    // OUT
+    .alu_control(alu_control),
+    .imm_source(imm_source),
+    .mem_write(mem_write),
+    .reg_write(reg_write)
+);
 
 /**
 * REGFILE

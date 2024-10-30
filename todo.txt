@@ -1,7 +1,4 @@
-test the alu
-
-do all of the control and sign ext
-
-start cpu testbench, by only adding lw datapath
+FINISH LAYING DOWN SV FILE FOR LW
 
 finish implementing lw fetch datapath
+start cpu testbench, by only adding lw datapath
