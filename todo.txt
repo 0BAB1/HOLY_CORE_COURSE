@@ -1,1 +1,4 @@
+test the ALU
+test ALU signed ADD
+
 finish implementing lw fetch datapath
