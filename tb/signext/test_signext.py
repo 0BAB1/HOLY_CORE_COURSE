@@ -5,7 +5,7 @@ import random
 import numpy as np
 
 @cocotb.test()
-async def random_write_read_test(dut):
+async def signext_test(dut):
     # TEST POSITIVE IMM = 123 WITH SOURCE = 0
     imm = 0b000001111011 #123
     imm <<= 13 # leave "room" for ramdom junk

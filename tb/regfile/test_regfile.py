@@ -5,7 +5,7 @@ import random
 import numpy as np
 
 @cocotb.test()
-async def random_write_read_test(dut):
+async def regfile_test(dut):
     # Start a 10 ns clock
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     await RisingEdge(dut.clk)
