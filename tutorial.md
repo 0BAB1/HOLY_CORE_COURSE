@@ -9,21 +9,25 @@ Here is what we'll aim to build in this tutorial :
 
 ![finished single cycle](./Complete_single_cycle.png)
 
+Which aims at implementing all of the RV32 base instruction set :
+
+![rv32 base and type](./RV32_base_types.png)
+
+That looks like a lot, but by implementing each type 1 by 1 (e.g. I,S,R,B,...) it can be done !
+
 You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
 In order to achieve this, we'll (more or less) follow the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube).
 
-The method consist in thinking about each kind of instruction we can encounter and implement the necessary building block whilst thinking about the datapath.
+The plan consist in thinking about each type of instruction we can encounter and implement the necessary building block whilst thinking about the datapath for a specific instruction example.
 
-Of course, the first instruction will necessitate the most as we'll start from 0.
+Of course, the first instruction will necessitate the most as we'll start from 0. But once we implement a couple of them, the others will be way easier to implement ! So let's get started !
 
 ## 1 : Implementing the "load word" instruction
 
 [Lecture](https://www.youtube.com/watch?v=AoBkibslRBM)
 
-Load word : lw
-
-Here is an example that loads data into reg x6, from the pointer in x9 with an offset of -4 on the address :
+Below is a I-type instruction example (I standing for "Immediate") that loads data into reg x6, from the pointer in x9 with an offset of -4 on the address :
 
 ```asm
 lw x6, -4(x9)
@@ -43,9 +47,9 @@ here is a quick breakdown :
 | binary | 111111111100 | 01001        | 010    | 00110        | 0000011 |
 | Value  | -4           | 9 (as in x9) | 2 (lw) | 6 (as in x6) | I-type  |
 
-## 1.1 : What do we need
+## 1.1 : What do we need to implement that ?
 
-Before doing any actual hardware digital interpretation of this instruction, the lecture tells us what we need first :
+Before doing any actual hardware digital interpretation of this instruction, the lecture tells us what we first need some basic logic blocks :
 
 - A register file
 - An instruction memory
