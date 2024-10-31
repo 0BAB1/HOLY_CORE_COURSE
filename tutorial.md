@@ -624,10 +624,20 @@ Use the [tables](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/inst
 
 We can now start to edit ```cpu.sv``` and add the pieces toggether ! From tehere (a working lw datapath), we'll be able to add functionalities and build more advanced features !
 
-Here is the complete ```lw``` "assembly" :
+### HDL Code
+
+Here is the complete ```lw``` specific datapth :
 
 ![lw partial datapath img](./Lw_partial_datapath.png)
 
 So we implement it !
 
+```sv
+// to fill after testing...
 ```
+
+This one is large but failry simple, no fancy logic here as we pretty much just assemble legos according to the plan. Note the "always comb" muxes we add in preparetion for further improvements.
+
+### Verification
+
+To test this, we need to instanciate instruction and data memory with some known data. We then dump all states and check if the said states are the one we expected.
