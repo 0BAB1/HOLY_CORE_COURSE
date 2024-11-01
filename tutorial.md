@@ -23,7 +23,7 @@ The plan consist in thinking about each type of instruction we can encounter and
 
 Of course, the first instruction will necessitate the most as we'll start from 0. But once we implement a couple of them, the others will be way easier to implement ! So let's get started !
 
-## 1 : Implementing the "load word" instruction
+## 1 : Implementing the "load word" ```lw``` instruction (basic I-Type)
 
 [Lecture](https://www.youtube.com/watch?v=AoBkibslRBM)
 
@@ -47,7 +47,7 @@ here is a quick breakdown :
 | binary | 111111111100 | 01001        | 010    | 00110        | 0000011 |
 | Value  | -4           | 9 (as in x9) | 2 (lw) | 6 (as in x6) | I-type  |
 
-## 1.1 : What do we need to implement that ?
+## 1.1 : What do we need to implement ```lw``` ?
 
 Before doing any actual hardware digital interpretation of this instruction, the lecture tells us what we first need some basic logic blocks :
 
@@ -372,21 +372,13 @@ Simple design, simple tesbench, but this time, the alu being pur combinational l
 
 ```python
 import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import Timer
 import random
 
 
 @cocotb.test()
-async def alu_test(dut):
+async def add_test(dut):
     await Timer(1, units="ns")
-
-    # TEST ADD
-    # The alu simpply does a biwise add.
-    # The resulting 32 bits can be interpreted as signed,
-    # unsigned, just like the sources. It all depends on 
-    # our interpretation.
-
     dut.alu_control.value = 0b000
     for _ in range(1000):
         src1 = random.randint(0,0xFFFFFFFF)
@@ -399,7 +391,8 @@ async def alu_test(dut):
         await Timer(1, units="ns")
         assert int(dut.alu_result.value) == expected
 
-    # TEST DEFAULT ALU
+@cocotb.test()
+async def default_test(dut):
     await Timer(1, units="ns")
     dut.alu_control.value = 0b111
     src1 = random.randint(0,0xFFFFFFFF)
@@ -411,9 +404,19 @@ async def alu_test(dut):
     await Timer(1, units="ns")
     assert int(dut.alu_result.value) == expected
 
-    # TEST ZERO FLAG
+@cocotb.test()
+async def zero_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b000
+    dut.src1.value = 123
+    dut.src2.value = -123
+    await Timer(1, units="ns")
+    print(int(dut.alu_result.value))
     assert int(dut.zero.value) == 1
+    assert int(dut.alu_result.value) == 0
 ```
+
+New ! we declare multiple tests, it's exactly the same as making a single block but it improve readability so why not.
 
 ## 1.1.d Implementing the sign extender
 
@@ -620,7 +623,7 @@ zero extends to 32-bits before storing in rd. LB and LBU are defined analogously
 
 Use the [tables](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) to check out different f3 values for ```loads```.
 
-### 1.2 : Laying down the ```lw``` datapath (finally)
+## 1.2 : Laying down the ```lw``` datapath (finally)
 
 We can now start to edit ```cpu.sv``` and add the pieces toggether ! From tehere (a working lw datapath), we'll be able to add functionalities and build more advanced features !
 
@@ -633,11 +636,384 @@ Here is the complete ```lw``` specific datapth :
 So we implement it !
 
 ```sv
-// to fill after testing...
+module cpu (
+    input logic clk,
+    input logic rst_n
+);
+
+/**
+* PROGRAM COUNTER
+*/
+
+reg [31:0] pc;
+logic [31:0] pc_next;
+
+always_comb begin : pcSelect
+    pc_next = pc + 4;
+end
+
+always @(posedge clk) begin
+    if(rst_n == 0) begin
+        pc <= 32'b0;
+    end else begin
+        pc <= pc_next;
+    end
+end
+
+/**
+* INSTRUCTION MEMORY
+*/
+
+// Acts as a ROM.
+wire [31:0] instruction;
+
+memory #(
+    .mem_init("./test_imemory.hex")
+) instruction_memory (
+    // Memory inputs
+    .clk(clk),
+    .address(pc),
+    .write_data(32'b0),
+    .write_enable(1'b0),
+    .rst_n(1'b1),
+
+    // Memory outputs
+    .read_data(instruction)
+);
+
+/**
+* CONTROL
+*/
+
+// Intercepts instructions data, generate control signals accordignly
+// in control unit
+logic [6:0] op;
+assign op = instruction[6:0];
+logic [2:0] f3;
+assign f3 = instruction[14:12];
+wire alu_zero;
+// out of control unit
+wire [2:0] alu_control;
+wire [1:0] imm_source;
+wire mem_write;
+wire reg_write;
+
+control control_unit(
+    .op(op),
+    .func3(f3),
+    .func7(7'b0),
+    .alu_zero(alu_zero),
+
+    // OUT
+    .alu_control(alu_control),
+    .imm_source(imm_source),
+    .mem_write(mem_write),
+    .reg_write(reg_write)
+);
+
+/**
+* REGFILE
+*/
+
+logic [4:0] source_reg1;
+assign source_reg1 = instruction[19:15];
+logic [4:0] source_reg2;
+assign source_reg2 = instruction[24:20];
+logic [4:0] dest_reg;
+assign dest_reg = instruction[11:7];
+wire [31:0] read_reg1;
+wire [31:0] read_reg2;
+
+logic [31:0] write_back_data;
+always_comb begin : wbSelect
+    write_back_data = mem_read;
+end
+
+
+regfile regfile(
+    // basic signals
+    .clk(clk),
+    .rst_n(rst_n),
+
+    // Read In
+    .address1(source_reg1),
+    .address2(source_reg2),
+    // Read out
+    .read_data1(read_reg1),
+    .read_data2(read_reg2),
+
+    // Write In
+    .write_enable(reg_write),
+    .write_data(write_back_data),
+    .address3(dest_reg)
+);
+
+/**
+* SIGN EXTEND
+*/
+logic [24:0] raw_imm;
+assign raw_imm = instruction[31:7];
+wire [31:0] immediate;
+
+signext sign_extender(
+    .raw_src(raw_imm),
+    .imm_source(imm_source),
+    .immediate(immediate)
+);
+
+/**
+* ALU
+*/
+wire [31:0] alu_result;
+logic [31:0] alu_src2;
+
+always_comb begin : srcBSelect
+    alu_src2 = immediate;
+end
+
+alu alu_inst(
+    .alu_control(alu_control),
+    .src1(read_reg1),
+    .src2(alu_src2),
+    .alu_result(alu_result),
+    .zero(alu_zero)
+);
+
+/**
+* DATA MEMORY
+*/
+wire [31:0] mem_read;
+
+memory #(
+    .mem_init("./test_dmemory.hex")
+) data_memory (
+    // Memory inputs
+    .clk(clk),
+    .address(alu_result),
+    .write_data(32'b0),
+    .write_enable(1'b0),
+    .rst_n(1'b1),
+
+    // Memory outputs
+    .read_data(mem_read)
+);
+    
+endmodule
 ```
 
-This one is large but failry simple, no fancy logic here as we pretty much just assemble legos according to the plan. Note the "always comb" muxes we add in preparetion for further improvements.
+This one is large but failry simple, no fancy logic here as we pretty much just assemble legos according to the plan with a bunch of additional wires. Note the "always comb" muxes we add in preparetion for further improvements, even though they are pretty useless right now.
+
+> Tip : to navigate such HDL files, use the "find" feature of your text editor **extensively** ! It will be you best friend when it comes to finding out *what* goes *where* !
+
+Note that I added some ```.mem_init("blablabla")``` parameters to the memory. This has to do with verification afterward. Here is the updated memory's verilog to acoomodate this change :
+
+```sv
+module memory #(
+    parameter WORDS = 64,
+    parameter mem_init = ""
+) (
+    // same I/Os ...
+);
+
+reg [31:0] mem [0:WORDS-1];  // Memory array of words (32-bits)
+
+initial begin
+    $readmemh(mem_init, mem);  // Load memory for simulation
+end
+
+// same logic as before ....
+
+endmodule
+```
+
+see below verification for explainations...
 
 ### Verification
 
-To test this, we need to instanciate instruction and data memory with some known data. We then dump all states and check if the said states are the one we expected.
+To test this, we need to instanciate instruction and data memory with some known data. We then check the regfile's states and check if the said states are the one we expected when writting the instructions.
+
+So here is our todo list to lay down the tests :
+
+- Write some basic memories file to init the memory for testing
+- Loads these files for simulation
+- Write the testbench
+
+Sounds simple enough, but our current project testing setup has some limitations that have to be carefully taken into account. These limitation leads to :
+
+- We will only have 1 memory file for each memory in the system. Wich will prove to be annoying when we'll have to test dozens of differents instructions. (it is what it is).
+- We have to load the initial "ROMs" memory hexfiles directly via hardcoded verilog. Thus the modifications and limitations described above. (thanksfully, verilog will ignre comments, allowing us to explain what instruction does what and why)
+- The cocotb framework is great but when test benches and data get more complex, we have to use a bunch of tricks, that I'll do my best to explain here.
+
+Whith all of these facts in mind, let's write some test ROMs for our lw datapath !
+
+for the instrcution memory to test our data path, we'll use a simple
+
+```asm
+lw x18 8(x0) // loads daata from addr 0x00000008 in reg x18 (s2)
+```
+
+Which translates as this in HEX format (comments like ```//blablabla``` are ignored by ```$readmemh("rom.hex")```):
+
+```asm
+00802903  //LW TEST START : lw x18 8(x0)
+00000013  //NOP
+00000013  //NOP
+//(...) 
+```
+
+And here is the data we'll try to load :
+
+```asm
+AEAEAEAE  // @ 0x00000000 Useless data
+00000000  // @ 0x00000004 Useless data
+DEADBEEF  // @ 0x00000008 What we'll try to get in x18
+00000000
+00000000
+//(...)
+```
+
+Great ! Here is how we are going to organize ou cpu tb folder (we put ```*.hex``` file in there as th HDL file are called from here so ```$readmemh("myrom.hex")``` will gets the ```.hex``` files from there) :
+
+```txt
+tb
+├── cpu
+│   ├── Makefile
+│   ├── test_cpu.py
+│   ├── test_dmemory.hex
+│   └── test_imemory.hex
+```
+
+And now we can design a test bench ! First, we design some halper functions that will convert str data from ```HEX``` to ```BIN``` as needed (python tricks to deal with multiple data types expressed as ```str``` in cocotb), we also declare a ```cocotb.coroutine``` that will handle cpu resets :
+
+```python
+# test_cpu.py
+
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+
+def binary_to_hex(bin_str):
+    # Convert binary string to hexadecimal
+    hex_str = hex(int(str(bin_str), 2))[2:]
+    hex_str = hex_str.zfill(8)
+    return hex_str.upper()
+
+def hex_to_bin(hex_str):
+    # Convert hex str to bin
+    bin_str = bin(int(str(hex_str), 16))[2:]
+    bin_str = bin_str.zfill(32)
+    return bin_str.upper()
+
+@cocotb.coroutine
+async def cpu_reset(dut):
+    # Init and reset
+    dut.rst_n.value = 0
+    await RisingEdge(dut.clk)     # Wait for a clock edge after reset
+    dut.rst_n.value = 1           # De-assert reset
+    await RisingEdge(dut.clk)     # Wait for a clock edge after reset
+
+```
+
+Great ! Now I added a small test to see if memory reads worked on my side, and we also write a test to check if out ```lw``` instruction worked as expected :
+
+```python
+# test_cpu.py
+
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+
+def binary_to_hex(bin_str):
+    ...
+
+def hex_to_bin(hex_str):
+    ...
+
+@cocotb.coroutine
+async def cpu_reset(dut):
+    ...
+
+@cocotb.test()
+async def cpu_init_test(dut):
+    """Reset the cpu and check for a good imem read"""
+    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    await RisingEdge(dut.clk)
+
+    await cpu_reset(dut)
+    assert binary_to_hex(dut.pc.value) == "00000000"
+
+    # Load the expected instruction memory as binary
+    # Note that this is loaded in sim directly via the verilog code
+    # This load is only for expected
+    imem = []
+    with open("test_imemory.hex", "r") as file:
+        for line in file:
+            # Ignore comments
+            line_content = line.split("//")[0].strip()
+            if line_content:
+                imem.append(hex_to_bin(line_content))
+
+    # We limit this inital test to the first couple of instructions as we'll later implement branches
+    for counter in range(5):
+        expected_instruction = imem[counter]
+        assert dut.instruction.value == expected_instruction, f"expected {binary_to_hex(expected_instruction)} but got {binary_to_hex(dut.instruction.value)} @ pc {binary_to_hex(dut.pc.value)}"
+        await RisingEdge(dut.clk)
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+    """Runs a lw datapath test"""
+    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    await RisingEdge(dut.clk)
+
+    await cpu_reset(dut)
+
+    # The first instruction for the test in imem.hex load the data from
+    # dmem @ adress 0x00000008 that happens to be 0xDEADBEEF into register x18
+
+    # Wait a clock cycle for the instruction to execute
+    await RisingEdge(dut.clk)
+
+    print(binary_to_hex(dut.regfile.registers[18].value))
+
+    # Check the value of reg x18
+    assert binary_to_hex(dut.regfile.registers[18].value) == "DEADBEEF", f"expected DEADBEEF but got {binary_to_hex(dut.regfile.registers[18].value)} @ pc {binary_to_hex(dut.pc.value)}"
+```
+
+As you can see, the helper functions does help a lot indeed ! Using them, we can easily compare our expected values by switching between data representations as needed.
+
+## 2 : Implementing the "store word" ```sw``` instruction (basic S-Type)
+
+[Lecture](https://www.youtube.com/watch?v=sVZmqLRkbVk)
+
+Below is a S-type instruction example (S standing for "Store") that loads data from reg x18 (s1), to the address pointer in x5 (t0) with an offset of C on the address :
+
+```asm
+sw x18, 0xC(x5)
+```
+
+We would translate it like this in binary and in hex, as an S-type instruction :
+
+```txt
+0000000 00101 10010 010 01100 0100011
+0x00592623
+```
+
+here is a quick breakdown :
+
+|        | IMM [11:5]   | rs2          | rs1        | f3     | IMM [4:0]    | op      |
+| ------ | ------------ | ------------ | ------     | ------ | ------------ | ------- |
+| binary | 0000000      | 00101        | 10010      | 010    | 01100        | 0100011 |
+| Value  |  0           | x5 (t0)      | x18 (s1)   | 2 (sw) | 0xC          | S-type  |
+
+## 1.1 : What do we need to implement ```sw``` ?
+
+Here is a todo list to implement these new changes :
+
+- The immediate is now "scatered" around the instruction, we'll need to:
+  - Tell the control to select anthother source for the IMM
+  - Tell the sign extender unit how to interpret that
+- We'll also need to update the control unit to :
+  - Not enable write for the regs
+  - Enable write for the memory
+
+So let's get to work shall we ?
