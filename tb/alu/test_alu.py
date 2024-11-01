@@ -1,19 +1,11 @@
 import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import Timer
 import random
 
 
 @cocotb.test()
-async def alu_test(dut):
+async def add_test(dut):
     await Timer(1, units="ns")
-
-    # TEST ADD
-    # The alu simpply does a biwise add.
-    # The resulting 32 bits can be interpreted as signed,
-    # unsigned, just like the sources. It all depends on 
-    # our interpretation.
-
     dut.alu_control.value = 0b000
     for _ in range(1000):
         src1 = random.randint(0,0xFFFFFFFF)
@@ -26,7 +18,8 @@ async def alu_test(dut):
         await Timer(1, units="ns")
         assert int(dut.alu_result.value) == expected
 
-    # TEST DEFAULT ALU
+@cocotb.test()
+async def default_test(dut):
     await Timer(1, units="ns")
     dut.alu_control.value = 0b111
     src1 = random.randint(0,0xFFFFFFFF)
@@ -38,5 +31,13 @@ async def alu_test(dut):
     await Timer(1, units="ns")
     assert int(dut.alu_result.value) == expected
 
-    # TEST ZERO FLAG
+@cocotb.test()
+async def zero_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b000
+    dut.src1.value = 123
+    dut.src2.value = -123
+    await Timer(1, units="ns")
+    print(int(dut.alu_result.value))
     assert int(dut.zero.value) == 1
+    assert int(dut.alu_result.value) == 0

@@ -2,7 +2,7 @@ import cocotb
 from cocotb.triggers import Timer
 
 @cocotb.test()
-async def control_test(dut):
+async def lw_control_test(dut):
     # TEST CONTROL SIGNALS FOR LW
     await Timer(1, units="ns")
     dut.op.value = 0b0000011 #lw
