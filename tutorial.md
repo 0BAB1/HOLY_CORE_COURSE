@@ -124,7 +124,7 @@ Each and everytime we implement something, we also test it, as stated in the mai
 
 ### Verification
 
-When it comes to verifying memory, we'll simply do some writes while tinkering with the ``write_enable`` flag. Since I don't like writing tests and this is a simple case, I can ask my favorite LLM to generate some tests for me and after manual review (turns out LLM are EXTREMELY bad at cocotb and hadware stuff in general), here is the testbench :
+When it comes to verifying memory, we'll simply do some writes while tinkering with the ``write_enable`` flag. Since I don't like writing tests and this is a simple case, I can ask my favorite LLM to generate some tests but turns out they are bad at digital design and I don't recommend using it fot this course (written in late 2024). Here is the testbench :
 
 ```python
 import cocotb
@@ -2046,7 +2046,8 @@ async def cpu_insrt_test(dut):
 
     ##################
     # OR TEST
-    # For this one, I decider to load some more value to change the "0xdead.... theme" ;)
+    # For this one, I decider to load some more value to
+    # change the "0xdead.... theme" ;)
     # (Value pre-computed in python)
     # lw x5 0x14(x0) | x5  <= 125F552D
     # lw x6 0x18(x0) | x6  <= 7F4FD46A
@@ -2064,3 +2065,41 @@ async def cpu_insrt_test(dut):
 
 And there we go ! We just added suport for 2 more instructions ! This passage was to demonstrate the it is way faster to implement instructions once we already have most of the required logic.
 
+## 4 : ```beq```, an introduction to ```B-types``` instructions
+
+Okay, now we can start to see how to remember data and do basic math ! great, we got ourselve a very dumb calculator. But the very essence of modern computing is :
+
+> Conditional programing
+
+When you first lean programming, conditions are the first thing you learn
+Even loops depends on them (We could even argue they are the same thing) !
+It allows us to automate computing in ways that leverages the power of digital computing.
+Without these, we could just tell the computer to execute a dumb set of math operations, exactly like a modern calculator would,
+but in less convinient.
+
+So, conditions sounds great, and I guess you already know how they work in C, Python or maybe assembly.
+But how will we implement it here ?
+
+Well, in the low level world, branching is just about changing the ```pc``` (program counter) to whatever we want instead of going to the dumb ```pc + 4``` we had until now. (thus the pc source selector we addedf at the very beginning).
+
+Here will try to implement ```beq``` that branches (changes the next pc to...) to whatever address we want in the instruction memory if a condition is met. This condition is that the two regs are equal. 
+
+### The ```beq``` example & ```B-Type``` layout
+
+| IMM[12] + IMM[10:5] | rs2 | rs1 |f3 | IMM[4:1] + IMM[11] | OP |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| XXXXXXX | XXXXX | XXXXX | 000 | XXXXX |1100011 |
+
+(yes th immediate is weird I know...)
+
+So let's get to work shall we ?
+
+## 4.1 : What do we need to add ```beq``` support
+
+To implement ```beq``` just like everython we did until now, we have to implement the intruction type datapath in the cpu. Here is a little todo list of what awaits us :
+
+- Update the ```pc_next``` choice
+- Add some add arithmetic to compute a ```PC_target```
+- Update the control to be able to change the source of ```pc```
+
+## 4.1.1 : Adding 
