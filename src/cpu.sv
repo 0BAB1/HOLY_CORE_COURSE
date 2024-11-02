@@ -10,7 +10,7 @@ module cpu (
 reg [31:0] pc;
 logic [31:0] pc_next;
 
-always_comb begin : pcSelect
+always_comb begin : pc_select
     pc_next = pc + 4;
 end
 
@@ -59,18 +59,24 @@ wire [2:0] alu_control;
 wire [1:0] imm_source;
 wire mem_write;
 wire reg_write;
+// out muxes wires
+wire alu_source;
+wire write_back_source;
 
 control control_unit(
     .op(op),
     .func3(f3),
-    .func7(7'b0),
+    .func7(7'b0), // we still don't use f7 (YET)
     .alu_zero(alu_zero),
 
     // OUT
     .alu_control(alu_control),
     .imm_source(imm_source),
     .mem_write(mem_write),
-    .reg_write(reg_write)
+    .reg_write(reg_write),
+    // muxes out
+    .alu_source(alu_source),
+    .write_back_source(write_back_source)
 );
 
 /**
@@ -87,10 +93,12 @@ wire [31:0] read_reg1;
 wire [31:0] read_reg2;
 
 logic [31:0] write_back_data;
-always_comb begin : wbSelect
-    write_back_data = mem_read;
+always_comb begin : write_back_source_select
+    case (write_back_source)
+        1'b1: write_back_data = mem_read;
+        default: write_back_data = alu_result;
+    endcase
 end
-
 
 regfile regfile(
     // basic signals
@@ -129,8 +137,11 @@ signext sign_extender(
 wire [31:0] alu_result;
 logic [31:0] alu_src2;
 
-always_comb begin : srcBSelect
-    alu_src2 = immediate;
+always_comb begin : alu_source_select
+    case (alu_source)
+        1'b1: alu_src2 = immediate;
+        default: alu_src2 = read_reg2;
+    endcase
 end
 
 alu alu_inst(
