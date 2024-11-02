@@ -985,27 +985,31 @@ As you can see, the helper functions does help a lot indeed ! Using them, we can
 
 [Lecture](https://www.youtube.com/watch?v=sVZmqLRkbVk)
 
+Here is what enhancements we need to make to add basic ```sw (S-type)``` support in our CPU :
+
+![sw enhancements img](./Sw_datapath.png)
+
 Below is a S-type instruction example (S standing for "Store") that loads data from reg x18 (s1), to the address pointer in x5 (t0) with an offset of C on the address :
 
 ```asm
-sw x18, 0xC(x5)
+sw x18, 0xC(x0)
 ```
 
 We would translate it like this in binary and in hex, as an S-type instruction :
 
 ```txt
-0000000 00101 10010 010 01100 0100011
-0x00592623
+0000000 10010 00000 010 01100 0100011
+0x01202623
 ```
 
 here is a quick breakdown :
 
 |        | IMM [11:5]   | rs2          | rs1        | f3     | IMM [4:0]    | op      |
 | ------ | ------------ | ------------ | ------     | ------ | ------------ | ------- |
-| binary | 0000000      | 00101        | 10010      | 010    | 01100        | 0100011 |
-| Value  |  0           | x5 (t0)      | x18 (s1)   | 2 (sw) | 0xC          | S-type  |
+| binary | 0000000      | 10010        | 00000     | 010    | 01100        | 0100011 |
+| Value  |  0           | x18 (s1)      | x0 (0)   | 2 (sw) | 0xC          | S-type  |
 
-## 1.1 : What do we need to implement ```sw``` ?
+## 2.1 : What do we need to implement ```sw``` ?
 
 Here is a todo list to implement these new changes :
 
@@ -1016,4 +1020,292 @@ Here is a todo list to implement these new changes :
   - Not enable write for the regs
   - Enable write for the memory
 
-So let's get to work shall we ?
+## 2.1.a : Updating the signextender
+
+### HDL Code
+
+So let's get to work shall we ? We'll statrt by updating the sign extender to take into account our new source type
+
+```sv
+module signext (
+    // IN
+    input logic [24:0] raw_src,
+    input logic [1:0] imm_source,
+
+    // OUT (immediate)
+    output logic [31:0] immediate
+);
+
+logic [11:0] gathered_imm;
+
+always_comb begin
+    case (imm_source)
+        // For I-Types
+        2'b00 : gathered_imm = raw_src[24:13];
+        // For S-types
+        2'b01 : gathered_imm = {raw_src[24:18],raw_src[4:0]};
+        default: gathered_imm = 12'b0;
+    endcase
+end
+
+assign immediate = {{20{gathered_imm[11]}}, gathered_imm};
+    
+endmodule
+```
+As you can see, just a simple application of the S-Type instruction Imm format.
+
+### Verification
+
+Now to verify that, we update the ```test_signext.py``` testbench file by adding another, improved test :
+
+```python
+# test_signext.py
+
+import cocotb
+from cocotb.triggers import Timer
+import random
+import numpy as np
+
+@cocotb.test()
+async def signext_i_type_test(dut):
+    # Old fully manual test for I_Types instrs
+    # ...
+
+@cocotb.test()
+async def signext_s_type_test(dut):
+    # 100 randomized tests
+    for _ in range(100):
+        # TEST POSITIVE IMM
+        await Timer(100, units="ns")
+        imm = random.randint(0,0b01111111111) 
+        imm_11_5 = imm >> 5
+        imm_4_0 = imm & 0b000000011111
+        raw_data = (imm_11_5 << 18) | (imm_4_0) # the 25 bits of data
+        source = 0b01
+        dut.raw_src.value = raw_data
+        dut.imm_source = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) == imm
+
+        # TEST Negative IMM
+        # Get a random 12 bits UINT and gets its base 10 neg value by - (1 << 12)
+        imm = random.randint(0b100000000000,0b111111111111) - (1 << 12)
+        imm_11_5 = imm >> 5
+        imm_4_0 = imm & 0b000000011111
+        raw_data = (imm_11_5 << 18) | (imm_4_0) # the 25 bits of data
+        source = 0b01
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source = source
+        await Timer(1, units="ns") # let it propagate ...
+        # print(bin(imm),dut.raw_src.value)
+        # print(int(dut.immediate.value), imm)
+        assert int(dut.immediate.value) - (1 << 32) == imm
+```
+
+As we can see, we randomized the testes and used more bitwise manipulation for assertions to make the whole testing more robust.
+
+> (This also serves as a great biwise operations exercise !)
+
+## 2.1.b : Updating the control signals
+
+As you can see in the lecture and as stated before, we need to update the ```reg_write_enable``` and ```mem_write_enable``` signals.
+
+### HDL Code
+
+Here is the updated main decode, nothing else changes :
+
+```sv
+// control.sv
+
+//...
+
+/**
+* MAIN DECODER
+*/
+
+logic [1:0] alu_op;
+always_comb begin
+    case (op)
+        // I-type (lw)
+        7'b0000011 : begin
+            reg_write = 1'b1;
+            imm_source = 2'b00;
+            mem_write = 1'b0;
+            alu_op = 2'b00;
+        end
+        // S-Type (sw)
+        7'b0100011 : begin
+            reg_write = 1'b0;
+            imm_source = 2'b01;
+            mem_write = 1'b1;
+            alu_op = 2'b00;
+        end
+        // EVERYTHING ELSE
+        default: begin
+            reg_write = 1'b0;
+            imm_source = 2'b00;
+            mem_write = 1'b0;
+            alu_op = 2'b00;
+        end
+    endcase
+end
+
+//...
+```
+
+As you can see it is simple a matter of adding a decoding case.
+
+### Verification
+
+For the verification, it is also pretty somple :
+
+```python
+#test_control.py
+
+import cocotb
+from cocotb.triggers import Timer
+
+@cocotb.test()
+async def lw_control_test(dut):
+    # ...
+
+@cocotb.test()
+async def sw_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SW
+    await Timer(10, units="ns")
+    dut.op.value = 0b0100011 #sw
+    await Timer(1, units="ns")
+    assert dut.alu_control.value == "000"
+    assert dut.imm_source.value == "01"
+    assert dut.mem_write.value == "1"
+    assert dut.reg_write.value == "0"
+```
+
+> Note that these tests will change, we will later add "flavors" to these I and S types : ```lb```, ```sb```, ... which will have another f3, which will require a bit more decoding and logic, but for now, this will do just fine !
+
+## 2.2 : Actually mplementing the ```sw``` datapath
+
+Globally in the datapath, nothing much changes, we just link the signals we previously kept on 0 for the memory write inputs :
+
+```sv 
+// cpu.sv
+
+// non changed logic ...
+
+/**
+* DATA MEMORY
+*/
+wire [31:0] mem_read;
+
+logic [31:0] write_data;
+always_comb begin : mem_write_data_source_selection
+    mem_write_data = read_reg2;
+end
+
+memory #(
+    .mem_init("./test_dmemory.hex")
+) data_memory (
+    // Memory inputs
+    .clk(clk),
+    .address(alu_result),
+    .write_data(mem_write_data),
+    .write_enable(mem_write),
+    .rst_n(1'b1),
+
+    // Memory outputs
+    .read_data(mem_read)
+);
+
+// non changed logic ...
+```
+
+### Verification
+
+To verify, once again, we set up the memory files on a scenario that will be easily predictible in testing so we can verify the CPU behavior, whilst keeping of course the previos ```lw``` tests in our memory files :
+
+```asm
+//test_imemory.hex
+
+00802903  //LW TEST START : lw x18 0x8(x0)
+01202623  //SW TEST START : sw x18 0xC(x0)
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+//...
+```
+
+As you can see, we add a new instruction that will take the value we loaded in x18 and store it @ addr 0x0000000C in memory.
+
+Speaking of memory, the file did not really change, except I changed the 0xC value to ```0xF2F2F2F2``` to avoir asserting 00000000 as it is too common of a value :
+
+```asm
+//test_dmemory.hex
+
+AEAEAEAE
+00000000
+DEADBEEF
+F2F2F2F2
+00000000
+00000000
+//...
+```
+
+And for the testbench, I simple did some assertion based on how the CPU should react to these instructions. We also get rit of the "init" test that test for init memory state as it executed the instruction to verify PC & memory behavior, which messed up all of the memory state for assertions. Here is the final result :
+
+```python
+# test_cpu.py
+
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+
+def binary_to_hex(bin_str):
+    # ...
+
+def hex_to_bin(hex_str):
+    # ...
+
+@cocotb.coroutine
+async def cpu_reset(dut):
+    # ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+    """Runs a lw datapath test"""
+    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    await RisingEdge(dut.clk)
+    await cpu_reset(dut)
+
+    ##################
+    # LOAD WORD TEST 
+    # lw x18 0x8(x0)
+    ##################
+    print("\n\nTESTING LW\n\n")
+
+    # The first instruction for the test in imem.hex load the data from
+    # dmem @ adress 0x00000008 that happens to be 0xDEADBEEF into register x18
+
+    # Wait a clock cycle for the instruction to execute
+    await RisingEdge(dut.clk)
+
+    # Check the value of reg x18
+    assert binary_to_hex(dut.regfile.registers[18].value) == "DEADBEEF", f"expected DEADBEEF but got {binary_to_hex(dut.regfile.registers[18].value)} @ pc {binary_to_hex(dut.pc.value)}"
+
+    ##################
+    # STORE WORD TEST 
+    # lw x18 0xC(x0)
+    ##################
+    print("\n\nTESTING SW\n\n")
+    test_address = int(0xC / 4) #mem is byte adressed but is made out of words in the eyes of the software
+    # The second instruction for the test in imem.hex stores the data from
+    # x18 (that happens to be 0xDEADBEEF from the previous LW test) @ adress 0x0000000C 
+
+    # First, let's check the inital value
+    assert binary_to_hex(dut.data_memory.mem[test_address].value) == "F2F2F2F2", f"expected F2F2F2F2 but got {binary_to_hex(dut.data_memory.mem[test_address].value)} @ pc {binary_to_hex(dut.pc.value)}"
+
+    # Wait a clock cycle for the instruction to execute
+    await RisingEdge(dut.clk)
+    # Check the value of mem[0xC]
+    assert binary_to_hex(dut.data_memory.mem[test_address].value) == "DEADBEEF", f"expected DEADBEEF but got {binary_to_hex(dut.data_memory.mem[test_address].value)} @ pc {binary_to_hex(dut.pc.value)}"
+```

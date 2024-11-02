@@ -19,11 +19,18 @@ module control (
 logic [1:0] alu_op;
 always_comb begin
     case (op)
-        // LW
+        // I-type (lw)
         7'b0000011 : begin
             reg_write = 1'b1;
             imm_source = 2'b00;
             mem_write = 1'b0;
+            alu_op = 2'b00;
+        end
+        // S-Type (sw)
+        7'b0100011 : begin
+            reg_write = 1'b0;
+            imm_source = 2'b01;
+            mem_write = 1'b1;
             alu_op = 2'b00;
         end
         // EVERYTHING ELSE
