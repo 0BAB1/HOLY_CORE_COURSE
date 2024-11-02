@@ -1,4 +1,1 @@
-FINISH LAYING DOWN SV FILE FOR LW
-
-finish implementing lw fetch datapath
-start cpu testbench, by only adding lw datapath
+adding new instructions quote : https://youtu.be/z6qxMFgNEM4?feature=shared&t=35

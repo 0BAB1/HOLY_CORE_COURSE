@@ -1294,7 +1294,7 @@ async def cpu_insrt_test(dut):
 
     ##################
     # STORE WORD TEST 
-    # lw x18 0xC(x0)
+    # sw x18 0xC(x0)
     ##################
     print("\n\nTESTING SW\n\n")
     test_address = int(0xC / 4) #mem is byte adressed but is made out of words in the eyes of the software
@@ -1309,3 +1309,435 @@ async def cpu_insrt_test(dut):
     # Check the value of mem[0xC]
     assert binary_to_hex(dut.data_memory.mem[test_address].value) == "DEADBEEF", f"expected DEADBEEF but got {binary_to_hex(dut.data_memory.mem[test_address].value)} @ pc {binary_to_hex(dut.pc.value)}"
 ```
+
+## 3 : Implementing ```R-Type``` instructions
+
+[Lecture](https://youtu.be/sVZmqLRkbVk?feature=shared&t=297)
+
+Okay ! It's going great, we implemented a second king of instructions, so let's recap what we did so far :
+
+- Created all the basic logic blocks
+- Layed down the datapath for ```I-Type``` instructions and added ```lw``` support
+- Layed down the datapath for ```S-Type``` instructions and added ```sw``` support
+- Created a basic control unit accordingly
+- Tested everything along the way
+
+We now have a very strong base, and we can almost say that the CPU is starting to look like a tru processing unit ! Let's take a look at what remains to do :
+
+- Implement ```R-Type``` format (arithmetic between regitser)
+- Implement ```B-Type & J-Type``` formats (Jumps and conditional branches)
+- Implement ```U-Type``` Instructions (Just a convenient way to build constants with immediates)
+
+Oh.. That's actually quite a lot ! But do not fret, as most of these mostly uses what we already layed down !
+
+Here is what we'll try to implement :
+
+![alt text](image.png)
+
+In this example, the ```or``` operation is used. What I suggest we do do go gradually, is to first implement the ```add``` and than we exercice a bit by adding ```and``` & ```or``` before moving on to jumps & branches instructions.
+
+## 3.1 : What we need to do for ```R-Type```
+
+First, we'll add ```add``` support, and there isn't much to do outside of the control unit as we already have the ALU add logic availible. The idea will be to only operate with register as source for the ALU and use the alu_result directly as write-back data for reg_write.
+
+Here is what an ```R-Type : add``` instruction look like so we don't mess up the op, f3 and f7 values :
+
+| f7 | rs2 | rs1 |f3 |rd | OP |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 0000000 | xxxxx |xxxxx | 000 |xxxxx |0110011 |
+
+## 3.1 bis : Updataing the control unit
+
+So, to accomodate the new requierements, we add the following signals as outputs to our control unit :
+
+- ```alu_source``` which tells our alu not to get it's second operand from the immediate, but rather from the second read register.
+- ```write_back_source``` Which tells our registers to get data from the alu for writing back to reg3, instead of the memory_read.
+
+### HDL Code
+
+Here is the new HDL code. A new thing is that we take f3 into account, because when we'll implement ```or``` & ```and```, this will be the factor that will differenciate them.
+
+```sv
+module control (
+    // IN
+    input logic [6:0] op,
+    input logic [2:0] func3,
+    input logic [6:0] func7,
+    input logic alu_zero,
+
+    // OUT
+    output logic [2:0] alu_control,
+    output logic [1:0] imm_source,
+    output logic mem_write,
+    output logic reg_write,
+    output logic alu_source,
+    output logic write_back_source
+);
+
+/**
+* MAIN DECODER
+*/
+
+logic [1:0] alu_op;
+always_comb begin
+    case (op)
+        // I-type
+        7'b0000011 : begin
+            reg_write = 1'b1;
+            imm_source = 2'b00;
+            mem_write = 1'b0;
+            alu_op = 2'b00;
+            alu_source = 1'b1; //imm
+            write_back_source = 1'b1; //memory_read
+        end
+        // S-Type
+        7'b0100011 : begin
+            reg_write = 1'b0;
+            imm_source = 2'b01;
+            mem_write = 1'b1;
+            alu_op = 2'b00;
+            alu_source = 1'b1; //imm
+        end
+        // R-Type
+        7'b0110011 : begin
+            reg_write = 1'b1;
+            mem_write = 1'b0;
+            alu_op = 2'b10;
+            alu_source = 1'b0; //reg2
+            write_back_source = 1'b0; //alu_result
+        end
+        // EVERYTHING ELSE
+        default: begin
+            reg_write = 1'b0;
+            imm_source = 2'b00;
+            mem_write = 1'b0;
+            alu_op = 2'b00;
+        end
+    endcase
+end
+
+/**
+* ALU DECODER
+*/
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        2'b00 : alu_control = 3'b000;
+        // R-Types
+        2'b10 : begin
+            case (func3)
+                // ADD (and later SUB with a different F7)
+                3'b000 : alu_control = 3'b000;
+                // ALL THE OTHERS
+                default: alu_control = 3'b111;
+            endcase
+        end
+        // EVERYTHING ELSE
+        default: alu_control = 3'b111;
+    endcase
+end
+    
+endmodule
+```
+
+### Verification
+
+We also need to udate our verification, to see if the new signals are okay for our previous instructions, and add a new one for ```add``` :
+
+```python
+import cocotb
+from cocotb.triggers import Timer
+
+@cocotb.test()
+async def lw_control_test(dut):
+    # TEST CONTROL SIGNALS FOR LW
+    await Timer(1, units="ns")
+    dut.op.value = 0b0000011 # I-TYPE
+    await Timer(1, units="ns")
+    # Logic block controls
+    assert dut.alu_control.value == "000"
+    assert dut.imm_source.value == "00"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "1"
+
+@cocotb.test()
+async def sw_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SW
+    await Timer(10, units="ns")
+    dut.op.value = 0b0100011 # S-TYPE
+    await Timer(1, units="ns")
+    assert dut.alu_control.value == "000"
+    assert dut.imm_source.value == "01"
+    assert dut.mem_write.value == "1"
+    assert dut.reg_write.value == "0"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+
+@cocotb.test()
+async def add_control_test(dut):
+    # TEST CONTROL SIGNALS FOR ADD
+    await Timer(10, units="ns")
+    dut.op.value = 0b0110011 # R-TYPE
+    # Watch out ! F3 is important here and now !
+    dut.func3.value = 0b000
+    await Timer(1, units="ns")
+    assert dut.alu_control.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "0"
+    assert dut.write_back_source.value == "0"
+```
+
+Note that if a signal is not necessary to the instruction (eg ```write_back_source``` for ```sw```) we just don't check for it.
+
+## 3.2 :  Laying down the datapath for ```R-Type```
+
+Here is a fully updated version of the cpu datapath :
+
+```sv
+module cpu (
+    input logic clk,
+    input logic rst_n
+);
+
+/**
+* PROGRAM COUNTER
+*/
+
+reg [31:0] pc;
+logic [31:0] pc_next;
+
+always_comb begin : pc_select
+    pc_next = pc + 4;
+end
+
+always @(posedge clk) begin
+    if(rst_n == 0) begin
+        pc <= 32'b0;
+    end else begin
+        pc <= pc_next;
+    end
+end
+
+/**
+* INSTRUCTION MEMORY
+*/
+
+// Acts as a ROM.
+wire [31:0] instruction;
+
+memory #(
+    .mem_init("./test_imemory.hex")
+) instruction_memory (
+    // Memory inputs
+    .clk(clk),
+    .address(pc),
+    .write_data(32'b0),
+    .write_enable(1'b0),
+    .rst_n(1'b1),
+
+    // Memory outputs
+    .read_data(instruction)
+);
+
+/**
+* CONTROL
+*/
+
+// Intercepts instructions data, generate control signals accordignly
+// in control unit
+logic [6:0] op;
+assign op = instruction[6:0];
+logic [2:0] f3;
+assign f3 = instruction[14:12];
+wire alu_zero;
+// out of control unit
+wire [2:0] alu_control;
+wire [1:0] imm_source;
+wire mem_write;
+wire reg_write;
+// out muxes wires
+wire alu_source;
+wire write_back_source;
+
+control control_unit(
+    .op(op),
+    .func3(f3),
+    .func7(7'b0), // we still don't use f7 (YET)
+    .alu_zero(alu_zero),
+
+    // OUT
+    .alu_control(alu_control),
+    .imm_source(imm_source),
+    .mem_write(mem_write),
+    .reg_write(reg_write),
+    // muxes out
+    .alu_source(alu_source),
+    .write_back_source(write_back_source)
+);
+
+/**
+* REGFILE
+*/
+
+logic [4:0] source_reg1;
+assign source_reg1 = instruction[19:15];
+logic [4:0] source_reg2;
+assign source_reg2 = instruction[24:20];
+logic [4:0] dest_reg;
+assign dest_reg = instruction[11:7];
+wire [31:0] read_reg1;
+wire [31:0] read_reg2;
+
+logic [31:0] write_back_data;
+always_comb begin : write_back_source_select
+    case (write_back_source)
+        1'b1: write_back_data = mem_read;
+        default: write_back_data = alu_result;
+    endcase
+end
+
+regfile regfile(
+    // basic signals
+    .clk(clk),
+    .rst_n(rst_n),
+
+    // Read In
+    .address1(source_reg1),
+    .address2(source_reg2),
+    // Read out
+    .read_data1(read_reg1),
+    .read_data2(read_reg2),
+
+    // Write In
+    .write_enable(reg_write),
+    .write_data(write_back_data),
+    .address3(dest_reg)
+);
+
+/**
+* SIGN EXTEND
+*/
+logic [24:0] raw_imm;
+assign raw_imm = instruction[31:7];
+wire [31:0] immediate;
+
+signext sign_extender(
+    .raw_src(raw_imm),
+    .imm_source(imm_source),
+    .immediate(immediate)
+);
+
+/**
+* ALU
+*/
+wire [31:0] alu_result;
+logic [31:0] alu_src2;
+
+always_comb begin : alu_source_select
+    case (alu_source)
+        1'b1: alu_src2 = immediate;
+        default: alu_src2 = read_reg2;
+    endcase
+end
+
+alu alu_inst(
+    .alu_control(alu_control),
+    .src1(read_reg1),
+    .src2(alu_src2),
+    .alu_result(alu_result),
+    .zero(alu_zero)
+);
+
+/**
+* DATA MEMORY
+*/
+wire [31:0] mem_read;
+
+logic [31:0] mem_write_data;
+always_comb begin : mem_write_data_source_selection
+    mem_write_data = read_reg2;
+end
+
+memory #(
+    .mem_init("./test_dmemory.hex")
+) data_memory (
+    // Memory inputs
+    .clk(clk),
+    .address(alu_result),
+    .write_data(mem_write_data),
+    .write_enable(mem_write),
+    .rst_n(1'b1),
+
+    // Memory outputs
+    .read_data(mem_read)
+);
+    
+endmodule
+```
+
+As you can see, I chose not to add F7 just yet, as we still don't need it for supporting the very few instruction we have so far.
+
+before moving any further, we chack that out old tests still works, because they should ! on my side, they do, great ! So let's move on.
+
+### Verification
+
+As usual, we create a predectible environement. I chose to go with this program to include a ```add``` test :
+
+```asm
+//test_imemory.hex
+00802903  //LW  TEST START :    lw x18 0x8(x0)
+01202623  //SW  TEST START :    sw x18 0xC(x0)
+01002983  //ADD TEST START :    lw x19 0x10(x0)
+01390A33  //                    add x20 x18 x19
+00000013  //NOP
+00000013  //NOP
+//...
+```
+
+And I added some data to memory for this test (```0x0000AAA``` for the addition) :
+
+```asm
+//test_dmemory.hex
+AEAEAEAE
+00000000
+DEADBEEF
+F2F2F2F2
+00000AAA
+00000000
+//...
+```
+
+And here is the updated test :
+
+```python
+# test_cpu.py
+
+# Rest of the file ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # OTHER TESTS ...
+
+    ##################
+    # ADD TEST
+    # lw x19 0x10(x0) (tis memory spot contains 0x00000AAA)
+    # add x20 x18 x19
+    ##################
+
+    # Expected result of x18 + x19
+    expected_result = (0xDEADBEEF + 0x00000AAA) & 0xFFFFFFFF
+    await RisingEdge(dut.clk) # lw x19 0x10(x0)
+    assert binary_to_hex(dut.regfile.registers[19].value) == "00000AAA"
+    await RisingEdge(dut.clk) # add x20 x18 x19
+    assert binary_to_hex(dut.regfile.registers[20].value) == hex(expected_result)[2:].upper(),  f"expected {hex(expected_result)[2:]}  but got {binary_to_hex(dut.regfile.registers[20].value)} @ pc {binary_to_hex(dut.pc.value)}"
+```
+
+## 3.3 : More ```R-Types``` : ```or``` & ```and```
+
