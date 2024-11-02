@@ -146,14 +146,19 @@ alu alu_inst(
 */
 wire [31:0] mem_read;
 
+logic [31:0] mem_write_data;
+always_comb begin : mem_write_data_source_selection
+    mem_write_data = read_reg2;
+end
+
 memory #(
     .mem_init("./test_dmemory.hex")
 ) data_memory (
     // Memory inputs
     .clk(clk),
     .address(alu_result),
-    .write_data(32'b0),
-    .write_enable(1'b0),
+    .write_data(mem_write_data),
+    .write_enable(mem_write),
     .rst_n(1'b1),
 
     // Memory outputs
