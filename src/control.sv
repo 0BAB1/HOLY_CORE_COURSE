@@ -69,6 +69,8 @@ always_comb begin
             case (func3)
                 // ADD (and later SUB with a different F7)
                 3'b000 : alu_control = 3'b000;
+                // AND
+                3'b111 : alu_control = 3'b010;
                 // ALL THE OTHERS
                 default: alu_control = 3'b111;
             endcase
