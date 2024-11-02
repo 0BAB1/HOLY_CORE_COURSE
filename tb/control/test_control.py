@@ -43,3 +43,18 @@ async def add_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "0"
     assert dut.write_back_source.value == "0"
+
+@cocotb.test()
+async def and_control_test(dut):
+    # TEST CONTROL SIGNALS FOR ADD
+    await Timer(10, units="ns")
+    dut.op.value = 0b0110011 # R-TYPE
+    # Watch out ! F3 is important here and now !
+    dut.func3.value = 0b111
+    await Timer(1, units="ns")
+    assert dut.alu_control.value == "010"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "0"
+    assert dut.write_back_source.value == "0"

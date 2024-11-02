@@ -63,7 +63,7 @@ async def cpu_insrt_test(dut):
 
     ##################
     # ADD TEST
-    # lw x19 0x10(x0) (tis memory spot contains 0x00000AAA)
+    # lw x19 0x10(x0) (this memory spot contains 0x00000AAA)
     # add x20 x18 x19
     ##################
 
@@ -73,3 +73,13 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.regfile.registers[19].value) == "00000AAA"
     await RisingEdge(dut.clk) # add x20 x18 x19
     assert binary_to_hex(dut.regfile.registers[20].value) == hex(expected_result)[2:].upper(),  f"expected {hex(expected_result)[2:]}  but got {binary_to_hex(dut.regfile.registers[20].value)} @ pc {binary_to_hex(dut.pc.value)}"
+
+    ##################
+    # AND TEST
+    # and x21 x18 x20 (result shall be 0xDEAD8889)
+    ##################
+
+    # Use last expected result, as this instr uses last op result register
+    expected_result = expected_result & 0xDEADBEEF
+    await RisingEdge(dut.clk) # and x21 x18 x20
+    assert binary_to_hex(dut.regfile.registers[21].value) == "DEAD8889"

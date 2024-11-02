@@ -15,6 +15,8 @@ Which aims at implementing all of the RV32 base instruction set :
 
 That looks like a lot, but by implementing each type 1 by 1 (e.g. I,S,R,B,...) it can be done !
 
+> We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than basics like full aders and gate-level design.
+
 You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
 In order to achieve this, we'll (more or less) follow the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube).
@@ -1332,7 +1334,7 @@ Oh.. That's actually quite a lot ! But do not fret, as most of these mostly uses
 
 Here is what we'll try to implement :
 
-![alt text](image.png)
+![R tpye improvements img](Rtype_datapath.png)
 
 In this example, the ```or``` operation is used. What I suggest we do do go gradually, is to first implement the ```add``` and than we exercice a bit by adding ```and``` & ```or``` before moving on to jumps & branches instructions.
 
@@ -1727,7 +1729,7 @@ async def cpu_insrt_test(dut):
 
     ##################
     # ADD TEST
-    # lw x19 0x10(x0) (tis memory spot contains 0x00000AAA)
+    # lw x19 0x10(x0) (this memory spot contains 0x00000AAA)
     # add x20 x18 x19
     ##################
 
@@ -1741,3 +1743,140 @@ async def cpu_insrt_test(dut):
 
 ## 3.3 : More ```R-Types``` : ```or``` & ```and```
 
+And now, ladies and gentlemen, it is time to be true to my words and implement the bitwise ```or``` operation.
+
+In terms of math, it is extremely basic, so let's go over what we need to do :
+
+- Update the control unit to add support for ```or```
+- Add OR operation to our ALU
+
+And that's pretty much it ! the same will go for ```and``` !
+
+### AND
+
+| f7 | rs2 | rs1 |f3 |rd | OP |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 0000000 | xxxxx |xxxxx | 111 |xxxxx |0110011 |
+
+First we update control...
+
+```sv
+// control.sv
+
+/**
+* ALU DECODER
+*/
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        2'b00 : alu_control = 3'b000;
+        // R-Types
+        2'b10 : begin
+            case (func3)
+                // ADD (and later SUB with a different F7)
+                3'b000 : alu_control = 3'b000;
+                // AND
+                3'b111 : alu_control = 3'b011;
+                // ALL THE OTHERS
+                default: alu_control = 3'b111;
+            endcase
+        end
+        // EVERYTHING ELSE
+        default: alu_control = 3'b111;
+    endcase
+end
+```
+
+Then we add a test case in the testbench and make sure control stills runs smoothly...
+
+```python
+# test_control.py
+
+# (...)
+# All the other tests ...
+
+@cocotb.test()
+async def and_control_test(dut):
+    # TEST CONTROL SIGNALS FOR ADD
+    await Timer(10, units="ns")
+    dut.op.value = 0b0110011 # R-TYPE
+    # Watch out ! F3 is important here and now !
+    dut.func3.value = 0b111
+    await Timer(1, units="ns")
+    assert dut.alu_control.value == "010"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "0"
+    assert dut.write_back_source.value == "0"
+```
+
+We then add som ```AND``` logic to our ALU...
+
+```sv
+// alu.sv
+
+module alu (
+    // IN
+    input logic [2:0] alu_control,
+    input logic [31:0] src1,
+    input logic [31:0] src2,
+    // OUT
+    output logic [31:0] alu_result,
+    output logic zero
+);
+
+always_comb begin
+    case (alu_control)
+        // ADD STUFF
+        3'b000 : alu_result = src1 + src2;
+        // AND STUFF
+        3'b010 : alu_result = src1 & src2;
+        // NON IMPLEMENTED STUFF
+        default: alu_result = 32'b0;
+    endcase
+end
+
+assign zero = alu_result == 32'b0;
+    
+endmodule
+```
+
+Add a test case for the alu and verify...
+
+```python
+# test_alu.py
+
+# (...)
+# Other tests ...
+
+@cocotb.test()
+async def and_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b010
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+        expected = src1 & src2
+        # Await 1 ns for the infos to propagate
+        await Timer(1, units="ns")
+        assert int(dut.alu_result.value) == expected     
+
+# (...)
+# Other tests ...  
+```
+
+And guess what ? No need to change the datapath ! ```R-Type``` was already implemented ! So we get to work to immediatly write a test case and add it to our testbench hex program !
+
+
+
+### OR
+
+| f7 | rs2 | rs1 |f3 |rd | OP |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 0000000 | xxxxx | xxxxx | 110 | xxxxx |0110011 |
+
+> todo...

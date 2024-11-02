@@ -1,8 +1,8 @@
-00802903  //LW  TEST START :    lw x18 0x8(x0)
-01202623  //SW  TEST START :    sw x18 0xC(x0)
-01002983  //ADD TEST START :    lw x19 0x10(x0)
-01390A33  //                    add x20 x18 x19
-00000013  //NOP
+00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
+01202623  //SW  TEST START :    sw x18 0xC(x0)      | 0xC <= DEADBEEF
+01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
+01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
+01497AB3  //AND TEST START :    and x21 x18 x20     | x21 <= DEAD8889
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
