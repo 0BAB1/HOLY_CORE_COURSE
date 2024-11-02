@@ -71,6 +71,8 @@ always_comb begin
                 3'b000 : alu_control = 3'b000;
                 // AND
                 3'b111 : alu_control = 3'b010;
+                // OR
+                3'b110 : alu_control = 3'b011;
                 // ALL THE OTHERS
                 default: alu_control = 3'b111;
             endcase

@@ -3,9 +3,9 @@
 01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
 01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
 01497AB3  //AND TEST START :    and x21 x18 x20     | x21 <= DEAD8889
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+01402283  //OR  TEST START :    lw x5 0x14(x0)      | x5  <= 125F552D
+01802303  //                    lw x6 0x18(x0)      | x6  <= 7F4FD46A
+0062E3B3  //                    or x7 x5 x6         | x7  <= 7F5FD56F
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
