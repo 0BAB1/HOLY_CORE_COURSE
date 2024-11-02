@@ -30,7 +30,21 @@ async def and_test(dut):
         expected = src1 & src2
         # Await 1 ns for the infos to propagate
         await Timer(1, units="ns")
-        assert int(dut.alu_result.value) == expected        
+        assert int(dut.alu_result.value) == expected       
+
+@cocotb.test()
+async def or_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b011
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+        expected = src1 | src2
+        # Await 1 ns for the infos to propagate
+        await Timer(1, units="ns")
+        assert int(dut.alu_result.value) == expected   
 
 @cocotb.test()
 async def default_test(dut):

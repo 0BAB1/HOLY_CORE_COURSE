@@ -856,7 +856,7 @@ lw x18 8(x0) // loads daata from addr 0x00000008 in reg x18 (s2)
 
 Which translates as this in HEX format (comments like ```//blablabla``` are ignored by ```$readmemh("rom.hex")```):
 
-```asm
+```txt
 00802903  //LW TEST START : lw x18 8(x0)
 00000013  //NOP
 00000013  //NOP
@@ -865,7 +865,7 @@ Which translates as this in HEX format (comments like ```//blablabla``` are igno
 
 And here is the data we'll try to load :
 
-```asm
+```txt
 AEAEAEAE  // @ 0x00000000 Useless data
 00000000  // @ 0x00000004 Useless data
 DEADBEEF  // @ 0x00000008 What we'll try to get in x18
@@ -1226,7 +1226,7 @@ memory #(
 
 To verify, once again, we set up the memory files on a scenario that will be easily predictible in testing so we can verify the CPU behavior, whilst keeping of course the previos ```lw``` tests in our memory files :
 
-```asm
+```txt
 //test_imemory.hex
 
 00802903  //LW TEST START : lw x18 0x8(x0)
@@ -1241,7 +1241,7 @@ As you can see, we add a new instruction that will take the value we loaded in x
 
 Speaking of memory, the file did not really change, except I changed the 0xC value to ```0xF2F2F2F2``` to avoir asserting 00000000 as it is too common of a value :
 
-```asm
+```txt
 //test_dmemory.hex
 
 AEAEAEAE
@@ -1691,7 +1691,7 @@ before moving any further, we chack that out old tests still works, because they
 
 As usual, we create a predectible environement. I chose to go with this program to include a ```add``` test :
 
-```asm
+```txt
 //test_imemory.hex
 00802903  //LW  TEST START :    lw x18 0x8(x0)
 01202623  //SW  TEST START :    sw x18 0xC(x0)
@@ -1704,7 +1704,7 @@ As usual, we create a predectible environement. I chose to go with this program 
 
 And I added some data to memory for this test (```0x0000AAA``` for the addition) :
 
-```asm
+```txt
 //test_dmemory.hex
 AEAEAEAE
 00000000
@@ -1752,6 +1752,11 @@ In terms of math, it is extremely basic, so let's go over what we need to do :
 
 And that's pretty much it ! the same will go for ```and``` !
 
+BTW, Here are the tables I use (From the Harris' *DDCA book* just like all the other figures) for my control values, which can be whatever as long as it is consistent throughout your design :
+
+![Main decoder table img](./Main_decoder.png)
+![Alu decoder table img](./Alu_decoder.png)
+
 ### AND
 
 | f7 | rs2 | rs1 |f3 |rd | OP |
@@ -1798,7 +1803,7 @@ Then we add a test case in the testbench and make sure control stills runs smoot
 
 @cocotb.test()
 async def and_control_test(dut):
-    # TEST CONTROL SIGNALS FOR ADD
+    # TEST CONTROL SIGNALS FOR AND
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
     # Watch out ! F3 is important here and now !
@@ -1871,12 +1876,191 @@ async def and_test(dut):
 
 And guess what ? No need to change the datapath ! ```R-Type``` was already implemented ! So we get to work to immediatly write a test case and add it to our testbench hex program !
 
+```txt
+00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
+01202623  //SW  TEST START :    sw x18 0xC(x0)      | 0xC <= DEADBEEF
+01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
+01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
+01497AB3  //AND TEST START :    and x21 x18 x20     | x21 <= DEAD8889
+00000013  //NOP
+00000013  //NOP
+//...
+```
 
+As you can see, I made my comment a bit better, and we don't even have to touch data memory for this one as we can start to re-use previous results ! After all, we are working wth a CPU ;)
+
+And now fot he testing...
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # AND TEST
+    # and x21 x18 x20 (result shall be 0xDEAD8889)
+    ##################
+
+    # Use last expected result, as this instr uses last op result register
+    expected_result = expected_result & 0xDEADBEEF
+    await RisingEdge(dut.clk) # and x21 x18 x20
+    assert binary_to_hex(dut.regfile.registers[21].value) == "DEAD8889"
+```
+
+And (it) works !
 
 ### OR
 
-| f7 | rs2 | rs1 |f3 |rd | OP |
+| f7 | rs2 | rs1 |f3 | rd | OP |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | 0000000 | xxxxx | xxxxx | 110 | xxxxx |0110011 |
 
-> todo...
+And we do the exact same thing !
+
+- control
+
+```sv
+// control.sv
+
+//...
+2'b10 : begin // (ALU_OP case)
+    case (func3)
+        // ADD (and later SUB with a different F7)
+        3'b000 : alu_control = 3'b000;
+        // AND
+        3'b111 : alu_control = 3'b010;
+        // OR
+        3'b110 : alu_control = 3'b011;
+        // ALL THE OTHERS
+        default: alu_control = 3'b111;
+    endcase
+end
+//...
+```
+
+```python
+# test_control.py
+
+@cocotb.test()
+async def and_control_test(dut):
+    await Timer(10, units="ns")
+    dut.op.value = 0b0110011 
+    dut.func3.value = 0b110
+    await Timer(1, units="ns")
+    # only thing that changes comp to add / and
+    assert dut.alu_control.value == "011"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.alu_source.value == "0"
+    assert dut.write_back_source.value == "0"
+```
+
+- ALU
+
+```sv
+// alu.sv
+
+// ...
+always_comb begin
+    case (alu_control)
+        // ADD STUFF
+        3'b000 : alu_result = src1 + src2;
+        // AND STUFF
+        3'b010 : alu_result = src1 & src2;
+        // OR STUFF
+        3'b011 : alu_result = src1 | src2;
+        // NON IMPLEMENTED STUFF
+        default: alu_result = 32'b0;
+    endcase
+end
+// ...
+```
+
+```python
+# test_alu.py
+
+# ...
+@cocotb.test()
+async def or_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b011
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+        expected = src1 | src2
+        # Await 1 ns for the infos to propagate
+        await Timer(1, units="ns")
+        assert int(dut.alu_result.value) == expected  
+# ...
+```
+
+- CPU main datapath using sample hex programm
+
+```txt
+00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
+01202623  //SW  TEST START :    sw x18 0xC(x0)      | 0xC <= DEADBEEF
+01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
+01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
+01497AB3  //AND TEST START :    and x21 x18 x20     | x21 <= DEAD8889
+01402283  //OR  TEST START :    lw x5 0x14(x0)      | x5  <= 125F552D
+01802303  //                    lw x6 0x18(x0)      | x6  <= 7F4FD46A
+0062E3B3  //                    or x7 x5 x6         | x7  <= 7F5FD56F
+00000013  //NOP
+00000013  //NOP
+//...
+```
+
+As you can see, I got myself some new other values than deadbeef to add a bit or enthropy in there. Here is the updated data memory :
+
+```txt
+AEAEAEAE
+00000000
+DEADBEEF
+F2F2F2F2
+00000AAA
+125F552D
+7F4FD46A
+00000000
+00000000
+//...
+```
+
+and testing :
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # OR TEST
+    # For this one, I decider to load some more value to change the "0xdead.... theme" ;)
+    # (Value pre-computed in python)
+    # lw x5 0x14(x0) | x5  <= 125F552D
+    # lw x6 0x18(x0) | x6  <= 7F4FD46A
+    # or x7 x5 x6    | x7  <= 7F5FD56F
+    ##################
+    print("\n\nTESTING OR\n\n")
+
+    await RisingEdge(dut.clk) # lw x5 0x14(x0) | x5  <= 125F552D
+    assert binary_to_hex(dut.regfile.registers[5].value) == "125F552D"
+    await RisingEdge(dut.clk) # lw x6 0x18(x0) | x6  <= 7F4FD46A
+    assert binary_to_hex(dut.regfile.registers[6].value) == "7F4FD46A"
+    await RisingEdge(dut.clk) # or x7 x5 x6    | x7  <= 7F5FD56F
+    assert binary_to_hex(dut.regfile.registers[7].value) == "7F5FD56F"
+```
+
+And there we go ! We just added suport for 2 more instructions ! This passage was to demonstrate the it is way faster to implement instructions once we already have most of the required logic.
+
