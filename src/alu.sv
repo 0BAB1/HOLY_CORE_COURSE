@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module alu (
     // IN
     input logic [2:0] alu_control,

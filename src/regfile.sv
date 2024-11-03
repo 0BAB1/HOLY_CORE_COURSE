@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module regfile (
     // basic signals
     input logic clk,

@@ -26,7 +26,9 @@ SystemVerilog
 
 ### Simulator :  Icarus verilog
 
-*instert install tips here*
+[Nerdy build](https://circuitcove.com/tools-iverilog-installation/)
+
+you can also use ```apt install iverilog```
 
 ### TenstBenches : cocotb
 
@@ -42,10 +44,30 @@ for the "makefile" : [docs](https://docs.cocotb.org/en/stable/quickstart.html#cr
 
 ## Repo description
 
+```txt
+.
+├── Makefile                      // run "make clean" to clean builds
+├── setup.md
+├── src                           // Contains the SystemVerilo HDL sources
+│   ├── alu.sv
+│   ├── control.sv
+│   ├── cpu.sv
+│   ├── memory.sv
+│   ├── regfile.sv
+│   └── signext.sv
+├── tb                            // Contains all the test benches
+│   ├── alu
+│   ├── control
+│   ├── cpu
+│   ├── memory
+│   ├── regfile
+│   ├── signext
+│   └── test_runner.py            // Run ALL the tb using "pytest" or "python test_runner.py" in this dir
+├── todo.txt
+└── tutorial.md                   // Main tutorial file
+```
+
 - **src**
   - Contains the sv source code for all of the modules
 - **tb**
   - Contains the testbenches, each tesbench is a subdir. ```cd``` into it and run ```make``` to run an individual testbench
-- **Makefile**
-  - To clean all the mess left by the tesbenches, run ```make clean``` from the root dit to make it work.
-
