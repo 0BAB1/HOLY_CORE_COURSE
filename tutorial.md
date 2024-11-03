@@ -1947,7 +1947,7 @@ end
 # test_control.py
 
 @cocotb.test()
-async def and_control_test(dut):
+async def or_control_test(dut):
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 
     dut.func3.value = 0b110
@@ -2098,8 +2098,497 @@ So let's get to work shall we ?
 
 To implement ```beq``` just like everython we did until now, we have to implement the intruction type datapath in the cpu. Here is a little todo list of what awaits us :
 
+- Update the control to be able to change the source of ```pc``` and ```immediate```
+- Add substraction arithmetic to the ALU
 - Update the ```pc_next``` choice
 - Add some add arithmetic to compute a ```PC_target```
-- Update the control to be able to change the source of ```pc```
 
-## 4.1.1 : Adding 
+Here is a figure from the Harris' **DDCA Books, RISC-V Edition** alonside a table for the new weird IMM source
+
+![beq / B-type datapath enhancements](Beq_datapath.png)
+
+## 4.1.1 : Updating the control unit
+
+Okay, so in terms of control, we need to
+
+- Take the ```B-Type``` OP into account
+- Add a ```branch``` flag to signal the **possibility** of branching
+- Raise a ```pc_source``` output flag if the branching condition is met
+
+> Here, the branching condition is simply ```rs1 == rs2``` i.e. the ```alu_zero``` being high.
+
+### HDL Code
+
+So in the controller code, we need to add the ```B-Type``` and add some logic for ```pc_source``` and a whole bunch of ```branch``` signal for each instruction type :
+
+```sv
+// control.sv
+
+module control (
+    // Other I/Os ...
+    output logic pc_source // NEW !
+);
+
+/**
+* MAIN DECODER
+*/
+
+logic [1:0] alu_op;
+logic branch;
+always_comb begin
+    case (op)
+        // I-type
+        7'b0000011 : begin
+            //...
+            branch = 1'b0; // NEW !
+        end
+        // S-Type
+        7'b0100011 : begin
+            //...
+            branch = 1'b0; // NEW !
+        end
+        // R-Type
+        7'b0110011 : begin
+            //...
+            branch = 1'b0; // NEW !
+        end
+        // B-type
+        7'b1100011 : begin
+            // NEW !
+            reg_write = 1'b0;
+            imm_source = 2'b10;
+            alu_source = 1'b0;
+            mem_write = 1'b0;
+            alu_op = 2'b01;
+            branch = 1'b1;
+        end
+        // EVERYTHING ELSE
+        default: begin
+            // Updated this too, but has nothing to
+            // do with beq.
+            reg_write = 1'b0;
+            mem_write = 1'b0;
+        end
+    endcase
+end
+
+/**
+* ALU DECODER
+*/
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        2'b00 : alu_control = 3'b000;
+        // R-Types
+        2'b10 : begin
+            // R-type stuf...
+        end
+        // BEQ
+        2'b01 : alu_control = 3'b001; // NEW ! (tell the alu to sub)
+        // EVERYTHING ELSE
+        default: alu_control = 3'b111;
+    endcase
+end
+
+/**
+* PC_Source (NEW !)
+*/
+assign pc_source = alu_zero & branch;
+    
+endmodule
+```
+
+### Verification
+
+Great ! Now let's adapat our test cases and create a new one accordingly !
+
+```python
+# test_control.py
+# ...
+
+@cocotb.test()
+async def lw_control_test(dut):
+    # ...
+    assert dut.branch.value == "0" # NEW !
+
+@cocotb.test()
+async def sw_control_test(dut):
+    # ...
+    assert dut.branch.value == "0" # NEW !
+
+@cocotb.test()
+async def add_control_test(dut):
+    # ...
+    assert dut.branch.value == "0" # NEW !
+
+@cocotb.test()
+async def and_control_test(dut):
+    # ...
+    assert dut.branch.value == "0" # NEW !
+
+@cocotb.test()
+async def or_control_test(dut):
+    # ...
+    assert dut.branch.value == "0" # NEW !
+
+@cocotb.test()
+async def beq_control_test(dut):
+    # TEST CONTROL SIGNALS FOR BEQ
+    await Timer(10, units="ns")
+    dut.op.value = 0b1100011 # B-TYPE
+    dut.func3.value = 0b000 # beq
+    dut.alu_zero.value = 0b0
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "10"
+    assert dut.alu_control.value == "001"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "0"
+    assert dut.alu_source.value == "0"
+    assert dut.branch.value == "1"
+    assert dut.pc_source.value == "0"
+
+    # Test if branching condition is met
+    await Timer(3, units="ns")
+    dut.alu_zero.value = 0b1
+    await Timer(1, units="ns")
+    assert dut.pc_source.value == "1"
+```
+
+Note that our ```beq``` testbench is separated in two :
+
+1. Test whilst the branching condition is **not** met (pc_source should stay default)
+2. Test whilst the branching condition **is** met (pc_source should change to select new target)
+
+## 4.1.2 : Update the ALU for substraction arithmetic
+
+Before going any further, here are some basics that are neverthelesss important (and are pretty umportant details that ANYONE can get wrong) :
+
+- In RISC-V, when the LU, performs a ```sub```, we do ```srcA - srcB``` and not the contrary.
+  - e.g. ```sub rd, rs1, rs2``` 
+  - rd <= rs1 - rs2 with rs2 being srcB of the ALU
+- We do not care about sign interpretaion at this level, we just execute.
+- 2's complement : ```-srcB = (~srcB+1)``` with ~ being a bitwise nor.
+
+### HDL Code
+
+With the previous details in minf, for the logic, we simply make an addition with the 2's complement of src2 :
+
+```sv
+// alu.sv
+
+//...
+
+always_comb begin
+    case (alu_control)
+        // ADD STUFF
+        3'b000 : alu_result = src1 + src2;
+        // AND STUFF
+        3'b010 : alu_result = src1 & src2;
+        // OR STUFF
+        3'b011 : alu_result = src1 | src2;
+        // SUB Stuff (rs1 - rs2)
+        3'b001 : alu_result = src1 + (~src2 + 1'b1);
+        // NON IMPLEMENTED STUFF
+        default: alu_result = 32'b0;
+    endcase
+end
+
+//
+```
+
+### Verification
+
+```python
+# test_alu.py
+
+# ...
+
+@cocotb.test()
+async def sub_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b001
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        # src1 = random.randint(0,0xFF)
+        # src2 = random.randint(0,0xFF)
+        # print(bin(src1)[2:].zfill(8))
+        # print(bin(src2)[2:].zfill(8))
+        # print(bin(src1 - src2)[2:].zfill(8))
+        dut.src1.value = src1
+        dut.src2.value = src2
+        expected = (src1 - src2) & 0xFFFFFFFF
+
+        await Timer(1, units="ns")
+
+        assert str(dut.alu_result.value) == bin(expected)[2:].zfill(32)
+        assert binary_to_hex(dut.alu_result.value) == hex(expected)[2:].zfill(8).upper()
+        assert int(str(dut.alu_result.value),2) == expected
+
+# ...
+```
+
+As you can see, they are a lot of assertions and comments, as I wanted to make sure this whole 2's complement stuff worked as intended reagrdless of our sign interpretation. I chose to keep them in the code if you want to experiment as well.
+
+## 4.1.3 : Updating the ```signextend``` logic
+
+And now is the time to tackle the monstruosity of an instruction format :
+
+| IMM[12] + IMM[10:5] | rs2 | rs1 |f3 | IMM[4:1] + IMM[11] | OP |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+
+By updating the sign extender's logic to support this new ```imm_source = 2'b10```
+
+### HDL Code
+
+Here is the updated sign extender logic :
+
+```sv
+// signext.sv
+
+module signext (
+    // IN
+    input logic [24:0] raw_src,
+    input logic [1:0] imm_source,
+
+    // OUT (immediate)
+    output logic [31:0] immediate
+);
+
+logic [11:0] gathered_imm;
+
+always_comb begin
+    case (imm_source)
+        // For I-Types
+        2'b00 : gathered_imm = raw_src[24:13];
+        // For S-types
+        2'b01 : gathered_imm = {raw_src[24:18],raw_src[4:0]};
+        // For B-types
+        2'b10 : gathered_imm = {raw_src[0],raw_src[23:18],raw_src[4:1],1'b0};
+        default: gathered_imm = 12'b0;
+    endcase
+end
+
+assign immediate = imm_source == 2'b10 ? {{20{raw_src[24]}}, gathered_imm} : {{20{gathered_imm[11]}}, gathered_imm};
+    
+endmodule
+```
+
+> The ```value = (condition) ? <value if true> : <value is false>``` statement is used here. Take the time to understand it if you are not familiar with this syntax as is allows us to avoid writting huge ```always_comb``` chuncks for simple "no brainer" cases.
+
+As you can see, the immediate range is 13 bits (we add a single 0 bit at the end), because the data is byte addressed, we can add a single 0 at the end as we will never point on a single byte (8bits) offset to retrieve an instruction. Adding a 0 allows for a better range (from 12bits to 13bits) .
+
+> But why a single 0 and not two ? an instruction is 32 bits ! so the theorical minimum offset is 4Bytes not 2Bytes !
+
+Yes and no, This allows the user to point on "half words" on 16 bits. **In our case, this is not useful** and will autamatically be discarded by the way we implemented our memory. **BUT** it can be useful if the Compressed extension set is implemented, but this is out of the scope of this tutorial.
+
+### Verification
+
+Once again, just like the other tests, nothing new except for the bitwise gymnastics to setup the test :
+
+```python
+# test_signext.py
+
+# other test ...
+
+@cocotb.test()
+async def signext_b_type_test(dut):
+    # 100 randomized tests
+    for _ in range(100):
+        # TEST POSITIVE IMM
+        await Timer(100, units="ns")
+        imm = random.randint(0,0b011111111111) 
+        imm <<= 1 # 13 bits signed imm ending with a 0
+        imm_12 = (imm & 0b1000000000000) >> 12 # 0 for now (positive)
+        imm_11 = (imm & 0b0100000000000) >> 11
+        imm_10_5 = (imm & 0b0011111100000) >> 5
+        imm_4_1 = (imm & 0b0000000011110) >> 1
+        raw_data = (imm_12 << 24) | (imm_11 << 0) | (imm_10_5 << 18) | (imm_4_1 << 1)
+        source = 0b10
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) == imm 
+
+        # TEST NEGATIVE IMM
+        await Timer(100, units="ns")
+        imm = random.randint(0b100000000000,0b111111111111)
+        imm <<= 1 # 13 bits signed imm ending with a 0
+        imm_12 = (imm & 0b1000000000000) >> 12 # 1 (negative)
+        imm_11 = (imm & 0b0100000000000) >> 11
+        imm_10_5 = (imm & 0b0011111100000) >> 5
+        imm_4_1 = (imm & 0b0000000011110) >> 1
+        raw_data = (imm_12 << 24) | (imm_11 << 0) | (imm_10_5 << 18) | (imm_4_1 << 1)
+        source = 0b10
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) - (1 << 32) == imm - (1 << 13)
+```
+
+and just like th other signext tests, we sepearated + and - tests to assert interger value in python. (we could assert binary values, but this a good bitwise operation exercice, so why not ?)
+
+## 4.2 : Laying down the ```B-Type : beq``` datapath
+
+For the datapath, we need to be able to compute a new PC using some basic add arithmetic using :
+
+- Our brand new ```immediate``` source
+- The current ```pc```
+
+### HDL Code
+
+To do so we get a ```pc_source``` wire (the one we just created) from the control unit :
+
+```sv
+// cpu.sv
+
+//...
+
+/**
+* CONTROL
+*/
+
+// ... Others signals declarations ...
+wire pc_source; // NEW !
+
+control control_unit(
+    .op(op),
+    .func3(f3),
+    .func7(7'b0),
+    .alu_zero(alu_zero),
+    .alu_control(alu_control),
+    .imm_source(imm_source),
+    .mem_write(mem_write),
+    .reg_write(reg_write),
+    .alu_source(alu_source),
+    .write_back_source(write_back_source),
+
+    .pc_source(pc_source) // NEW !
+);
+
+```
+
+And use it to select our pc_next either from ```pc+4``` ou our new ```pc+imm```:
+
+```sv
+// cpu.sv
+
+//..I/Os...
+
+/**
+* PROGRAM COUNTER
+*/
+
+reg [31:0] pc;
+logic [31:0] pc_next;
+
+always_comb begin : pc_select
+    case (pc_source)
+        1'b1 : pc_next = pc + immediate; // pc_target
+        default: pc_next = pc + 4; // pc + 4
+    endcase
+end
+
+always @(posedge clk) begin
+    if(rst_n == 0) begin
+        pc <= 32'b0;
+    end else begin
+        pc <= pc_next;
+    end
+end
+
+//..other logic...
+```
+
+As we touched the datapath and other logics, now is a good time to see if all testbenches are still okay, we run them... Good ! let's build a test program for our new ```beq```.
+
+### Verification
+
+Here is the program I came up with, it runs multiple branches :
+
+1. The branch in not taken
+2. The branch is taken, skipping some instructions
+3. The branch is taken with a negative offset
+4. The branch is taken forward avoiding the loop
+
+```txt
+00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
+01202623  //SW  TEST START :    sw x18 0xC(x0)      | 0xC <= DEADBEEF
+01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
+01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
+01497AB3  //AND TEST START :    and x21 x18 x20     | x21 <= DEAD8889
+01402283  //OR  TEST START :    lw x5 0x14(x0)      | x5  <= 125F552D
+01802303  //                    lw x6 0x18(x0)      | x6  <= 7F4FD46A
+0062E3B3  //                    or x7 x5 x6         | x7  <= 7F5FD56F
+00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
+00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
+01690863  //                    beq x18 x22 0x10    | #2 SHOULD BRANCH (+ offset)
+00000013  //                    nop                 | NEVER EXECUTED
+00000013  //                    nop                 | NEVER EXECUTED
+00000663  //                    beq x0 x0 0xC       | #4 SHOULD BRANCH (avoid loop)
+00002B03  //                    lw x22 0x0(x0)      | x22 <= AEAEAEAE
+FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (-offset)
+00000013  //                    nop                 | FINAL NOP
+00000013  //NOP
+00000013  //NOP
+```
+
+We don't need to interviene on data memory, let's go right to the test case.
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # BEQ TEST
+    # For this one, I decider to load some more value to change the "0xdead.... theme" ;)
+    # (Value pre-computed in python)
+    # 00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
+    # 00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
+    # 01690863  //                    beq x18 x22 0x10    | #2 SHOULD BRANCH (+ offset)
+    # 00000013  //                    nop                 | NEVER EXECUTED
+    # 00000013  //                    nop                 | NEVER EXECUTED
+    # 00000663  //                    beq x0 x0 0xC       | #4 SHOULD BRANCH (avoid loop)
+    # 00002B03  //                    lw x22 0x0(x0)      | x22 <= AEAEAEAE
+    # FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (-offset)
+    # 00000013  //                    nop                 | FINAL NOP
+    ##################
+    print("\n\nTESTING BEQ\n\n")
+
+    assert binary_to_hex(dut.instruction.value) == "00730663"
+
+    await RisingEdge(dut.clk) # beq x6 x7 0xC NOT TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00802B03"
+
+    await RisingEdge(dut.clk) # lw x22 0x8(x0)
+    assert binary_to_hex(dut.regfile.registers[22].value) == "DEADBEEF"
+
+    await RisingEdge(dut.clk) # beq x18 x22 0x10 TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00002B03"
+
+    await RisingEdge(dut.clk) # lw x22 0x0(x0)
+    assert binary_to_hex(dut.regfile.registers[22].value) == "AEAEAEAE"
+
+    await RisingEdge(dut.clk) # beq x22 x22 -0x8 TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00000663"
+
+    await RisingEdge(dut.clk) # beq x0 x0 0xC TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00000013"
+```
+
+And the test passes ! (after correcting some ypos of course haha).
+

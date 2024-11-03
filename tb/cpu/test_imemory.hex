@@ -6,15 +6,15 @@
 01402283  //OR  TEST START :    lw x5 0x14(x0)      | x5  <= 125F552D
 01802303  //                    lw x6 0x18(x0)      | x6  <= 7F4FD46A
 0062E3B3  //                    or x7 x5 x6         | x7  <= 7F5FD56F
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
+00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
+01690863  //                    beq x18 x22 0x10    | #2 SHOULD BRANCH (positive offset)
+00000013  //                    nop                 | NEVER EXECUTED
+00000013  //                    nop                 | NEVER EXECUTED
+00000663  //                    beq x0 x0 0xC       | #4 SHOULD BRANCH (avoid loop)
+00002B03  //                    lw x22 0x0(x0)      | x22 <= AEAEAEAE (#2 destination)
+FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (negative offset)
+00000013  //                    nop                 | FINAL NOP
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
