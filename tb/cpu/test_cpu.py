@@ -102,3 +102,43 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.regfile.registers[6].value) == "7F4FD46A"
     await RisingEdge(dut.clk) # or x7 x5 x6    | x7  <= 7F5FD56F
     assert binary_to_hex(dut.regfile.registers[7].value) == "7F5FD56F"
+
+    ##################
+    # BEQ TEST
+    # For this one, I decider to load some more value to change the "0xdead.... theme" ;)
+    # (Value pre-computed in python)
+    # 00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
+    # 00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
+    # 01690863  //                    beq x18 x22 0x10    | #2 SHOULD BRANCH (+ offset)
+    # 00000013  //                    nop                 | NEVER EXECUTED
+    # 00000013  //                    nop                 | NEVER EXECUTED
+    # 00000663  //                    beq x0 x0 0xC       | #4 SHOULD BRANCH (avoid loop)
+    # 00002B03  //                    lw x22 0x0(x0)      | x22 <= AEAEAEAE
+    # FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (-offset)
+    # 00000013  //                    nop                 | FINAL NOP
+    ##################
+    print("\n\nTESTING BEQ\n\n")
+
+    assert binary_to_hex(dut.instruction.value) == "00730663"
+
+    await RisingEdge(dut.clk) # beq x6 x7 0xC NOT TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00802B03"
+
+    await RisingEdge(dut.clk) # lw x22 0x8(x0)
+    assert binary_to_hex(dut.regfile.registers[22].value) == "DEADBEEF"
+
+    await RisingEdge(dut.clk) # beq x18 x22 0x10 TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00002B03"
+
+    await RisingEdge(dut.clk) # lw x22 0x0(x0)
+    assert binary_to_hex(dut.regfile.registers[22].value) == "AEAEAEAE"
+
+    await RisingEdge(dut.clk) # beq x22 x22 -0x8 TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00000663"
+
+    await RisingEdge(dut.clk) # beq x0 x0 0xC TAKEN
+    # Check if the current instruction is the one we expected
+    assert binary_to_hex(dut.instruction.value) == "00000013"

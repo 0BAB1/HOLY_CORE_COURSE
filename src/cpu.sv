@@ -13,7 +13,10 @@ reg [31:0] pc;
 logic [31:0] pc_next;
 
 always_comb begin : pc_select
-    pc_next = pc + 4;
+    case (pc_source)
+        1'b1 : pc_next = pc + immediate; // pc_target
+        default: pc_next = pc + 4; // pc + 4
+    endcase
 end
 
 always @(posedge clk) begin
@@ -64,6 +67,7 @@ wire reg_write;
 // out muxes wires
 wire alu_source;
 wire write_back_source;
+wire pc_source;
 
 control control_unit(
     .op(op),
@@ -78,7 +82,8 @@ control control_unit(
     .reg_write(reg_write),
     // muxes out
     .alu_source(alu_source),
-    .write_back_source(write_back_source)
+    .write_back_source(write_back_source),
+    .pc_source(pc_source)
 );
 
 /**

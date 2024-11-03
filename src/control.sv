@@ -13,7 +13,8 @@ module control (
     output logic mem_write,
     output logic reg_write,
     output logic alu_source,
-    output logic write_back_source
+    output logic write_back_source,
+    output logic pc_source
 );
 
 /**
@@ -21,6 +22,7 @@ module control (
 */
 
 logic [1:0] alu_op;
+logic branch;
 always_comb begin
     case (op)
         // I-type
@@ -31,6 +33,7 @@ always_comb begin
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
             write_back_source = 1'b1; //memory_read
+            branch = 1'b0;
         end
         // S-Type
         7'b0100011 : begin
@@ -39,6 +42,7 @@ always_comb begin
             mem_write = 1'b1;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
+            branch = 1'b0;
         end
         // R-Type
         7'b0110011 : begin
@@ -47,13 +51,22 @@ always_comb begin
             alu_op = 2'b10;
             alu_source = 1'b0; //reg2
             write_back_source = 1'b0; //alu_result
+            branch = 1'b0;
+        end
+        // B-type
+        7'b1100011 : begin
+            reg_write = 1'b0;
+            imm_source = 2'b10;
+            alu_source = 1'b0;
+            mem_write = 1'b0;
+            alu_op = 2'b01;
+            branch = 1'b1;
         end
         // EVERYTHING ELSE
         default: begin
+            // Don't touch the CPU nor MEMORY state
             reg_write = 1'b0;
-            imm_source = 2'b00;
             mem_write = 1'b0;
-            alu_op = 2'b00;
         end
     endcase
 end
@@ -79,9 +92,16 @@ always_comb begin
                 default: alu_control = 3'b111;
             endcase
         end
+        // BEQ
+        2'b01 : alu_control = 3'b001;
         // EVERYTHING ELSE
         default: alu_control = 3'b111;
     endcase
 end
+
+/**
+* PC_Source
+*/
+assign pc_source = alu_zero & branch;
     
 endmodule
