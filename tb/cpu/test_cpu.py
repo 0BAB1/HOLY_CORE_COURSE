@@ -105,7 +105,6 @@ async def cpu_insrt_test(dut):
 
     ##################
     # BEQ TEST
-    # For this one, I decider to load some more value to change the "0xdead.... theme" ;)
     # (Value pre-computed in python)
     # 00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
     # 00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
@@ -142,3 +141,39 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # beq x0 x0 0xC TAKEN
     # Check if the current instruction is the one we expected
     assert binary_to_hex(dut.instruction.value) == "00000013"
+    await RisingEdge(dut.clk) # NOP
+
+    ##################
+    # 00C000EF  //JAL TEST START :    jal x1 0xC          | #1 jump @PC+0xC | PC 0x44
+    # 00000013  //                    nop                 | NEVER EXECUTED  | PC 0x48
+    # 00C000EF  //                    jal x1 0xC          | #2 jump @PC-0x4 | PC 0x4C   
+    # FFDFF0EF  //                    jal x1 -4           | #2 jump @PC-0x4 | PC 0x50
+    # 00000013  //                    nop                 | NEVER EXECUTED  | PC 0x54
+    # 00C02383  //                    lw x7 0xC(x0)       | x7 <= DEADBEEF  | PC 0x58
+    ##################
+    print("\n\nTESTING JAL\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "00C000EF"
+    assert binary_to_hex(dut.pc.value) == "00000044"
+
+    await RisingEdge(dut.clk) # jal x1 0xC
+    # Check new state & ra (x1) register value
+    assert binary_to_hex(dut.instruction.value) == "FFDFF0EF"
+    assert binary_to_hex(dut.pc.value) == "00000050"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000048" # stored old pc + 4
+
+    await RisingEdge(dut.clk) # jal x1 -4
+    # Check new state & ra (x1) register value
+    assert binary_to_hex(dut.instruction.value) == "00C000EF"
+    assert binary_to_hex(dut.pc.value) == "0000004C"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000054" # stored old pc + 4
+
+    await RisingEdge(dut.clk) # jal x1 0xC
+    # Check new state & ra (x1) register value
+    assert binary_to_hex(dut.instruction.value) == "00C02383"
+    assert binary_to_hex(dut.pc.value) == "00000058"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000050" # stored old pc + 4
+
+    await RisingEdge(dut.clk) # lw x7 0xC(x0)
+    assert binary_to_hex(dut.regfile.registers[7].value) == "DEADBEEF"

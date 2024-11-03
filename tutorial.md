@@ -2212,27 +2212,27 @@ Great ! Now let's adapat our test cases and create a new one accordingly !
 @cocotb.test()
 async def lw_control_test(dut):
     # ...
-    assert dut.branch.value == "0" # NEW !
+    assert dut.pc_source.value == "0" # NEW !
 
 @cocotb.test()
 async def sw_control_test(dut):
     # ...
-    assert dut.branch.value == "0" # NEW !
+    assert dut.pc_source.value == "0" # NEW !
 
 @cocotb.test()
 async def add_control_test(dut):
     # ...
-    assert dut.branch.value == "0" # NEW !
+    assert dut.pc_source.value == "0" # NEW !
 
 @cocotb.test()
 async def and_control_test(dut):
     # ...
-    assert dut.branch.value == "0" # NEW !
+    assert dut.pc_source.value == "0" # NEW !
 
 @cocotb.test()
 async def or_control_test(dut):
     # ...
-    assert dut.branch.value == "0" # NEW !
+    assert dut.pc_source.value == "0" # NEW !
 
 @cocotb.test()
 async def beq_control_test(dut):
@@ -2343,7 +2343,7 @@ And now is the time to tackle the monstruosity of an instruction format :
 
 By updating the sign extender's logic to support this new ```imm_source = 2'b10```
 
-> Tip : I Highly suggest you you pen and paper, this is tru for many things, but as immediates sources gets weirder, it will be more and more helpful.
+> Tip : I Highly suggest you you pen and paper, this is tru for many things, but as immediates sources gets weirder, it will be more and more helpful. By doing so, you will easily pick up the patterns and quickly write the "bitwise gymnastics".
 
 ![Paper example for B-Type immediate](./B_imm.jpg)
 
@@ -2557,8 +2557,6 @@ async def cpu_insrt_test(dut):
 
     ##################
     # BEQ TEST
-    # For this one, I decider to load some more value to change the "0xdead.... theme" ;)
-    # (Value pre-computed in python)
     # 00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
     # 00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
     # 01690863  //                    beq x18 x22 0x10    | #2 SHOULD BRANCH (+ offset)
@@ -2727,4 +2725,248 @@ Let's :
 
 ```sv
 // constrol.sv
+
+`timescale 1ns/1ps
+
+module control (
+    // I/Os
+);
+
+/**
+* MAIN DECODER
+*/
+
+logic [1:0] alu_op;
+logic branch;
+logic jump;
+
+always_comb begin
+    case (op)
+        // ... (note that the "write_back_source" was updated for other control cases)
+
+        // J-type (NEW !)
+        7'b1101111 : begin
+            reg_write = 1'b1;
+            imm_source = 2'b11;
+            mem_write = 1'b0;
+            write_back_source = 2'b10; //pc_+4
+            branch = 1'b0;
+            jump = 1'b1;
+        end
+
+        // ...
+
+    endcase
+end
+
+/**
+* ALU DECODER
+*/
+
+// ...
+
+/**
+* PC_Source
+*/
+assign pc_source = (alu_zero & branch) | jump; // NEW !
+    
+endmodule
 ```
+
+### Verification
+
+To verify this new deisng, we first need to update our tests cases by replacing :
+
+```python
+# test_control.py
+
+assert dut.write_back_source.value == "X"
+```
+
+by :
+
+```python
+# test_control.py
+
+assert dut.write_back_source.value == "XX"
+```
+
+and add out ```jal``` test case (it's fairly simple) :
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def jal_control_test(dut):
+    # TEST CONTROL SIGNALS FOR JAL
+    await Timer(10, units="ns")
+    dut.op.value = 0b1101111 # J-TYPE
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "11"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "1"
+    assert dut.pc_source.value == "1"
+    assert dut.write_back_source.value == "10"
+```
+
+## 5.2 : Lay down the datapath for ```jal```
+
+For the datapath, we shall simply update the ```write_back_source``` wire to support 2bits and also update the Result Src mux.
+
+### HDL Code
+
+```sv
+// cpu.sv
+
+// I/Os
+
+/**
+* PROGRAM COUNTER
+*/
+
+reg [31:0] pc;
+logic [31:0] pc_next;
+logic [31:0] pc_target;
+logic [31:0] pc_plus_four;
+assign pc_target = pc + immediate;
+assign pc_plus_four = pc + 4;
+
+always_comb begin : pc_select
+    case (pc_source)
+        1'b1 : pc_next = pc_target; // pc_target
+        default: pc_next = pc_plus_four; // pc + 4
+    endcase
+end
+
+always @(posedge clk) begin
+    if(rst_n == 0) begin
+        pc <= 32'b0;
+    end else begin
+        pc <= pc_next;
+    end
+end
+
+/**
+* CONTROL
+*/
+
+// ...
+
+wire [1:0] write_back_source; // CHANGED !
+
+// ...
+
+/**
+* REGFILE
+*/
+
+//...
+
+always_comb begin : write_back_source_select
+    case (write_back_source)
+        // CHANGED !
+        2'b00: write_back_data = alu_result;
+        2'b01: write_back_data = mem_read;
+        2'b10: write_back_data = pc_plus_four; // NEW !
+    endcase
+end
+
+//...
+```
+
+As you can see, I also refactored the PC code using logic signals for values instead of hardcoded values.
+
+### Verification
+
+As usual, let's write a little program to test our new ```jal``` instruction, and add it to our main test program :
+
+```txt
+00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
+01202623  //SW  TEST START :    sw x18 0xC(x0)      | 0xC <= DEADBEEF
+01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
+01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
+01497AB3  //AND TEST START :    and x21 x18 x20     | x21 <= DEAD8889
+01402283  //OR  TEST START :    lw x5 0x14(x0)      | x5  <= 125F552D
+01802303  //                    lw x6 0x18(x0)      | x6  <= 7F4FD46A
+0062E3B3  //                    or x7 x5 x6         | x7  <= 7F5FD56F
+00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
+00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
+01690863  //                    beq x18 x22 0x10    | #2 SHOULD BRANCH
+00000013  //                    nop                 | NEVER EXECUTED
+00000013  //                    nop                 | NEVER EXECUTED
+00000663  //                    beq x0 x0 0xC       | #4 SHOULD BRANCH
+00002B03  //                    lw x22 0x0(x0)      | x22 <= AEAEAEAE 
+FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH 
+00000013  //                    nop                 | FINAL NOP
+00C000EF  //JAL TEST START :    jal x1 0xC          | #1 jump @PC+0xC
+00000013  //                    nop                 | NEVER EXECUTED
+00C000EF  //                    jal x1 0xC          | #2 jump @PC-0x4    
+FFDFF0EF  //                    jal x1 0x-4         | #2 jump @PC-0x4
+00000013  //                    nop                 | NEVER EXECUTED
+00C02383  //                    lw x7 0xC(x0)       | x7 <= DEADBEEF     
+00000013  //NOP
+00000013  //NOP
+// ...
+```
+
+Just like ```beq``` I test out the "forward" (positive immediate) and "backward" (negative immediate) jumps.
+
+Once again, no need to add new data in the data memory hex ROM file.
+
+> Our program is starting to look beefy ! I am proud of how far we've come ! Next time I will truncate it ;)
+
+And now let's write a test bench :
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # 00C000EF  //JAL TEST START :    jal x1 0xC          | #1 jump @PC+0xC | PC 0x44
+    # 00000013  //                    nop                 | NEVER EXECUTED  | PC 0x48
+    # 00C000EF  //                    jal x1 0xC          | #2 jump @PC-0x4 | PC 0x4C   
+    # FFDFF0EF  //                    jal x1 -4           | #2 jump @PC-0x4 | PC 0x50
+    # 00000013  //                    nop                 | NEVER EXECUTED  | PC 0x54
+    # 00C02383  //                    lw x7 0xC(x0)       | x7 <= DEADBEEF  | PC 0x58
+    ##################
+    print("\n\nTESTING JAL\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "00C000EF"
+    assert binary_to_hex(dut.pc.value) == "00000044"
+
+    await RisingEdge(dut.clk) # jal x1 0xC
+    # Check new state & ra (x1) register value
+    assert binary_to_hex(dut.instruction.value) == "FFDFF0EF"
+    assert binary_to_hex(dut.pc.value) == "00000050"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000048" # stored old pc + 4
+
+    await RisingEdge(dut.clk) # jal x1 -4
+    # Check new state & ra (x1) register value
+    assert binary_to_hex(dut.instruction.value) == "00C000EF"
+    assert binary_to_hex(dut.pc.value) == "0000004C"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000054" # stored old pc + 4
+
+    await RisingEdge(dut.clk) # jal x1 0xC
+    # Check new state & ra (x1) register value
+    assert binary_to_hex(dut.instruction.value) == "00C02383"
+    assert binary_to_hex(dut.pc.value) == "00000058"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000050" # stored old pc + 4
+
+    await RisingEdge(dut.clk) # lw x7 0xC(x0)
+    assert binary_to_hex(dut.regfile.registers[7].value) == "DEADBEEF"
+```
+
+And it works ! ```J-Type``` instructions are now supported.
+
