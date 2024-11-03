@@ -23,6 +23,8 @@ module control (
 
 logic [1:0] alu_op;
 logic branch;
+logic jump;
+
 always_comb begin
     case (op)
         // I-type
@@ -34,6 +36,7 @@ always_comb begin
             alu_source = 1'b1; //imm
             write_back_source = 1'b01; //memory_read
             branch = 1'b0;
+            jump = 1'b0;
         end
         // S-Type
         7'b0100011 : begin
@@ -43,6 +46,7 @@ always_comb begin
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
             branch = 1'b0;
+            jump = 1'b0;
         end
         // R-Type
         7'b0110011 : begin
@@ -52,6 +56,7 @@ always_comb begin
             alu_source = 1'b0; //reg2
             write_back_source = 1'b00; //alu_result
             branch = 1'b0;
+            jump = 1'b0;
         end
         // B-type
         7'b1100011 : begin
@@ -61,17 +66,24 @@ always_comb begin
             mem_write = 1'b0;
             alu_op = 2'b01;
             branch = 1'b1;
+            jump = 1'b0;
         end
         // J-type
         7'b1101111 : begin
-            write_back_source = 1'b10; //pc_target
-            
+            reg_write = 1'b1;
+            imm_source = 2'b11;
+            mem_write = 1'b0;
+            write_back_source = 2'b10; //pc_+4
+            branch = 1'b0;
+            jump = 1'b1;
         end
         // EVERYTHING ELSE
         default: begin
             // Don't touch the CPU nor MEMORY state
             reg_write = 1'b0;
             mem_write = 1'b0;
+            jump = 1'b0;
+            branch = 1'b0;
         end
     endcase
 end
@@ -107,6 +119,6 @@ end
 /**
 * PC_Source
 */
-assign pc_source = alu_zero & branch;
+assign pc_source = (alu_zero & branch) | jump;
     
 endmodule

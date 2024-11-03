@@ -11,11 +11,15 @@ module cpu (
 
 reg [31:0] pc;
 logic [31:0] pc_next;
+logic [31:0] pc_target;
+logic [31:0] pc_plus_four;
+assign pc_target = pc + immediate;
+assign pc_plus_four = pc + 4;
 
 always_comb begin : pc_select
     case (pc_source)
-        1'b1 : pc_next = pc + immediate; // pc_target
-        default: pc_next = pc + 4; // pc + 4
+        1'b1 : pc_next = pc_target; // pc_target
+        default: pc_next = pc_plus_four; // pc + 4
     endcase
 end
 
@@ -66,7 +70,7 @@ wire mem_write;
 wire reg_write;
 // out muxes wires
 wire alu_source;
-wire write_back_source;
+wire [1:0] write_back_source;
 wire pc_source;
 
 control control_unit(
@@ -102,8 +106,9 @@ wire [31:0] read_reg2;
 logic [31:0] write_back_data;
 always_comb begin : write_back_source_select
     case (write_back_source)
-        1'b1: write_back_data = mem_read;
-        default: write_back_data = alu_result;
+        2'b00: write_back_data = alu_result;
+        2'b01: write_back_data = mem_read;
+        2'b10: write_back_data = pc_plus_four;
     endcase
 end
 
