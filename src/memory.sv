@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module memory #(
     parameter WORDS = 64,
     parameter mem_init = ""

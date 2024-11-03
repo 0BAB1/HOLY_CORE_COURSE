@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module signext (
     // IN
     input logic [24:0] raw_src,
