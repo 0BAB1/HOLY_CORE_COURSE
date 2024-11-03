@@ -13,7 +13,7 @@ module control (
     output logic mem_write,
     output logic reg_write,
     output logic alu_source,
-    output logic write_back_source,
+    output logic [1:0] write_back_source,
     output logic pc_source
 );
 
@@ -32,7 +32,7 @@ always_comb begin
             mem_write = 1'b0;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
-            write_back_source = 1'b1; //memory_read
+            write_back_source = 1'b01; //memory_read
             branch = 1'b0;
         end
         // S-Type
@@ -50,7 +50,7 @@ always_comb begin
             mem_write = 1'b0;
             alu_op = 2'b10;
             alu_source = 1'b0; //reg2
-            write_back_source = 1'b0; //alu_result
+            write_back_source = 1'b00; //alu_result
             branch = 1'b0;
         end
         // B-type
@@ -61,6 +61,11 @@ always_comb begin
             mem_write = 1'b0;
             alu_op = 2'b01;
             branch = 1'b1;
+        end
+        // J-type
+        7'b1101111 : begin
+            write_back_source = 1'b10; //pc_target
+            
         end
         // EVERYTHING ELSE
         default: begin
