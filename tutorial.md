@@ -64,7 +64,7 @@ Gotta build it then ! We'll start by crezting basic versions of the different bu
 
 ## 1.1.a : Implementing memory
 
-### HDL Code
+### 1.1.a : HDL Code
 
 Memory is memory, on FPGA for example, we would just take everything from a DDR IP of some sort. Here we'll implement some basic piece of memory that can store X amount of words and it will respond in 1 clock cycle (which is way too good to be true, but memory is a pain so we'll *conviniently* ignore that for now...).
 
@@ -122,7 +122,7 @@ Note the trick here, we use a [byte adressed momory](https://youtu.be/P2oFPtdDgT
 
 Each and everytime we implement something, we also test it, as stated in the main [readme file](./readme.md), we will use cocotb and verilator to verify our HDL.
 
-### Verification
+### 1.1.a : Verification
 
 When it comes to verifying memory, we'll simply do some writes while tinkering with the ``write_enable`` flag. Since I don't like writing tests and this is a simple case, I can ask my favorite LLM to generate some tests but turns out they are bad at digital design and I don't recommend using it fot this course (written in late 2024). Here is the testbench :
 
@@ -203,7 +203,7 @@ After it's done, I can go back to the root dir and run ``make clean`` to clean o
 
 ## 1.1.b : Implementing the regfile
 
-### HDL Code
+### 1.1.b : HDL Code
 
 For the reg file, it's just 32x32bits registers. we'll implement it like memory execpt the size is fixes the 32 bits with 5bits addressing.
 
@@ -253,7 +253,7 @@ end
 endmodule
 ```
 
-### Verification
+### 1.1.b : Verification
 
 Now to verify this HDL, we'll simply use random write on A3, and read after each write on both address. We then compare to a therorical golden state update in software in the testbench.
 
@@ -332,9 +332,9 @@ async def random_write_read_test(dut):
     print("Random write/read test completed successfully.")
 ```
 
-## 1.1.c Implementing the ALU
+## 1.1.c : Implementing the ALU
 
-### HDL Code
+### 1.1.c : HDL Code
 
 For the Load Word datapath, we only need to add :
 
@@ -368,7 +368,7 @@ endmodule
 
 We also add a ```alu_control``` option, to later select other arithmetic operation. We default the result to 0 if the requested arithmetic isn't iplemented and we add a "zero" flag that we'll use in later designs.
 
-### Verification
+### 1.1.c : Verification
 
 Simple design, simple tesbench, but this time, the alu being pur combinational logic, we do not use a clock :
 
@@ -420,7 +420,7 @@ async def zero_test(dut):
 
 New ! we declare multiple tests, it's exactly the same as making a single block but it improve readability so why not.
 
-## 1.1.d Implementing the sign extender
+## 1.1.d : Implementing the sign extender
 
 In odrer to manipulte the immediate in other computation block, we need to make it 32bit wide. Also, Immediates can be "scatered" around in the instruction in RISC-V (e.g. Sotre Word ```sw```). This means that we'll need to :
 
@@ -428,6 +428,8 @@ In odrer to manipulte the immediate in other computation block, we need to make 
 - 2 Extend the gathered immediate sign to 32bits. Here is a basic implemention for our basic lw only with some preparations for the future :
 
 ```sv
+// signext.sv
+
 module signext (
     // IN
     input logic [24:0] raw_src,
@@ -453,7 +455,7 @@ endmodule
 
 Simple enough right ? no magic here, simply an raw application of the DDCA lecture. Now we test this design !
 
-### Verification
+### 1.1.d : Verification
 
 Here is the test benchench, if you are not used to bitwise operations, take a minute to get your head around these :
 
@@ -500,9 +502,11 @@ async def random_write_read_test(dut):
 
 Once again, we'll add oher feature to this a bit later ;)
 
-## 1.1.e Implementing basic control
+## 1.1.e : Implementing basic control
 
 Below is an image of what we need to do implement for the control unit. Note that the following image contains the logic for the **FULL** controller, for now, we'll focus on implementing the ```lw``` logic.
+
+![Controller logic img](./Controller_logic.png)
 
 First we lay down the only I/Os we need so far for ```lw```:
 
@@ -526,9 +530,9 @@ module control (
 endmodule
 ```
 
-This will help us focus on the important stuff to get a first ```lw``` example working.
+### 1.1.e : HDL Code
 
-![Controller logic img](./Controller_logic.png)
+This will help us focus on the important stuff to get a first ```lw``` example working.
 
 As you can see, there is aan ALU control as well. This is because a single instruction type require different kinds of arithmetics (e.g. R-Types that can be ```add```, ```sub```, ```mul```, ...).
 
@@ -595,7 +599,7 @@ endmodule
 
 And everything is ready for the future instruction to be added in control !
 
-### Verification
+### 1.1.e : Verification
 
 The tesbench is veristraight forward, we emulate ONLY the important signals described in the truth tables for a given instruction (we don't care about the other one being ```X``` or ```Z``` in simulation). And we assert the outputs states :
 
@@ -629,7 +633,7 @@ Use the [tables](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/inst
 
 We can now start to edit ```cpu.sv``` and add the pieces toggether ! From tehere (a working lw datapath), we'll be able to add functionalities and build more advanced features !
 
-### HDL Code
+### 1.2 : HDL Code
 
 Here is the complete ```lw``` specific datapth :
 
@@ -830,7 +834,7 @@ endmodule
 
 see below verification for explainations...
 
-### Verification
+### 1.2 : Verification
 
 To test this, we need to instanciate instruction and data memory with some known data. We then check the regfile's states and check if the said states are the one we expected when writting the instructions.
 
@@ -1024,7 +1028,7 @@ Here is a todo list to implement these new changes :
 
 ## 2.1.a : Updating the signextender
 
-### HDL Code
+### 2.1.a : HDL Code
 
 So let's get to work shall we ? We'll statrt by updating the sign extender to take into account our new source type
 
@@ -1054,9 +1058,10 @@ assign immediate = {{20{gathered_imm[11]}}, gathered_imm};
     
 endmodule
 ```
+
 As you can see, just a simple application of the S-Type instruction Imm format.
 
-### Verification
+### 2.1.a : Verification
 
 Now to verify that, we update the ```test_signext.py``` testbench file by adding another, improved test :
 
@@ -1113,7 +1118,7 @@ As we can see, we randomized the testes and used more bitwise manipulation for a
 
 As you can see in the lecture and as stated before, we need to update the ```reg_write_enable``` and ```mem_write_enable``` signals.
 
-### HDL Code
+### 2.1.b : HDL Code
 
 Here is the updated main decode, nothing else changes :
 
@@ -1158,7 +1163,7 @@ end
 
 As you can see it is simple a matter of adding a decoding case.
 
-### Verification
+### 2.1.b : Verification
 
 For the verification, it is also pretty somple :
 
@@ -1190,7 +1195,7 @@ async def sw_control_test(dut):
 
 Globally in the datapath, nothing much changes, we just link the signals we previously kept on 0 for the memory write inputs :
 
-```sv 
+```sv
 // cpu.sv
 
 // non changed logic ...
@@ -1222,7 +1227,7 @@ memory #(
 // non changed logic ...
 ```
 
-### Verification
+### 2.2 : Verification
 
 To verify, once again, we set up the memory files on a scenario that will be easily predictible in testing so we can verify the CPU behavior, whilst keeping of course the previos ```lw``` tests in our memory files :
 
@@ -1348,14 +1353,14 @@ Here is what an ```R-Type : add``` instruction look like so we don't mess up the
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | 0000000 | xxxxx |xxxxx | 000 |xxxxx |0110011 |
 
-## 3.1 bis : Updataing the control unit
+## 3.1.a : Updataing the control unit
 
 So, to accomodate the new requierements, we add the following signals as outputs to our control unit :
 
 - ```alu_source``` which tells our alu not to get it's second operand from the immediate, but rather from the second read register.
 - ```write_back_source``` Which tells our registers to get data from the alu for writing back to reg3, instead of the memory_read.
 
-### HDL Code
+### 3.1.a : HDL Code
 
 Here is the new HDL code. A new thing is that we take f3 into account, because when we'll implement ```or``` & ```and```, this will be the factor that will differenciate them.
 
@@ -1443,7 +1448,7 @@ end
 endmodule
 ```
 
-### Verification
+### 3.1.a : Verification
 
 We also need to udate our verification, to see if the new signals are okay for our previous instructions, and add a new one for ```add``` :
 
@@ -1497,7 +1502,7 @@ async def add_control_test(dut):
 
 Note that if a signal is not necessary to the instruction (eg ```write_back_source``` for ```sw```) we just don't check for it.
 
-## 3.2 :  Laying down the datapath for ```R-Type```
+## 3.2 : Laying down the datapath for ```R-Type```
 
 Here is a fully updated version of the cpu datapath :
 
@@ -1687,7 +1692,7 @@ As you can see, I chose not to add F7 just yet, as we still don't need it for su
 
 before moving any further, we chack that out old tests still works, because they should ! on my side, they do, great ! So let's move on.
 
-### Verification
+### 3.2 : Verification
 
 As usual, we create a predectible environement. I chose to go with this program to include a ```add``` test :
 
@@ -2084,7 +2089,7 @@ But how will we implement it here ?
 
 Well, in the low level world, branching is just about changing the ```pc``` (program counter) to whatever we want instead of going to the dumb ```pc + 4``` we had until now. (thus the pc source selector we addedf at the very beginning).
 
-Here will try to implement ```beq``` that branches (changes the next pc to...) to whatever address we want in the instruction memory if a condition is met. This condition is that the two regs are equal. 
+Here will try to implement ```beq``` that branches (changes the next pc to...) to whatever address we want in the instruction memory if a condition is met. This condition is that the two regs are equal.
 
 ### The ```beq``` example & ```B-Type``` layout
 
@@ -2119,7 +2124,7 @@ Okay, so in terms of control, we need to
 
 > Here, the branching condition is simply ```rs1 == rs2``` i.e. the ```alu_zero``` being high.
 
-### HDL Code
+### 4.1.a : HDL Code
 
 So in the controller code, we need to add the ```B-Type``` and add some logic for ```pc_source``` and a whole bunch of ```branch``` signal for each instruction type :
 
@@ -2201,7 +2206,7 @@ assign pc_source = alu_zero & branch;
 endmodule
 ```
 
-### Verification
+### 4.1.a : Verification
 
 Great ! Now let's adapat our test cases and create a new one accordingly !
 
@@ -2268,12 +2273,12 @@ Note that our ```beq``` testbench is separated in two :
 Before going any further, here are some basics that are neverthelesss important (and are pretty umportant details that ANYONE can get wrong) :
 
 - In RISC-V, when the LU, performs a ```sub```, we do ```srcA - srcB``` and not the contrary.
-  - e.g. ```sub rd, rs1, rs2``` 
+  - e.g. ```sub rd, rs1, rs2```
   - rd <= rs1 - rs2 with rs2 being srcB of the ALU
 - We do not care about sign interpretaion at this level, we just execute.
 - 2's complement : ```-srcB = (~srcB+1)``` with ~ being a bitwise nor.
 
-### HDL Code
+### 4.1.b : HDL Code
 
 With the previous details in minf, for the logic, we simply make an addition with the 2's complement of src2 :
 
@@ -2300,7 +2305,7 @@ end
 //
 ```
 
-### Verification
+### 4.1.b : Verification
 
 ```python
 # test_alu.py
@@ -2347,7 +2352,7 @@ By updating the sign extender's logic to support this new ```imm_source = 2'b10`
 
 ![Paper example for B-Type immediate](./B_imm.jpg)
 
-### HDL Code
+### 4.1.c : HDL Code
 
 Here is the updated sign extender logic :
 
@@ -2390,7 +2395,7 @@ As you can see, the immediate range is 13 bits (we add a single 0 bit at the end
 
 Yes and no, This allows the user to point on "half words" on 16 bits. **In our case, this is not useful** and will autamatically be discarded by the way we implemented our memory. **BUT** it can be useful if the Compressed extension set is implemented, but this is out of the scope of this tutorial.
 
-### Verification
+### 4.1.c : Verification
 
 Once again, just like the other tests, nothing new except for the bitwise gymnastics to setup the test :
 
@@ -2445,7 +2450,7 @@ For the datapath, we need to be able to compute a new PC using some basic add ar
 - Our brand new ```immediate``` source
 - The current ```pc```
 
-### HDL Code
+### 4.2 : HDL Code
 
 To do so we get a ```pc_source``` wire (the one we just created) from the control unit :
 
@@ -2512,7 +2517,7 @@ end
 
 As we touched the datapath and other logics, now is a good time to see if all testbenches are still okay, we run them... Good ! let's build a test program for our new ```beq```.
 
-### Verification
+### 4.2 : Verification
 
 Here is the program I came up with, it runs multiple branches :
 
@@ -2623,13 +2628,13 @@ So,
 - We need a new ```write_back_source```
 - Update the control unit accordingly
 
-## 5.1.a Updating the sign extender
+## 5.1.a : Updating the sign extender
 
 > Tip : Just like ```beq``` (and many other things...) using pen and paper is strongly recommended to write HDL and tests !
 
 ![Paper example for J-Type immediate](./J_imm.jpg)
 
-### HDL Code
+### 5.1 : HDL Code
 
 As usual, we add this imm source to our HDL Code (I heavily re-factored the signext code as immediates size were now too different from one to another to simply apply 1 sign extend at the "end"):
 
@@ -2663,7 +2668,7 @@ endmodule
 
 (yes, this is the entire module ;p)
 
-### Verification
+### 5.1 : Verification
 
 To verify that, we do as usual, using some bitwise gymnastic, a pen and some paper :
 
@@ -2709,7 +2714,7 @@ async def signext_j_type_test(dut):
         assert int(dut.immediate.value) - (1 << 32) == imm - (1 << 21)
 ```
 
-## 5.1.b Updating the control unit
+## 5.1.b : Updating the control unit
 
 Here is a recap of what we'll need to do now for the control unit (ignore "I-Type ALU" for now)
 
@@ -2721,7 +2726,7 @@ Let's :
 - modify the ```write_back_source``` signal
 - add a whole control logic for ```J-type```
 
-### HDL Code
+### 5.1.b : HDL Code
 
 ```sv
 // constrol.sv
@@ -2773,7 +2778,7 @@ assign pc_source = (alu_zero & branch) | jump; // NEW !
 endmodule
 ```
 
-### Verification
+### 5.1.b : Verification
 
 To verify this new deisng, we first need to update our tests cases by replacing :
 
@@ -2818,7 +2823,7 @@ async def jal_control_test(dut):
 
 For the datapath, we shall simply update the ```write_back_source``` wire to support 2bits and also update the Result Src mux.
 
-### HDL Code
+### 5.2 : HDL Code
 
 ```sv
 // cpu.sv
@@ -2881,7 +2886,7 @@ end
 
 As you can see, I also refactored the PC code using logic signals for values instead of hardcoded values.
 
-### Verification
+### 5.2 : Verification
 
 As usual, let's write a little program to test our new ```jal``` instruction, and add it to our main test program :
 
@@ -2969,4 +2974,3 @@ async def cpu_insrt_test(dut):
 ```
 
 And it works ! ```J-Type``` instructions are now supported.
-
