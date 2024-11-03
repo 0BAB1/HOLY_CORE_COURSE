@@ -102,3 +102,39 @@ async def signext_b_type_test(dut):
         dut.imm_source.value = source
         await Timer(1, units="ns") # let it propagate ...
         assert int(dut.immediate.value) - (1 << 32) == imm - (1 << 13)
+
+@cocotb.test()
+async def signext_j_type_test(dut):
+    # 100 randomized tests
+    for _ in range(100):
+        # TEST POSITIVE IMM
+        await Timer(100, units="ns")
+        imm = random.randint(0,0b01111111111111111111) 
+        imm <<= 1 # 21 bits signed imm ending with a 0
+        imm_20 =     (imm & 0b100000000000000000000) >> 20
+        imm_19_12 =  (imm & 0b011111111000000000000) >> 12
+        imm_11 =     (imm & 0b000000000100000000000) >> 11
+        imm_10_1 =   (imm & 0b000000000011111111110) >> 1
+        raw_data =  (imm_20 << 24) | (imm_19_12 << 5) | (imm_11 << 13) | (imm_10_1 << 14)
+        source = 0b11
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) == imm
+
+        # TEST NEGATIVE IMM
+        await Timer(100, units="ns")
+        imm = random.randint(0b10000000000000000000,0b11111111111111111111) 
+        imm <<= 1 # 21 bits signed imm ending with a 0
+        imm_20 =     (imm & 0b100000000000000000000) >> 20
+        imm_19_12 =  (imm & 0b011111111000000000000) >> 12
+        imm_11 =     (imm & 0b000000000100000000000) >> 11
+        imm_10_1 =   (imm & 0b000000000011111111110) >> 1
+        raw_data =  (imm_20 << 24) | (imm_19_12 << 5) | (imm_11 << 13) | (imm_10_1 << 14)
+        source = 0b11
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) - (1 << 32) == imm - (1 << 21)

@@ -2067,6 +2067,8 @@ And there we go ! We just added suport for 2 more instructions ! This passage wa
 
 ## 4 : ```beq```, an introduction to ```B-types``` instructions
 
+[The Lecture](https://youtu.be/sVZmqLRkbVk?feature=shared&t=550)
+
 Okay, now we can start to see how to remember data and do basic math ! great, we got ourselve a very dumb calculator. But the very essence of modern computing is :
 
 > Conditional programing
@@ -2107,7 +2109,7 @@ Here is a figure from the Harris' **DDCA Books, RISC-V Edition** alonside a tabl
 
 ![beq / B-type datapath enhancements](Beq_datapath.png)
 
-## 4.1.1 : Updating the control unit
+## 4.1.a : Updating the control unit
 
 Okay, so in terms of control, we need to
 
@@ -2261,7 +2263,7 @@ Note that our ```beq``` testbench is separated in two :
 1. Test whilst the branching condition is **not** met (pc_source should stay default)
 2. Test whilst the branching condition **is** met (pc_source should change to select new target)
 
-## 4.1.2 : Update the ALU for substraction arithmetic
+## 4.1.b : Update the ALU for substraction arithmetic
 
 Before going any further, here are some basics that are neverthelesss important (and are pretty umportant details that ANYONE can get wrong) :
 
@@ -2332,7 +2334,7 @@ async def sub_test(dut):
 
 As you can see, they are a lot of assertions and comments, as I wanted to make sure this whole 2's complement stuff worked as intended reagrdless of our sign interpretation. I chose to keep them in the code if you want to experiment as well.
 
-## 4.1.3 : Updating the ```signextend``` logic
+## 4.1.c : Updating the ```signextend``` logic
 
 And now is the time to tackle the monstruosity of an instruction format :
 
@@ -2340,6 +2342,10 @@ And now is the time to tackle the monstruosity of an instruction format :
 |:---:|:---:|:---:|:---:|:---:|:---:|
 
 By updating the sign extender's logic to support this new ```imm_source = 2'b10```
+
+> Tip : I Highly suggest you you pen and paper, this is tru for many things, but as immediates sources gets weirder, it will be more and more helpful.
+
+![Paper example for B-Type immediate](./B_imm.jpg)
 
 ### HDL Code
 
@@ -2590,5 +2596,135 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.instruction.value) == "00000013"
 ```
 
-And the test passes ! (after correcting some ypos of course haha).
+And the test passes ! (after correcting some typos of course haha).
 
+## 5 : ```J-types``` instruction : ```jal``` implementation
+
+Still in the "changing the pc" theme, I'd like to introduce the J-Type instructions :
+
+| IMM[20] + IMM[10:1] + IMM[11] + IMM[19:12] | rd |  OP |
+|:---:|:---:|:---:|
+| XXXXXXXXXXXXXXXXXXXX | XXXXX | 1101111 |
+
+According to the [RV32 Table](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table_00.svg), ```jal``` is the only instruction the uses this type for the base RV32 ISA. So ? What does it do ?
+
+The idea behind this instruction is to jump **without a condition** and store PC+4 in a return register ```rd``` to come back to it later, often used to call a function for example.
+
+so, we pretty much have nothing to check as this is an unconditional event that will store ```PC_target```.
+ into ```rd```.
+
+## 5.1 : Todo for ```jal```
+
+Here is what we want to implement :
+
+![J Type datapath](Jtype_datapath.png)
+
+So,
+
+- We need a new ```imm_source```
+- We need a new ```write_back_source```
+- Update the control unit accordingly
+
+## 5.1.a Updating the sign extender
+
+> Tip : Just like ```beq``` (and many other things...) using pen and paper is strongly recommended to write HDL and tests !
+
+![Paper example for J-Type immediate](./J_imm.jpg)
+
+### HDL Code
+
+As usual, we add this imm source to our HDL Code (I heavily re-factored the signext code as immediates size were now too different from one to another to simply apply 1 sign extend at the "end"):
+
+```sv
+// signext.sv 
+module signext (
+    // IN
+    input logic [24:0] raw_src,
+    input logic [1:0] imm_source,
+
+    // OUT (immediate)
+    output logic [31:0] immediate
+);
+
+always_comb begin
+    case (imm_source)
+        // For I-Types
+        2'b00 : immediate = {{20{raw_src[24]}}, raw_src[24:13]};
+        // For S-types
+        2'b01 : immediate = {{20{raw_src[24]}},raw_src[24:18],raw_src[4:0]};
+        // For B-types
+        2'b10 : immediate = {{20{raw_src[24]}},raw_src[0],raw_src[23:18],raw_src[4:1],1'b0};
+        // For J-types
+        2'b11 : immediate = {{12{raw_src[24]}}, raw_src[12:5], raw_src[13], raw_src[23:14], 1'b0};
+        default: immediate = 12'b0;
+    endcase
+end
+    
+endmodule
+```
+
+(yes, this is the entire module ;p)
+
+### Verification
+
+To verify that, we do as usual, using some bitwise gymnastic, a pen and some paper :
+
+```python
+# test_signext.sv
+
+# ...
+
+@cocotb.test()
+async def signext_j_type_test(dut):
+    # 100 randomized tests
+    for _ in range(100):
+        # TEST POSITIVE IMM
+        await Timer(100, units="ns")
+        imm = random.randint(0,0b01111111111111111111) 
+        imm <<= 1 # 21 bits signed imm ending with a 0
+        imm_20 =     (imm & 0b100000000000000000000) >> 20
+        imm_19_12 =  (imm & 0b011111111000000000000) >> 12
+        imm_11 =     (imm & 0b000000000100000000000) >> 11
+        imm_10_1 =   (imm & 0b000000000011111111110) >> 1
+        raw_data =  (imm_20 << 24) | (imm_19_12 << 5) | (imm_11 << 13) | (imm_10_1 << 14)
+        source = 0b11
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) == imm
+
+        # TEST NEGATIVE IMM
+        await Timer(100, units="ns")
+        imm = random.randint(0b10000000000000000000,0b11111111111111111111) 
+        imm <<= 1 # 21 bits signed imm ending with a 0
+        imm_20 =     (imm & 0b100000000000000000000) >> 20
+        imm_19_12 =  (imm & 0b011111111000000000000) >> 12
+        imm_11 =     (imm & 0b000000000100000000000) >> 11
+        imm_10_1 =   (imm & 0b000000000011111111110) >> 1
+        raw_data =  (imm_20 << 24) | (imm_19_12 << 5) | (imm_11 << 13) | (imm_10_1 << 14)
+        source = 0b11
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) - (1 << 32) == imm - (1 << 21)
+```
+
+## 5.1.b Updating the control unit
+
+Here is a recap of what we'll need to do now for the control unit (ignore "I-Type ALU" for now)
+
+![Enhancements to decoder for J-Type](./J_decoder.png)
+
+Let's :
+
+- add a ```jump``` signal
+- modify the ```write_back_source``` signal
+- add a whole control logic for ```J-type```
+
+### HDL Code
+
+```sv
+// constrol.sv
+```
