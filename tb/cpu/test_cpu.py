@@ -177,3 +177,21 @@ async def cpu_insrt_test(dut):
 
     await RisingEdge(dut.clk) # lw x7 0xC(x0)
     assert binary_to_hex(dut.regfile.registers[7].value) == "DEADBEEF"
+    
+    ##################
+    # ADDI TEST
+    # 1AB38D13  //                    addi x26 x7 0x1AB   | x26 <= DEADC09A
+    # F2130C93  //                    addi x25 x6 0xF21   | x25 <= DEADBE10
+    ##################
+    print("\n\nTESTING ADDI\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "1AB38D13"
+    assert not binary_to_hex(dut.regfile.registers[26].value) == "DEADC09A"
+
+    await RisingEdge(dut.clk) # addi x26 x7 0x1AB
+    assert binary_to_hex(dut.instruction.value) == "F2130C93"
+    assert binary_to_hex(dut.regfile.registers[26].value) == "DEADC09A"
+
+    await RisingEdge(dut.clk) # addi x25 x6 0xF21
+    assert binary_to_hex(dut.regfile.registers[25].value) == "7F4FD38B"

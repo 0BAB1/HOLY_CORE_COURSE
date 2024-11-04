@@ -1,4 +1,4 @@
-# Tutorial / Writeup
+# The complete RISC-V tutorial : single cycle edition
 
 Tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs). PS :  the intro is legendary.
 
@@ -2974,3 +2974,159 @@ async def cpu_insrt_test(dut):
 ```
 
 And it works ! ```J-Type``` instructions are now supported.
+
+## 6 : Adding new instructions based on our datapath : the example of ```addi```
+
+Great our CPU is capable of doing many things, in we only have one instrction type left before being done with all the types. But right before moving on to that (see part 7), we'll implement the ```addi``` instruction.
+
+```addi``` is an ```I-Type``` instruction that does this :
+
+```asm
+addi rd, rs, imm # add a 12 bits immediate to rs1 and stores it into rd 
+```
+
+And here is how this instruction is structured :
+
+| IMM[11:0] | rs1 |  f3 | rd | OP |
+|:---:|:---:|:---:| :---:| :---:|
+| XXXXXXXXXXXX | XXXXX | 000 | XXXXX | 0010011 |
+
+So yes, the op isn't quite the same as ```lw``` but still, it is an ```I-Type``` instruction, the ones that do not interact with memory ! So to still differenciate it from regular "*memory interfering*" *I-Types, we'll call these immediates operation : ```ALU I-Types```.
+
+## 6.1 : What do we need to implement ```addi```
+
+Here is the very long list of what we need to do :
+
+- Update control
+
+That's it ! Because when you think about it, we already have everything we need !
+
+- An ALU able to add stuff toghether
+- A sign extender able to get it's immediates from ```I-Type```
+- ...
+
+So let's get to work !
+
+## 6.1.a : Updating th control unit
+
+### 6.1.a : HDL Code
+
+Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book):
+
+![Enhancements to decoder for J-Type](./J_decoder.png)
+
+```sv
+// control.sv
+
+//...
+
+    // ALU I-type
+    7'b0010011 : begin
+        reg_write = 1'b1;
+        imm_source = 2'b00;
+        alu_source = 1'b1; //imm
+        mem_write = 1'b0;
+        alu_op = 2'b00;
+        write_back_source = 1'b00; //alu_result
+        branch = 1'b0;
+        jump = 1'b0;
+    end
+
+//...
+```
+
+Only the source of the write_back changes ! Which makes sense ! Let's test that witout further ado !
+
+### 6.1.a : Verification
+
+```python
+# test_control.py
+
+#...
+
+@cocotb.test()
+async def addi_control_test(dut):
+    # TEST CONTROL SIGNALS FOR LW
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "000"
+    assert dut.imm_source.value == "00"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+
+```
+
+And the control is ready to tell our CPU what to do ! Let's hop on to using it into our test program !
+
+## 6.2 : HEX Verification
+
+The programm will be only 2 instruction :
+
+- One with a positive immediate
+- Another with a negative immediate
+
+As I said before, I will not show the rest of the program here as it is getting pretty chunky :
+
+```txt
+//...
+00000013  //                    nop                 | NEVER EXECUTED
+00C02383  //                    lw x7 0xC(x0)       | x7 <= DEADBEEF     
+1AB38D13  //ADDI TEST START :   addi x26 x7 0x1AB   | x26 <= DEADC09A
+F2130C93  //                    addi x25 x6 0xF21   | x25 <= DEADBE10
+00000013  //NOP
+//...
+```
+
+And here is the tesbench in python to test for these expected results & behavior :
+
+```python
+# test_cpu.sv
+
+# ...
+
+    ##################
+    # ADDI TEST
+    # 1AB38D13  //                    addi x26 x7 0x1AB   | x26 <= DEADC09A
+    # F2130C93  //                    addi x25 x6 0xF21   | x25 <= DEADBE10
+    ##################
+    print("\n\nTESTING ADDI\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "1AB38D13"
+    assert not binary_to_hex(dut.regfile.registers[26].value) == "DEADC09A"
+
+    await RisingEdge(dut.clk) # addi x26 x7 0x1AB
+    assert binary_to_hex(dut.instruction.value) == "F2130C93"
+    assert binary_to_hex(dut.regfile.registers[26].value) == "DEADC09A"
+
+    await RisingEdge(dut.clk) # addi x25 x6 0xF21
+    assert binary_to_hex(dut.regfile.registers[25].value) == "7F4FD38B"
+```
+
+And it works ! GG ! This ```addi``` instruction can also be used as ```li``` aka : *Load Immediate* because if we take x0 as a source register, the immediate will imediatly get stored in the ```rd``` (destination register).
+
+> Instruction like ```li``` are known as pseudo-instruction as they literraly are a mre convinient name for another instruction, which means that, yes, assembly does have it's lots of abstraction layers ;)
+
+**But** yhe immediate here is only 12 bits ! What if I need to load 32 bits in my register, I am doomed to write all my 32 bits data in memory to load it ?
+
+**NO !** There are convinient instruction out there to load the upper 20 bits of an immediate, and they are called ```U-Types``` ! See you in part 7 to implement them !
+
+## 7 : Implementing ```U-Type``` instructions
+
+Okay ! Our CPU is now capable of doing many things ! And as we implemented most of the instructions types, adding new instrctions sould be fairly easy.
+
+> **BUT WAIT !** An instrion type is missing !
+
+And you are right indeed ! If we take a look at the [base RV32 I Types table](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table_00.svg), we see that we still have to implement ```U-Type``` ! But what is ```U-Type```  exactly ?
+
+Well U-type only has 2 instrctions under its belt :
+
+- ```lui``` (load upper immediate)
+- ```AUIPC``` (load upper immediate)

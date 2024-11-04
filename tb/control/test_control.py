@@ -115,3 +115,20 @@ async def jal_control_test(dut):
     assert dut.jump.value == "1"
     assert dut.pc_source.value == "1"
     assert dut.write_back_source.value == "10"
+
+@cocotb.test()
+async def addi_control_test(dut):
+    # TEST CONTROL SIGNALS FOR LW
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "000"
+    assert dut.imm_source.value == "00"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
