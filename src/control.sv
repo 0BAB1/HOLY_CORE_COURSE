@@ -38,6 +38,17 @@ always_comb begin
             branch = 1'b0;
             jump = 1'b0;
         end
+        // ALU I-type
+        7'b0010011 : begin
+            reg_write = 1'b1;
+            imm_source = 2'b00;
+            alu_source = 1'b1; //imm
+            mem_write = 1'b0;
+            alu_op = 2'b00;
+            write_back_source = 1'b00; //alu_result
+            branch = 1'b0;
+            jump = 1'b0;
+        end
         // S-Type
         7'b0100011 : begin
             reg_write = 1'b0;

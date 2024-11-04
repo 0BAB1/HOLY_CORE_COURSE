@@ -21,8 +21,8 @@ FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (negative
 FFDFF0EF  //                    jal x1 0x-4         | #2 jump @PC-0x4
 00000013  //                    nop                 | NEVER EXECUTED
 00C02383  //                    lw x7 0xC(x0)       | x7 <= DEADBEEF     
-00000013  //NOP
-00000013  //NOP
+1AB38D13  //ADDI TEST START :   addi x26 x7 0x1AB   | x26 <= DEADC09A
+F2130C93  //                    addi x25 x6 0xF21   | x25 <= 7F4FD38B
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
