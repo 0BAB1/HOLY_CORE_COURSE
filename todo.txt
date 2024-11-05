@@ -1,1 +1,4 @@
 adding new instructions quote : https://youtu.be/z6qxMFgNEM4?feature=shared&t=35
+
+testing 1 main program is cool and all but should make some more rovusts test benches fr the cpu, 
+or at least save the state (CPU & MEMORY) before each clock cycle and compare against to really isolate our changes.
