@@ -10,7 +10,7 @@ async def lw_control_test(dut):
 
     # Logic block controls
     assert dut.alu_control.value == "000"
-    assert dut.imm_source.value == "00"
+    assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     # Datapath mux sources
@@ -26,7 +26,7 @@ async def sw_control_test(dut):
     await Timer(1, units="ns")
 
     assert dut.alu_control.value == "000"
-    assert dut.imm_source.value == "01"
+    assert dut.imm_source.value == "001"
     assert dut.mem_write.value == "1"
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "1"
@@ -87,7 +87,7 @@ async def beq_control_test(dut):
     dut.alu_zero.value = 0b0
     await Timer(1, units="ns")
 
-    assert dut.imm_source.value == "10"
+    assert dut.imm_source.value == "010"
     assert dut.alu_control.value == "001"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "0"
@@ -100,6 +100,7 @@ async def beq_control_test(dut):
     dut.alu_zero.value = 0b1
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
+    assert dut.second_add_source.value == "0"
 
 @cocotb.test()
 async def jal_control_test(dut):
@@ -108,27 +109,60 @@ async def jal_control_test(dut):
     dut.op.value = 0b1101111 # J-TYPE
     await Timer(1, units="ns")
 
-    assert dut.imm_source.value == "11"
+    assert dut.imm_source.value == "011"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.branch.value == "0"
     assert dut.jump.value == "1"
     assert dut.pc_source.value == "1"
     assert dut.write_back_source.value == "10"
+    assert dut.second_add_source.value == "0"
 
 @cocotb.test()
 async def addi_control_test(dut):
-    # TEST CONTROL SIGNALS FOR LW
+    # TEST CONTROL SIGNALS FOR ADDI
     await Timer(10, units="ns")
-    dut.op.value = 0b0010011 # I-TYPE
+    dut.op.value = 0b0010011 # I-TYPE (alu)
     await Timer(1, units="ns")
 
     # Logic block controls
     assert dut.alu_control.value == "000"
-    assert dut.imm_source.value == "00"
+    assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "00"
     assert dut.pc_source.value == "0"
+
+@cocotb.test()
+async def lui_control_test(dut):
+    # TEST CONTROL SIGNALS FOR LUI
+    await Timer(10, units="ns")
+    dut.op.value = 0b0110111 # U-TYPE (lui)
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.imm_source.value == "100"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.write_back_source.value == "11"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.second_add_source.value == "1"
+
+@cocotb.test()
+async def auipc_control_test(dut):
+    # TEST CONTROL SIGNALS FOR AUIPC
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010111 # U-TYPE (auipc)
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.imm_source.value == "100"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.write_back_source.value == "11"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.second_add_source.value == "0"

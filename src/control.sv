@@ -9,12 +9,13 @@ module control (
 
     // OUT
     output logic [2:0] alu_control,
-    output logic [1:0] imm_source,
+    output logic [2:0] imm_source,
     output logic mem_write,
     output logic reg_write,
     output logic alu_source,
     output logic [1:0] write_back_source,
-    output logic pc_source
+    output logic pc_source,
+    output logic second_add_source
 );
 
 /**
@@ -30,29 +31,29 @@ always_comb begin
         // I-type
         7'b0000011 : begin
             reg_write = 1'b1;
-            imm_source = 2'b00;
+            imm_source = 3'b000;
             mem_write = 1'b0;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
-            write_back_source = 1'b01; //memory_read
+            write_back_source =2'b01; //memory_read
             branch = 1'b0;
             jump = 1'b0;
         end
         // ALU I-type
         7'b0010011 : begin
             reg_write = 1'b1;
-            imm_source = 2'b00;
+            imm_source = 3'b000;
             alu_source = 1'b1; //imm
             mem_write = 1'b0;
             alu_op = 2'b00;
-            write_back_source = 1'b00; //alu_result
+            write_back_source = 2'b00; //alu_result
             branch = 1'b0;
             jump = 1'b0;
         end
         // S-Type
         7'b0100011 : begin
             reg_write = 1'b0;
-            imm_source = 2'b01;
+            imm_source = 3'b001;
             mem_write = 1'b1;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
@@ -65,28 +66,43 @@ always_comb begin
             mem_write = 1'b0;
             alu_op = 2'b10;
             alu_source = 1'b0; //reg2
-            write_back_source = 1'b00; //alu_result
+            write_back_source = 2'b00; //alu_result
             branch = 1'b0;
             jump = 1'b0;
         end
         // B-type
         7'b1100011 : begin
             reg_write = 1'b0;
-            imm_source = 2'b10;
+            imm_source = 3'b010;
             alu_source = 1'b0;
             mem_write = 1'b0;
             alu_op = 2'b01;
             branch = 1'b1;
             jump = 1'b0;
+            second_add_source = 1'b0;
         end
         // J-type
         7'b1101111 : begin
             reg_write = 1'b1;
-            imm_source = 2'b11;
+            imm_source = 3'b011;
             mem_write = 1'b0;
             write_back_source = 2'b10; //pc_+4
             branch = 1'b0;
             jump = 1'b1;
+            second_add_source = 1'b0;
+        end
+        // U-type
+        7'b0110111, 7'b0010111 : begin
+            imm_source = 3'b100;
+            mem_write = 1'b0;
+            reg_write = 1'b1;
+            write_back_source = 2'b11;
+            branch = 1'b0;
+            jump = 1'b0;
+            case(op[5])
+                1'b1 : second_add_source = 1'b1; // lui
+                1'b0 : second_add_source = 1'b0; // auipc
+            endcase
         end
         // EVERYTHING ELSE
         default: begin

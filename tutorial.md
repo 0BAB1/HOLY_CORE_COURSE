@@ -2,6 +2,8 @@
 
 Tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs). PS :  the intro is legendary.
 
+<!-- TODO : ADD A DISCLAIMER ABOUT THE TECHNIQUES, like the usage of one single program, why is it so simple, why hardcoded names... spoiler : its because we do thing the gudol' way !-->
+
 It is also based on the *Digital Design and
 Computer Architecture, RISC-V Edition* Book from Sarah & David Harris (The persons that teaches the youtube lectures mentionned above). I'll let you do your own research to get your hands on the PDF ;)
 
@@ -13,9 +15,7 @@ Which aims at implementing all of the RV32 base instruction set :
 
 ![rv32 base and type](./RV32_base_types.png)
 
-That looks like a lot, but by implementing each type 1 by 1 (e.g. I,S,R,B,...) it can be done !
-
-> We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than basics like full aders and gate-level design.
+That looks like a lot, but by implementing each type 1 by 1 (e.g. I,S,R,B,...) it can be done !dd> We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than basics like full aders and gate-level design.
 
 You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
@@ -539,6 +539,8 @@ As you can see, there is aan ALU control as well. This is because a single instr
 So, the plan is to deduce a general ```alu_op``` and then add an ```alu_decoder``` unit will deduce the qrithmetic from indicators like ```func3``` (That i'll also call f3) and ```func7``` (That i'll also call f7). This will finally raise some ```alu_control``` control signals to tell the ALU what to do, here is another truth table to use that :
 
 ![Alu_op truth table img](./Alu_op_tt.png)
+
+> You can find the full table for the entire course at [this google calc link](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing).
 
 This process may seem weird as everything is in the same block at the end of the day but this makes the comb logics way easier to write and readable :
 
@@ -3046,7 +3048,7 @@ Only the source of the write_back changes ! Which makes sense ! Let's test that 
 
 @cocotb.test()
 async def addi_control_test(dut):
-    # TEST CONTROL SIGNALS FOR LW
+    # TEST CONTROL SIGNALS FOR ADDI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE
     await Timer(1, units="ns")
@@ -3128,5 +3130,317 @@ And you are right indeed ! If we take a look at the [base RV32 I Types table](ht
 
 Well U-type only has 2 instrctions under its belt :
 
-- ```lui``` (load upper immediate)
-- ```AUIPC``` (load upper immediate)
+- ```lui``` (load upper immediate in an rd)
+- ```auipc``` (load upper immediate in an rd + PC)
+
+These instructions allows us to setup the upper 20bits of a register epecially useful for memory stuff. (Take a look [here](https://stackoverflow.com/questions/52574537/risc-v-pc-absolute-vs-pc-relative) to learn more).
+
+Here is how they look like :
+
+| Instruction name | IMM[31:12] | rd |  OP |
+|:---:|:---:|:---:|:---:|
+| ```lui``` | XXXXXXXXXXXXXXXXXXXX | XXXXX | 0**1**10111 |
+| ```auipc``` | XXXXXXXXXXXXXXXXXXXX | XXXXX | 0**0**10111 |
+
+> Notice there is a changing bit in the OP codes.
+
+## 7.1 : What do we need to implement ```lui``` and ```auipc```
+
+> Even though these instructions sounds (and look) simple, implementing them will not be as easy as ```addi``` !
+
+Well we shall do multiple things this time :
+
+- Add a new immediate source
+  - Update sign ext
+- Add a new result source
+  - Update data path
+- Update the control accordignly
+- Add a new source signal for the pc target arithmetic
+
+Here is a somewhat accurate scheme of what we'll implement :
+
+![aU_datapath img](./U_datapath.png)
+
+The mux before pc target chooses between :
+
+- 32'b0 for *lui*
+- PC for *auipc*
+
+These modifs will tend to move some stuff around fir the sources format (make imm source 3 bits...) so we'll have to update things accordingly.
+
+> To keep track of all of these modifs, you can find an up-to-date table for the decoder signal here : [Link to google sheets](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing)
+
+## 7.1.a : Updating *signext*
+
+### 7.1.a : HDL Code
+
+Let's get started with the *signext* logic. Nothing to hard here, here is the updated code :
+
+```sv
+// signext.sv
+
+// IOs ...
+
+always_comb begin
+    case (imm_source)
+        // For I-Types
+        3'b000 : immediate = {{20{raw_src[24]}}, raw_src[24:13]};
+        // For S-types
+        3'b001 : immediate = {{20{raw_src[24]}},raw_src[24:18],raw_src[4:0]};
+        // For B-types
+        3'b010 : immediate = {{20{raw_src[24]}},raw_src[0],raw_src[23:18],raw_src[4:1],1'b0};
+        // For J-types
+        3'b011 : immediate = {{12{raw_src[24]}}, raw_src[12:5], raw_src[13], raw_src[23:14], 1'b0};
+        // For U-Types
+        3'b100 : immediate = {raw_src[24:5],12'b000000000000};
+        default: immediate = 12'b0;
+    endcase
+end
+
+//..
+```
+
+### 7.1.a : Verification
+
+And here is a simple test to verify the outputs :
+
+```python
+# test_signext.py
+
+# ...
+
+@cocotb.test()
+async def signext_u_type_test(dut):
+    # 100 randomized tests
+    for _ in range(100):
+        # TEST POSITIVE  NEGATIVE IMM
+        await Timer(100, units="ns")
+        imm_31_12 = random.randint(0,0b11111111111111111111)
+        raw_data =  (imm_31_12 << 5)
+        # add random junk to the raw_data to see if it is indeed discarded
+        random_junk = random.randint(0,0b11111)
+        raw_data |= random_junk
+        source = 0b100 # NOTE : that the other source has also been update to this format in the other tests
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert int(dut.immediate.value) == imm_31_12 << 12
+
+# ...
+```
+
+## 7.1.b Update the *control* logic
+
+So, as stated before, we need to update the ```imm_source``` signals (make them 3 bits) add a new source for the add arithmetic (we'll call it ```second_add_source``` to stay as simple and explicit as possible).
+
+> I will add ```second_add_source``` values for the decoder int [this spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing).
+
+### 7.1.b HDL Code
+
+Here is the updated control unit, do not forget to update all the *imm_source*. The main thing here is the newly added ```second_add_source``` :
+
+```sv
+// control.sv
+
+`timescale 1ns/1ps
+
+module control (
+    // I/Os...
+    output logic second_add_source // NEW !
+);
+
+/**
+* MAIN DECODER
+*/
+
+logic [1:0] alu_op;
+logic branch;
+logic jump;
+
+always_comb begin
+    case (op)
+        // I-type
+        7'b0000011 : begin
+            imm_source = 3'b000; // CHANGED
+            // ...
+        end
+        // ALU I-type
+        7'b0010011 : begin
+            imm_source = 3'b000; // CHANGED
+            // ...
+        end
+        // S-Type
+        7'b0100011 : begin
+            imm_source = 3'b001; // CHANGED
+            // ...
+        end
+        // R-Type
+        7'b0110011 : begin
+            // ...
+        end
+        // B-type
+        7'b1100011 : begin
+            imm_source = 3'b010; // CHANGED
+            // ...
+        end
+        // J-type
+        7'b1101111 : begin
+            imm_source = 3'b011; // CHANGED
+            // ...
+        end
+        // U-type NEW !
+        7'b0110111, 7'b0010111 : begin
+            imm_source = 3'b100;
+            mem_write = 1'b0;
+            reg_write = 1'b1;
+            write_back_source = 2'b11;
+            branch = 1'b0;
+            jump = 1'b0;
+            case(op[5])
+                1'b1 : second_add_source = 1'b1; // lui
+                1'b0 : second_add_source = 1'b0; // auipc
+            endcase
+        end
+        // ...
+    endcase
+end
+
+//...
+
+endmodule
+```
+
+Notice that we used the changing bity between the two *OP* Codes to discriminate both instructions to determine ```second_add_source```.
+
+### 7.1.b Verification
+
+Verification is pretty simple, here is the resulting test bench :
+
+> Don't forget to update the ```imm_source``` assertions to 3 bits or the test will not pass !
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def auipc_control_test(dut):
+    # TEST CONTROL SIGNALS FOR AUIPC
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010111 # U-TYPE (auipc)
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.imm_source.value == "100"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.write_back_source.value == "11"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.second_add_source.value == "0"
+```
+
+## 7.2 : Updating the datapath for ```U-Types```
+
+Now let's implement and test the datapath ! Refer to the previous scheme (see 7.1).
+
+### 7.2 : HDL Code
+
+Here is an overviewof the updates we shall make :
+
+```sv
+// cpu.sv
+
+module cpu (
+    // I/Os
+);
+
+/**
+* PROGRAM COUNTER
+*/
+
+reg [31:0] pc;
+logic [31:0] pc_next;
+logic [31:0] pc_plus_second_add;
+logic [31:0] pc_plus_four;
+assign pc_plus_four = pc + 4;
+
+always_comb begin : pc_select
+    case (pc_source)
+        1'b1 : pc_next = pc_plus_second_add;
+        default: pc_next = pc_plus_four; // pc + 4
+    endcase
+
+    case (second_add_source)
+        1'b0 : pc_plus_second_add = pc + immediate;
+        1'b1 : pc_plus_second_add = immediate;
+    endcase
+end
+/**
+* INSTRUCTION MEMORY
+*/
+
+// ...
+
+/**
+* CONTROL
+*/
+
+// ... 
+wire second_add_source; // NEW !
+
+control control_unit(
+    .second_add_source(second_add_source) // ...
+);
+
+/**
+* REGFILE
+*/
+
+//...
+
+logic [31:0] write_back_data;
+always_comb begin : write_back_source_select
+    case (write_back_source)
+        // ...
+        2'b11: write_back_data = pc_plus_second_add; // NEW !
+    endcase
+end
+
+regfile regfile(
+    // ...
+);
+
+/**
+* SIGN EXTEND
+*/
+
+// ... 
+
+/**
+* ALU
+*/
+
+//...
+
+/**
+* DATA MEMORY
+*/
+
+// ...
+    
+endmodule
+```
+
+As you can see, we also add a MUX case for the ```write_back_source``` signal and renamed ```pc_target``` for ```pc_plus_second_add```. (*Which does't really make sense but we're here to be explicit in our naming so this will have to do !*).
+
+By the way, here is a little fun fact : **we still don't use F7 at all in our CPU !** We'll use it to discriminate R-Types don't worry ;)
+
+### 7.2 : Verification
+
+As usual , le't update our main program and make assertions on the results based ont the RISC-V ISA.
+
+```txt
+
+```
