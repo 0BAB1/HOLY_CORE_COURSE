@@ -212,7 +212,7 @@ async def cpu_insrt_test(dut):
     # LUI TEST
     # 2F2FA2B7  //LUI TEST START :    lui x5 0x2F2FA      | x5 <= 2F2FA000
     ##################
-    print("\n\nTESTING AUIPC\n\n")
+    print("\n\nTESTING LUI\n\n")
 
     # Check test's init state
     assert binary_to_hex(dut.instruction.value) == "2F2FA2B7"

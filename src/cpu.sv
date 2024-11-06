@@ -17,10 +17,12 @@ assign pc_plus_four = pc + 4;
 
 always_comb begin : pc_select
     case (pc_source)
+        1'b0 : pc_next = pc_plus_four; // pc + 4
         1'b1 : pc_next = pc_plus_second_add;
-        default: pc_next = pc_plus_four; // pc + 4
     endcase
+end
 
+always_comb begin : second_add_select
     case (second_add_source)
         1'b0 : pc_plus_second_add = pc + immediate;
         1'b1 : pc_plus_second_add = immediate;
