@@ -3366,17 +3366,22 @@ logic [31:0] pc_plus_second_add;
 logic [31:0] pc_plus_four;
 assign pc_plus_four = pc + 4;
 
+// NEW LOGIC BELOW !
+
 always_comb begin : pc_select
     case (pc_source)
+        1'b0 : pc_next = pc_plus_four; // pc + 4
         1'b1 : pc_next = pc_plus_second_add;
-        default: pc_next = pc_plus_four; // pc + 4
     endcase
+end
 
+always_comb begin : second_add_select
     case (second_add_source)
         1'b0 : pc_plus_second_add = pc + immediate;
         1'b1 : pc_plus_second_add = immediate;
     endcase
 end
+
 /**
 * INSTRUCTION MEMORY
 */
@@ -3437,10 +3442,71 @@ As you can see, we also add a MUX case for the ```write_back_source``` signal an
 
 By the way, here is a little fun fact : **we still don't use F7 at all in our CPU !** We'll use it to discriminate R-Types don't worry ;)
 
+> Warning ! You have to make 2 ```always_comb``` block, otherwise it does not work ! Idk if its about simulation or something, but if you put both second_add_select and pc_select muxes in the same ```always_comb```, it just does not update the pc correctly for the ```jal``` and the simualtion crashes ! (yes it took me a whole hour to figure this sh*t out haha).
+
 ### 7.2 : Verification
 
 As usual , le't update our main program and make assertions on the results based ont the RISC-V ISA.
 
 ```txt
+//test_imemory.hex
 
+//...
+1F1FA297  //AUIPC TEST START :  auipc x5 0x1F1FA    | x5 <= 1F1FA064   PC 0x64
+2F2FA2B7  //LUI TEST START :    lui x5 0x2F2FA      | x5 <= 2F2FA000
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+//...
 ```
+
+and we add these test case to our cpu testbench :
+
+```python
+# test_cpu.py
+
+#...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # Other tests ...
+
+    ##################
+    # AUIPC TEST (PC befor is 0x64)
+    # 1F1FA297  //AUIPC TEST START :  auipc x5 0x1F1FA    | x5 <= 1F1FA064 
+    ##################
+    print("\n\nTESTING AUIPC\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "1F1FA297"
+
+    await RisingEdge(dut.clk) # auipc x5 0x1F1FA
+    assert binary_to_hex(dut.regfile.registers[5].value) == "1F1FA064"
+
+    ##################
+    # LUI TEST
+    # 2F2FA2B7  //LUI TEST START :    lui x5 0x2F2FA      | x5 <= 2F2FA000
+    ##################
+    print("\n\nTESTING LUI\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "2F2FA2B7"
+
+    await RisingEdge(dut.clk) # lui x5 0x2F2FA 
+    assert binary_to_hex(dut.regfile.registers[5].value) == "2F2FA000"
+```
+
+And it works ! two birds with one stone !
+
+## 8 : rushing instructions : ```I-Types```
+
+> This part will contain less details as I assume you now have enough experience to understands problems and fixes more easily.
+
+Okay, we just implement our last instruction type ! Meaning we now have a pretty robust datapath on which we can implement more instructions (*hopefully*) without much of a problem !
+
+todo : *add link to the google sheet*
+
+todo : *describe what we'll do, what we should expect, etc...*
+
+...
