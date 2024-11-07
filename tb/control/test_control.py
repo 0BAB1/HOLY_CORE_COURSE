@@ -185,3 +185,7 @@ async def slti_control_test(dut):
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "00"
     assert dut.pc_source.value == "0"
+
+# TODO, finish sltiu test
+
+raise Exception

@@ -134,6 +134,8 @@ always_comb begin
                 3'b110 : alu_control = 3'b011;
                 // SLTI
                 3'b010 : alu_control = 3'b101;
+                // SLTIU
+                3'b011 : alu_control = 3'b111;
             endcase
         end
         // BEQ
