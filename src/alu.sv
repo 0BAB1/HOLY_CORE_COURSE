@@ -22,8 +22,8 @@ always_comb begin
         3'b001 : alu_result = src1 + (~src2 + 1'b1);
         // LESS THAN COMPARE STUFF (src1 < src2)
         3'b101 : alu_result = {31'b0, $signed(src1) < $signed(src2)};
-        // NON IMPLEMENTED STUFF
-        default: alu_result = 32'b0;
+        // LESS THAN COMPARE STUFF (src1 < src2) (UNSIGNED VERSION)
+        3'b111 : alu_result = {31'b0, src1 < src2};
     endcase
 end
 

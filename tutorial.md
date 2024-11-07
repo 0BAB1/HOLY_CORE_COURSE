@@ -3571,8 +3571,8 @@ async def slt_test(dut):
     await Timer(1, units="ns")
     dut.alu_control.value = 0b101
     for _ in range(1000):
-        src1 = random.randint(0,0x0FFFFFFF)
-        src2 = random.randint(0,0x0FFFFFFF)
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
         dut.src1.value = src1
         dut.src2.value = src2
 
@@ -3730,4 +3730,91 @@ As you can read above (from the *RISC-V USER MANUAL*), the immediate is first si
 ## 8.2.a : Updating the alu to add ```sltiu``` support
 
 Check out the [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for signal values reference.
+
+### 8.2.a HDL Code
+
+We simply add this statement in the alu logic :
+
+```sv
+// alu.sv
+
+// ...
+
+    // LESS THAN COMPARE STUFF (src1 < src2) (UNSIGNED VERSION)
+    3'b111 : alu_result = {31'b0, src1 < src2};
+
+// ...
+```
+
+I also deleted the "default" statement, now rendered useless (and it always was tbh).
+
+### 8.2.a Verification
+
+And we verify using this testbench, slighlty simpler than the signed version as every number here is treated as positive :
+
+```python
+# test_alu.py
+
+# ...
+
+@cocotb.test()
+async def sltu_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b111
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+
+        await Timer(1, units="ns")
+        expected = int(src1 < src2)
+
+        assert dut.alu_result.value == 31*"0" + str(int(dut.alu_result.value))
+
+```
+
+I also deleted the "default" test case, now rendered useless (and it always was as well haha).
+
+## 8.2.b : Update control
+
+Following the [spreadsheet reference](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing), here is the updated ALU decoder :
+
+```sv
+// control.sv
+
+/**
+* ALU DECODER
+*/
+
+// ...
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        2'b00 : alu_control = 3'b000;
+        // R-Types
+        2'b10 : begin
+            case (func3)
+                // ADD (and later SUB with a different F7)
+                3'b000 : alu_control = 3'b000;
+                // AND
+                3'b111 : alu_control = 3'b010;
+                // OR
+                3'b110 : alu_control = 3'b011;
+                // SLTI
+                3'b010 : alu_control = 3'b101;
+                // SLTIU
+                3'b011 : alu_control = 3'b111; // NEW !
+            endcase
+        end
+        // BEQ
+        2'b01 : alu_control = 3'b001;
+        // EVERYTHING ELSE
+        default: alu_control = 3'b111;
+    endcase
+end
+
+// ...
+```
 
