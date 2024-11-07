@@ -3028,7 +3028,7 @@ Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book)
         imm_source = 2'b00;
         alu_source = 1'b1; //imm
         mem_write = 1'b0;
-        alu_op = 2'b00;
+        alu_op = 2'b10;
         write_back_source = 1'b00; //alu_result
         branch = 1'b0;
         jump = 1'b0;
@@ -3051,10 +3051,11 @@ async def addi_control_test(dut):
     # TEST CONTROL SIGNALS FOR ADDI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE
+    dut.func3.value = 0b000 # addi
     await Timer(1, units="ns")
 
     # Logic block controls
-    assert dut.alu_control.value == "000"
+    assert dut.alu_control.value == "000" # we seek to add
     assert dut.imm_source.value == "00"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
@@ -3505,8 +3506,228 @@ And it works ! two birds with one stone !
 
 Okay, we just implement our last instruction type ! Meaning we now have a pretty robust datapath on which we can implement more instructions (*hopefully*) without much of a problem !
 
-todo : *add link to the google sheet*
+Now that we enter the "DIY" realm (given DDCA stop covering what we're doing since we did the ```U-Types```), here is a reminder you can find all the signals deconding, their meaning etc... [here](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing)
 
-todo : *describe what we'll do, what we should expect, etc...*
+In this sub-part, we'll use our datapath to rush the implementation of :
 
-...
+- ```slti``` (set less than immediate)
+- ```sltiu``` (set less than immediate unsigned)
+- ```xori```
+- ```ori```
+- ```andi```
+- ```slli``` (shift left logical by a 5bits MAX shamt)
+- ```srli``` (shift right logical by a 5bits MAX shamt)
+- ```srai``` (shift right [arithmetic](https://open4tech.com/logical-vs-arithmetic-shift/) by a 5bits MAX shamt)
+
+## 8.1 : implementing ```slti```
+
+what does slti do ?
+
+| IMM [11:0]   | rs1          | f3     | rd           | op      |
+| ------------ | ------------ | ------ | ------------ | ------- |
+| XXXXXXXXXXXX | XXXXX        | 010    | 00110        | 0010011 |
+
+```asm
+slti rd rs1 0xXXX
+```
+
+According to the [RISC-V ISA Manual](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) :
+
+> SLTI (set less than immediate) places the value 1 in register rd if register rs1 is less than the sign-
+extended immediate when both are treated as signed numbers, else 0 is written to rd.
+
+## 8.1.a : Add *less than* comparison to the ALU
+
+To do that, we need new arithmetic in the ALU : a comparator that will return either 1 or 0 depending on wether or not the **srcA** (*rs1*) is smaller than **srcB** (*the immediate because alu_src will the alu_source will be "immediate"*).
+
+According to our [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing), we allocate the value ```101``` to our ALU_control for this comparison operation.
+
+### HDL Code
+
+The logic is pretty straight-forward :
+
+```sv
+// alu.sv
+
+// ...
+
+    // LESS THAN COMPARE STUFF (src1 < rrc2)
+    3'b101 : alu_result = {31'b0, $signed(src1) < $signed(src2)};
+
+// ...
+```
+
+Don't forget to specify ```$signed(XXX)``` otherwise you are not implementing the right logic !
+
+### Verification
+
+As well as the verification :
+
+```python
+# test_alu.py
+
+@cocotb.test()
+async def slt_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b101
+    for _ in range(1000):
+        src1 = random.randint(0,0x0FFFFFFF)
+        src2 = random.randint(0,0x0FFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+
+        await Timer(1, units="ns")
+
+        # if scr1 pos, src2 pos
+        if src1 >> 31 == 0 and src2 >> 31 == 0:
+            expected = int(src1 < src2)
+        # if scr1 pos, src2 neg
+        elif src1 >> 31 == 0 and src2 >> 31 == 1:
+            expected = int(src1 < (src2 - (1<<32)))
+        # if scr1 neg, src2 pos
+        elif src1 >> 31 == 1 and src2 >> 31 == 0:
+            expected = int((src1 - (1<<32)) < src2)
+        # if scr1 neg, src2 neg
+        elif src1 >> 31 == 1 and src2 >> 31 == 1:
+            expected = int((src1 - (1<<32)) < (src2 - (1<<32)))
+
+        assert int(dut.alu_result.value) == expected
+        assert dut.alu_result.value == 31*"0" + str(int(dut.alu_result.value))
+```
+
+I also added a raw binary check to check for the raw formating of the information. There are some tests to compare different immediates scenarios because ```slti``` treats both sources as signed.
+
+## 8.1.b : Updating the *control* unit accordingly
+
+As usual, we update our control, please refer to the [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for reference.
+
+### 8.1.b : HDL Code
+
+We use previous muxes that have been layed our for ```R-Type``` and ```I-Type (alu)```, and we use the *f3* of the instruction to figure out the arithmetic (which is what we'll do for *(almost)* all I and R Types):
+
+```sv
+// control.sv
+
+// ...
+
+/**
+* ALU DECODER
+*/
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        2'b00 : alu_control = 3'b000;
+        // R-Types
+        2'b10 : begin
+            case (func3)
+                // ADD (and later SUB with a different F7)
+                3'b000 : alu_control = 3'b000;
+                // AND
+                3'b111 : alu_control = 3'b010;
+                // OR
+                3'b110 : alu_control = 3'b011;
+                // SLTI
+                3'b010 : alu_control = 3'b101; // NEW !
+            endcase
+        end
+        // BEQ
+        2'b01 : alu_control = 3'b001;
+        // EVERYTHING ELSE
+        default: alu_control = 3'b111;
+    endcase
+end
+
+// ...
+```
+
+> I also got rid of the default case, because it's useless. I'll do the same for the others from now on.
+
+### 8.1.b : Verification
+
+Here is the tb. As usual for control : basic assertions
+
+(Almost copy-pasted from ```addi```) :
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def slti_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SLTI
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE (alu)
+    dut.func3.value = 0b010 # slti
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "101"
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+```
+
+## 8.1.c : Verifying ```slti```
+
+Here is what I'll add to the test program :
+
+```txt
+//...
+FFF9AB93  //SLTI TEST START :   slti x23 x19 0xFFF  | x23 <= 00000000
+001BAB93  //                    slti x23 x23 0x001  | x23 <= 00000001
+//..
+```
+
+This one may be a bit tricky : If you recall, x19 is set to 0x00000AAA via ```lw``` at the beggining of the program.
+
+Given that ```slti``` uses signed values, **0xFFF is -1** ! which is why ```x23 <= 00000000```.
+
+After that, I test the more obious ```0 (x23) < 1 (0x001)``` for a less etricate test case.
+
+Here here is the updated test_bench :
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # FFF9AB93  //SLTI TEST START :   slti x23 x19 0xFFF  | x23 <= 00000000
+    # 001BAB93  //                    slti x23 x23 0x001  | x23 <= 00000001
+    ##################
+    print("\n\nTESTING SLTI\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.regfile.registers[19].value) == "00000AAA"
+    assert binary_to_hex(dut.instruction.value) == "FFF9AB93"
+
+    await RisingEdge(dut.clk) # slti x23 x19 0xFFF
+    assert binary_to_hex(dut.regfile.registers[23].value) == "00000000"
+```
+
+## 8.2 : Implementing ```sltiu```
+
+```sltiu``` does exactly the same thing, except it treats both the source register **and** the immediate as unsigned values :
+
+> SLTI (set less than immediate) places the value 1 in register rd if register rs1 is less than the sign-
+extended immediate when both are treated as signed numbers, else 0 is written to rd. **SLTIU is**
+**similar but compares the values as unsigned numbers (i.e., the immediate is first sign-extended to**
+**XLEN bits then treated as an unsigned number)**
+
+As you can read above (from the *RISC-V USER MANUAL*), the immediate is first sign extended and then treated as unsigned. It's weird **but it also allows us to avoid adding an ```imm_source```**.
+
+## 8.2.a : Updating the alu to add ```sltiu``` support
+
+Check out the [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for signal values reference.
+
