@@ -25,8 +25,8 @@ FFDFF0EF  //                    jal x1 0x-4         | #2 jump @PC-0x4     PC 0x5
 F2130C93  //                    addi x25 x6 0xF21   | x25 <= 7F4FD38B     PC 0x60
 1F1FA297  //AUIPC TEST START :  auipc x5 0x1F1FA    | x5 <= 1F1FA064
 2F2FA2B7  //LUI TEST START :    lui x5 0x2F2FA      | x5 <= 2F2FA000
-00000013  //NOP
-00000013  //NOP
+FFF9AB93  //SLTI TEST START :   slti x23 x19 0xFFF  | x23 <= 00000000
+001BAB93  //                    slti x23 x23 0x001  | x23 <= 00000001
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
