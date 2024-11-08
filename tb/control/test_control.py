@@ -9,7 +9,7 @@ async def lw_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
-    assert dut.alu_control.value == "000"
+    assert dut.alu_control.value == "0000"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
@@ -25,7 +25,7 @@ async def sw_control_test(dut):
     dut.op.value = 0b0100011 # S-TYPE
     await Timer(1, units="ns")
 
-    assert dut.alu_control.value == "000"
+    assert dut.alu_control.value == "0000"
     assert dut.imm_source.value == "001"
     assert dut.mem_write.value == "1"
     assert dut.reg_write.value == "0"
@@ -41,7 +41,7 @@ async def add_control_test(dut):
     dut.func3.value = 0b000 # add
     await Timer(1, units="ns")
 
-    assert dut.alu_control.value == "000"
+    assert dut.alu_control.value == "0000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
@@ -56,7 +56,7 @@ async def and_control_test(dut):
     dut.func3.value = 0b111 # and
     await Timer(1, units="ns")
 
-    assert dut.alu_control.value == "010"
+    assert dut.alu_control.value == "0010"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
@@ -71,7 +71,7 @@ async def or_control_test(dut):
     dut.func3.value = 0b110 # or
     await Timer(1, units="ns")
 
-    assert dut.alu_control.value == "011"
+    assert dut.alu_control.value == "0011"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
@@ -88,7 +88,7 @@ async def beq_control_test(dut):
     await Timer(1, units="ns")
 
     assert dut.imm_source.value == "010"
-    assert dut.alu_control.value == "001"
+    assert dut.alu_control.value == "0001"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "0"
@@ -127,7 +127,7 @@ async def addi_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
-    assert dut.alu_control.value == "000"
+    assert dut.alu_control.value == "0000"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
@@ -177,7 +177,7 @@ async def slti_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
-    assert dut.alu_control.value == "101"
+    assert dut.alu_control.value == "0101"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
@@ -188,14 +188,32 @@ async def slti_control_test(dut):
 
 @cocotb.test()
 async def sltiu_control_test(dut):
-    # TEST CONTROL SIGNALS FOR SLTI
+    # TEST CONTROL SIGNALS FOR SLTIU
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
     dut.func3.value = 0b011 # sltiu
     await Timer(1, units="ns")
 
     # Logic block controls
-    assert dut.alu_control.value == "111"
+    assert dut.alu_control.value == "0111"
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+
+@cocotb.test()
+async def xori_control_test(dut):
+    # TEST CONTROL SIGNALS FOR XORI
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE (alu)
+    dut.func3.value = 0b100 # xori
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "1000"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"

@@ -70,7 +70,7 @@ logic [2:0] f3;
 assign f3 = instruction[14:12];
 wire alu_zero;
 // out of control unit
-wire [2:0] alu_control;
+wire [3:0] alu_control;
 wire [2:0] imm_source;
 wire mem_write;
 wire reg_write;

@@ -3907,6 +3907,8 @@ async def cpu_insrt_test(dut):
 xori rd rs1 0xXXX
 ```
 
+And the [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for reference.
+
 ## 8.3.a : Updating the *alu*
 
 The problem here is than we encoded or alu_control signal on 3 bits and we just ran out of encoding to add another instruction. so we'll add some ! Keep in mind that we have to update the signal width in both :
@@ -3938,8 +3940,135 @@ The testbench technique does not differ from the usual one :
 
 # ...
 
+@cocotb.test()
+async def xor_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b1000 #xor
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
 
+        await Timer(1, units="ns")
+        expected = src1 ^ src2
+
+        assert int(dut.alu_result.value) ==  int(expected)
 
 ```
 
 > Don't forget to update all the bit widths in this file !
+
+## 8.3.b : Updating th *control* unit for ```xori```
+
+### 8.3.b : HDL Code
+
+Here is th updated control :
+
+```sv
+// control.sv
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        2'b00 : alu_control = 4'b0000;
+        // R-Types
+        2'b10 : begin
+            case (func3)
+                // ADD (and later SUB with a different F7)
+                3'b000 : alu_control = 4'b0000;
+                // AND
+                3'b111 : alu_control = 4'b0010;
+                // OR
+                3'b110 : alu_control = 4'b0011;
+                // SLTI
+                3'b010 : alu_control = 4'b0101;
+                // SLTIU
+                3'b011 : alu_control = 4'b0111;
+                // XOR
+                3'b100 : alu_control = 4'b1000;
+            endcase
+        end
+        // BEQ
+        2'b01 : alu_control = 4'b0001;
+    endcase
+end
+
+```
+
+> Don't forget to update all the bit widths for the ```alu_control``` output as well !
+
+### 8.3.b : Verification
+
+And the tesbench, as usual :
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def xori_control_test(dut):
+    # TEST CONTROL SIGNALS FOR XORI
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE (alu)
+    dut.func3.value = 0b100 # xori
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "1000"
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+
+```
+
+> Don't forget to update all the bit widths in this file !
+
+## 8.3.c : Updating the datapath and verifying
+
+### 8.3.c : HDL Code
+
+As the datapath is starting to get a bit beefy, I won't display it here, the only modif are to **update the data width of the ```alu_control``` signal wire** :
+
+### 8.3.c : Verification
+
+The test program :
+
+```txt
+AAA94913  //XORI TEST START :   xori x18 x19 0xAAA  | x18 <= 21524445 (because sign extend)
+00094993  //                    xori x19 x18 0x000  | x19 <= 21524445
+```
+
+### 8.3.c Verification :
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # AAA94913  //XORI TEST START :   xori x18 x18 0xAAA  | x18 <= 21524445 (because sign extend)
+    # 00094993  //                    xori x19 x18 0x000  | x19 <= 21524445
+    ##################
+    print("\n\nTESTING XORI\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "AAA94913"
+
+    await RisingEdge(dut.clk) # xori x18 x19 0xAAA 
+    assert binary_to_hex(dut.regfile.registers[18].value) == "21524445"
+
+    await RisingEdge(dut.clk) # sltiu x22 x19 0x001 
+    assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
+
+```
