@@ -27,8 +27,8 @@ F2130C93  //                    addi x25 x6 0xF21   | x25 <= 7F4FD38B     PC 0x6
 2F2FA2B7  //LUI TEST START :    lui x5 0x2F2FA      | x5 <= 2F2FA000
 FFF9AB93  //SLTI TEST START :   slti x23 x19 0xFFF  | x23 <= 00000000
 001BAB93  //                    slti x23 x23 0x001  | x23 <= 00000001
-00000013  //NOP
-00000013  //NOP
+FFF9BB13  //SLTIU TEST START :  sltiu x22 x19 0xFFF | x22 <= 00000001
+0019BB13  //                    sltiu x22 x19 0x001 | x22 <= 00000000
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
