@@ -3525,7 +3525,7 @@ what does slti do ?
 
 | IMM [11:0]   | rs1          | f3     | rd           | op      |
 | ------------ | ------------ | ------ | ------------ | ------- |
-| XXXXXXXXXXXX | XXXXX        | 010    | 00110        | 0010011 |
+| XXXXXXXXXXXX | XXXXX        | 010    | XXXXX        | 0010011 |
 
 ```asm
 slti rd rs1 0xXXX
@@ -3714,9 +3714,20 @@ async def cpu_insrt_test(dut):
 
     await RisingEdge(dut.clk) # slti x23 x19 0xFFF
     assert binary_to_hex(dut.regfile.registers[23].value) == "00000000"
+
+    await RisingEdge(dut.clk) # slti x23 x23 0x001
+    assert binary_to_hex(dut.regfile.registers[23].value) == "00000001"
 ```
 
 ## 8.2 : Implementing ```sltiu```
+
+| IMM [11:0]   | rs1          | f3     | rd           | op      |
+| ------------ | ------------ | ------ | ------------ | ------- |
+| XXXXXXXXXXXX | XXXXX        | 011    | XXXXX        | 0010011 |
+
+```asm
+sltiu rd rs1 0xXXX
+```
 
 ```sltiu``` does exactly the same thing, except it treats both the source register **and** the immediate as unsigned values :
 
@@ -3771,12 +3782,13 @@ async def sltu_test(dut):
         expected = int(src1 < src2)
 
         assert dut.alu_result.value == 31*"0" + str(int(dut.alu_result.value))
-
 ```
 
 I also deleted the "default" test case, now rendered useless (and it always was as well haha).
 
-## 8.2.b : Update control
+## 8.2.b : Update the *control* unit for ```sltiu```
+
+### 8.2.b : HDL Code
 
 Following the [spreadsheet reference](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing), here is the updated ALU decoder :
 
@@ -3818,3 +3830,116 @@ end
 // ...
 ```
 
+### 8.2.b : Verification
+
+And here are the assertions for the tb :
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def sltiu_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SLTI
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE (alu)
+    dut.func3.value = 0b011 # sltiu
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "111"
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+```
+
+## 8.2.c : Veriying the ```sltiu``` support
+
+Here is the test program I'll use to make assertions on the CPU behavior :
+
+```txt
+//...
+FFF9BB13  //SLTIU TEST START :  sltiu x22 x19 0xFFF | x22 <= 00000001
+0019BB13  //                    sltiu x22 x19 0x001 | x22 <= 00000000
+//...
+```
+
+And here is the corresponding test bench snippet :
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # FFF9BB13  //SLTIU TEST START :  sltiu x22 x19 0xFFF | x22 <= 00000001
+    # 0019BB13  //                    sltiu x22 x19 0x001 | x22 <= 00000000
+    ##################
+    print("\n\nTESTING SLTIU\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "FFF9BB13"
+
+    await RisingEdge(dut.clk) # sltiu x22 x19 0xFFF
+    assert binary_to_hex(dut.regfile.registers[22].value) == "00000001"
+
+    await RisingEdge(dut.clk) # sltiu x22 x19 0x001 
+    assert binary_to_hex(dut.regfile.registers[22].value) == "00000000"
+```
+
+## 8.3 : Implementing ```xori```
+
+| IMM [11:0]   | rs1          | f3     | rd           | op      |
+| ------------ | ------------ | ------ | ------------ | ------- |
+| XXXXXXXXXXXX | XXXXX        | 100    | XXXXX        | 0010011 |
+
+```asm
+xori rd rs1 0xXXX
+```
+
+## 8.3.a : Updating the *alu*
+
+The problem here is than we encoded or alu_control signal on 3 bits and we just ran out of encoding to add another instruction. so we'll add some ! Keep in mind that we have to update the signal width in both :
+
+- The HDL
+- The testbench binary assertions
+
+### 8.3.a : HDL Code
+
+```sv
+// alu.sv 
+
+// ...
+
+    // XOR STUFF
+    4'b1000 : alu_result = src1 ^ src2;
+
+// ...
+```
+
+> Don't forget to update all the bit widths in this file !
+
+### 8.3.a : Verification
+
+The testbench technique does not differ from the usual one :
+
+```python
+# test_alu.py
+
+# ...
+
+
+
+```
+
+> Don't forget to update all the bit widths in this file !

@@ -232,3 +232,21 @@ async def cpu_insrt_test(dut):
 
     await RisingEdge(dut.clk) # slti x23 x19 0xFFF
     assert binary_to_hex(dut.regfile.registers[23].value) == "00000000"
+
+    await RisingEdge(dut.clk) # slti x23 x23 0x001
+    assert binary_to_hex(dut.regfile.registers[23].value) == "00000001"
+
+    ##################
+    # FFF9BB13  //SLTIU TEST START :  sltiu x22 x19 0xFFF | x22 <= 00000001
+    # 0019BB13  //                    sltiu x22 x19 0x001 | x22 <= 00000000
+    ##################
+    print("\n\nTESTING SLTIU\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "FFF9BB13"
+
+    await RisingEdge(dut.clk) # sltiu x22 x19 0xFFF
+    assert binary_to_hex(dut.regfile.registers[22].value) == "00000001"
+
+    await RisingEdge(dut.clk) # sltiu x22 x19 0x001 
+    assert binary_to_hex(dut.regfile.registers[22].value) == "00000000"
