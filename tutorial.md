@@ -4068,7 +4068,8 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # xori x18 x19 0xAAA 
     assert binary_to_hex(dut.regfile.registers[18].value) == "21524445"
 
-    await RisingEdge(dut.clk) # sltiu x22 x19 0x001     assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
+    await RisingEdge(dut.clk) # sltiu x22 x19 0x001    
+    assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
 ```
 
 ## 8.4 The actual ```I_type``` Rush : You are on your own (and so am I)
