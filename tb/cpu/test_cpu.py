@@ -24,7 +24,6 @@ async def cpu_reset(dut):
 
 @cocotb.test()
 async def cpu_insrt_test(dut):
-    """Runs a lw datapath test"""
     cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     await RisingEdge(dut.clk)
     await cpu_reset(dut)
@@ -250,3 +249,19 @@ async def cpu_insrt_test(dut):
 
     await RisingEdge(dut.clk) # sltiu x22 x19 0x001 
     assert binary_to_hex(dut.regfile.registers[22].value) == "00000000"
+
+    ##################
+    # AAA94913  //XORI TEST START :   xori x18 x18 0xAAA  | x18 <= 21524445 (because sign extend)
+    # 00094993  //                    xori x19 x18 0x000  | x19 <= 21524445
+    ##################
+    print("\n\nTESTING XORI\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "AAA94913"
+
+    await RisingEdge(dut.clk) # xori x18 x19 0xAAA 
+    assert binary_to_hex(dut.regfile.registers[18].value) == "21524445"
+
+    await RisingEdge(dut.clk) # sltiu x22 x19 0x001 
+    assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
+
