@@ -4068,7 +4068,17 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # xori x18 x19 0xAAA 
     assert binary_to_hex(dut.regfile.registers[18].value) == "21524445"
 
-    await RisingEdge(dut.clk) # sltiu x22 x19 0x001 
-    assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
-
+    await RisingEdge(dut.clk) # sltiu x22 x19 0x001     assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
 ```
+
+## 8.4 The actual ```I_type``` Rush : You are on your own (and so am I)
+
+Okay, you start to know the drill, and this tutorial will not be conplete without a part where you actually do stuff yourself ! I will now let you implement them on your own too ! Don't worry, you are not completely on your own of you still struggle. Read the next few lines and go get it !
+
+I will now rush the implementation of all ```I_type``` instructions (and so will you !) nevertheless, gere is a list of the point of attention to keep in mind whilst doing this :
+
+- ori : we already have the logic. should be easy
+- andi : same as above
+- slli : 
+- srli :
+- srai :
