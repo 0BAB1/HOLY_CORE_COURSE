@@ -33,9 +33,9 @@ AAA94913  //XORI TEST START :   xori x18 x19 0xAAA  | x18 <= 21524445 (because s
 00094993  //                    xori x19 x18 0x000  | x19 <= 21524445
 AAA9EA13  //ORI TEST START :    ori x20 x19 0xAAA   | x20 <= FFFFFEEF
 000A6A93  //                    ori x21 x20 0x000   | x21 <= FFFFFEEF
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+7FFA7913  //ANDI TEST START :   andi x18 x20 0x7FF  | x18 <= 000006EF
+FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
+000AFA13  //                    andi x20 x21 0x000  | x20 <= 00000000
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
