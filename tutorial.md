@@ -4044,7 +4044,7 @@ AAA94913  //XORI TEST START :   xori x18 x19 0xAAA  | x18 <= 21524445 (because s
 00094993  //                    xori x19 x18 0x000  | x19 <= 21524445
 ```
 
-### 8.3.c Verification :
+And the tb :
 
 ```python
 # test_cpu.py
@@ -4078,8 +4078,14 @@ Okay, you start to know the drill, and this tutorial will not be conplete withou
 
 I will now rush the implementation of all ```I_type``` instructions (and so will you !) nevertheless, gere is a list of the point of attention to keep in mind whilst doing this :
 
-- ori : we already have the logic. should be easy
-- andi : same as above
-- slli : 
-- srli :
-- srai :
+- ```ori, andi``` : we already have the logic. should be fairly easy
+- ```slli, srli, srai``` : The thing about those is that there are multple ways to go about it hardware-wise. I won't get into the details here, as we focus on the CPU logic rether than precise hardware implementation. so we'll implement these in the alu using system verilog's ```<<``` (*sll*), ```>>``` (*srl*) and ```>>>``` (*sra*) operators.
+
+> The difference between ```>>``` (*srl*) and ```>>>``` (*sra*) is the fact that ```sra``` extends the sign where ```srl``` just shift, effectively devinding the number by 2 by filling the upper bits with 0s.
+
+Please consider the following too :
+
+> Also don't forget to use a 5 bit shamt for the *shift* instructions ! The upper 7 bits of the immediate (*for shift instructions*) acts like a f7 ! so we need to invalidate the instruction that are not conform to that ! This translate in a 0 in reg write if "*f7*" is invalid. (We *may* add an ```illegal_op``` flag later in future tutorials if we re-use this core for other projects). We also only use the 5 lower bits of ```src2``` in the alu. So make sure to add f7 to the datapath, and invalidate the non-support f7s for shift in control !
+
+This should give you a bit of a challenge too ! (You can use the final source code if needed, especially for the sra testbench that can be a bit challenging with python weird representation of negative numers !, you can refer to this [stack overflow post](https://stackoverflow.com/questions/64963170/how-to-do-arithmetic-right-shift-in-python-for-signed-and-unsigned-values) for this matter).
+

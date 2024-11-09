@@ -10,6 +10,8 @@ module alu (
     output logic zero
 );
 
+wire [4:0] shamt = src2[4:0];
+
 always_comb begin
     case (alu_control)
         // ADD STUFF
@@ -26,6 +28,12 @@ always_comb begin
         4'b0111 : alu_result = {31'b0, src1 < src2};
         // XOR STUFF
         4'b1000 : alu_result = src1 ^ src2;
+        // SLL STUFF
+        4'b0100 : alu_result = src1 << shamt;
+        // SRL STUFF
+        4'b0110 : alu_result = src1 >> shamt;
+        // SRA STUFF
+        4'b1001 : alu_result = $signed(src1) >>> shamt;
     endcase
 end
 

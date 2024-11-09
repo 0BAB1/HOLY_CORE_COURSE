@@ -68,6 +68,8 @@ logic [6:0] op;
 assign op = instruction[6:0];
 logic [2:0] f3;
 assign f3 = instruction[14:12];
+logic [6:0] f7;
+assign f7 = instruction[31:25];
 wire alu_zero;
 // out of control unit
 wire [3:0] alu_control;
@@ -83,7 +85,7 @@ wire second_add_source;
 control control_unit(
     .op(op),
     .func3(f3),
-    .func7(7'b0), // we still don't use f7 (YET)
+    .func7(f7), // we still don't use f7 (YET)
     .alu_zero(alu_zero),
 
     // OUT

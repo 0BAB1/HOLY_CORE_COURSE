@@ -132,6 +132,76 @@ async def xor_test(dut):
         assert int(dut.alu_result.value) ==  int(expected)
 
 @cocotb.test()
+async def sll_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b0100 #sll
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        shamt = src2 & 0b11111
+        dut.src2.value = shamt
+
+        await Timer(1, units="ns")
+        expected = (src1 << shamt) & 0xFFFFFFFF
+
+        assert int(dut.alu_result.value) ==  int(expected)
+
+@cocotb.test()
+async def srl_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b0110 #srl
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        # pyhton only perfomrs sra
+        # but here, pyhton interprets number as non-signed by default, meaning the right shift will
+        # unconditionally fill upper bits with 0s and we can pass the test like this :
+        dut.src1.value = src1
+        shamt = src2 & 0b11111
+        dut.src2.value = shamt
+
+        await Timer(1, units="ns")
+        expected = (src1 >> shamt) & 0xFFFFFFFF
+
+        assert int(dut.alu_result.value) ==  int(expected)
+
+@cocotb.test()
+async def sra_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b1001 #sra
+    for _ in range(1000):
+        # pyhton only perfomrs sra
+        # We have to hint python of the sign so we disociate signed and unsigned
+
+        # UNSIGNED TESTS
+        src1 = random.randint(0,0x7FFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF) #shamt can be whatever
+        dut.src1.value = src1
+        shamt = src2 & 0b11111
+        dut.src2.value = shamt
+
+        await Timer(1, units="ns")
+        expected = (src1 >> shamt) & 0xFFFFFFFF
+
+        assert int(dut.alu_result.value) ==  int(expected)
+
+        # SIGNED TESTS
+        src1 = random.randint(0x80000000,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF) #shamt can be whatever
+        dut.src1.value = src1
+        shamt = src2 & 0b11111
+        dut.src2.value = shamt
+
+        await Timer(1, units="ns")
+        # We perform an - 1<<32 to get the negative value for python and then apply the sra.
+        # We then mash on 32 bits to get the raw bits back to compare
+        expected = ( (src1 - (1<<32)) >> shamt) & 0xFFFFFFFF
+
+        assert binary_to_hex(dut.alu_result.value) ==  hex(expected)[2:].upper()
+        assert int(dut.alu_result.value) ==  expected
+
+@cocotb.test()
 async def zero_test(dut):
     await Timer(1, units="ns")
     dut.alu_control.value = 0b0000

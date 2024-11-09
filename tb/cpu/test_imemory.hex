@@ -36,12 +36,12 @@ AAA9EA13  //ORI TEST START :    ori x20 x19 0xAAA   | x20 <= FFFFFEEF
 7FFA7913  //ANDI TEST START :   andi x18 x20 0x7FF  | x18 <= 000006EF
 FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 000AFA13  //                    andi x20 x21 0x000  | x20 <= 00000000
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+00499993  //SLLI TEST START :   slli x19 x19 0x4    | x19 <= FFFFEEF0
+02499993  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SL)
+0049DA13  //SRLI TEST START :   srli x20 x19 0x4    | x20 <= 0FFFFEEF
+0249DA13  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
+404ADA93  //SRAI TEST START :   srai x21 x21 0x4    | x21 <= FFFFFFEE
+424ADA93  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
