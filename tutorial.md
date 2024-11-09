@@ -4246,3 +4246,23 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.regfile.registers[18].value) == "FFFFF8FF"
 ```
 
+## 9.2 : Actual ```R-Type``` rush
+
+Well, we do have all the logic for the rest of the instructions now...
+
+For most of them, we don't even need to do anything ! Think about it :
+
+- The main decoder in the *control* unit already treats the ```R-Type``` generic signals.
+- The *ALU decoder* already tkes all *f3* into account !
+
+So this way, we can already verify :
+
+- sll
+- slt
+- sltu
+- xor
+
+without touching anything !
+
+> Exercice for you : come up with a test programm and testbench to verify cpu behavior with these instructions ;)
+
