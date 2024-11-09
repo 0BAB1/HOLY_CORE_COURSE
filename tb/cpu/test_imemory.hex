@@ -31,8 +31,8 @@ FFF9BB13  //SLTIU TEST START :  sltiu x22 x19 0xFFF | x22 <= 00000001
 0019BB13  //                    sltiu x22 x19 0x001 | x22 <= 00000000
 AAA94913  //XORI TEST START :   xori x18 x19 0xAAA  | x18 <= 21524445 (because sign extend)
 00094993  //                    xori x19 x18 0x000  | x19 <= 21524445
-00000013  //NOP
-00000013  //NOP
+AAA9EA13  //ORI TEST START :    ori x20 x19 0xAAA   | x20 <= FFFFFEEF
+000A6A93  //                    ori x21 x20 0x000   | x21 <= FFFFFEEF
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
