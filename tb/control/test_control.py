@@ -1,5 +1,6 @@
 import cocotb
 from cocotb.triggers import Timer
+import random
 
 @cocotb.test()
 async def lw_control_test(dut):
@@ -221,3 +222,126 @@ async def xori_control_test(dut):
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "00"
     assert dut.pc_source.value == "0"
+
+@cocotb.test()
+async def slli_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SLLI
+
+    # VALID F7
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE (alu)
+    dut.func3.value = 0b001 # slli
+    dut.func7.value = 0b0000000
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "0100"
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+
+    # INVALID F7
+    for _ in range(1000):
+        await Timer(1, units="ns")
+        dut.op.value = 0b0010011 # I-TYPE (alu)
+        dut.func3.value = 0b001 # slli
+        dut.func7.value = random.randint(0b0000001,0b1111111)
+        await Timer(1, units="ns")
+
+        # Logic block controls
+        assert dut.alu_control.value == "0100"
+        assert dut.imm_source.value == "000"
+        assert dut.mem_write.value == "0"
+        assert dut.reg_write.value == "0"
+        # Datapath mux sources
+        assert dut.alu_source.value == "1"
+        assert dut.write_back_source.value == "00"
+        assert dut.pc_source.value == "0"
+
+@cocotb.test()
+async def srli_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SRLI
+
+    # VALID F7
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE (alu)
+    dut.func3.value = 0b101 # srli, srai
+    dut.func7.value = 0b0000000 # srli
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "0110"
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+
+    # INVALID VALID F7
+    for _ in range(1000):
+        await Timer(1, units="ns")
+        dut.op.value = 0b0010011 # I-TYPE (alu)
+        dut.func3.value = 0b101 # srli, srai
+        random_func7 = random.randint(0b0000001,0b1111111)
+        # avoid picking the other valid f7 by re-picking
+        while(random_func7 == 0b0100000) : random_func7 = random.randint(0b0000001,0b1111111)
+        dut.func7.value = random_func7
+        await Timer(1, units="ns")
+
+        # Logic block controls
+        assert dut.alu_control.value == "0110"
+        assert dut.imm_source.value == "000"
+        assert dut.mem_write.value == "0"
+        assert dut.reg_write.value == "0"
+        # Datapath mux sources
+        assert dut.alu_source.value == "1"
+        assert dut.write_back_source.value == "00"
+        assert dut.pc_source.value == "0"
+
+@cocotb.test()
+async def srai_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SRAI
+
+    # VALID F7
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-TYPE (alu)
+    dut.func3.value = 0b101 # srli, srai
+    dut.func7.value = 0b0100000 # srai
+    await Timer(1, units="ns")
+
+    # Logic block controls
+    assert dut.alu_control.value == "1001"
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    # Datapath mux sources
+    assert dut.alu_source.value == "1"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+
+    # INVALID VALID F7
+    for _ in range(1000):
+        await Timer(1, units="ns")
+        dut.op.value = 0b0010011 # I-TYPE (alu)
+        dut.func3.value = 0b101 # srli, srai
+        random_func7 = random.randint(0b0000001,0b1111111)
+        # avoid picking the valid f7 by re-picking
+        while(random_func7 == 0b0100000) : random_func7 = random.randint(0b0000001,0b1111111)
+        dut.func7.value = random_func7
+        await Timer(1, units="ns")
+
+        # Logic block controls
+        assert dut.alu_control.value == "1001"
+        assert dut.imm_source.value == "000"
+        assert dut.mem_write.value == "0"
+        assert dut.reg_write.value == "0"
+        # Datapath mux sources
+        assert dut.alu_source.value == "1"
+        assert dut.write_back_source.value == "00"
+        assert dut.pc_source.value == "0"
