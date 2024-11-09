@@ -343,7 +343,6 @@ async def cpu_insrt_test(dut):
     # Check test's init state
     assert binary_to_hex(dut.instruction.value) == "404ADA93"
 
-    print(binary_to_hex(dut.regfile.registers[21].value))
     await RisingEdge(dut.clk) # srai x21 x21 0x4
     assert binary_to_hex(dut.regfile.registers[21].value) == "FFFFFFEE"
 
@@ -351,3 +350,15 @@ async def cpu_insrt_test(dut):
     assert dut.reg_write.value == "0" 
     await RisingEdge(dut.clk) # invalid op test
     assert binary_to_hex(dut.regfile.registers[21].value) == "FFFFFFEE"
+
+    ##################
+    # 412A8933  //SUB TEST START :    sub x18 x21 x18     | x18 <= FFFFF8FF
+    ##################
+    print("\n\nTESTING SUB\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "412A8933"
+
+    await RisingEdge(dut.clk) # sub x18 x21 x18
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFFFF8FF"
+    

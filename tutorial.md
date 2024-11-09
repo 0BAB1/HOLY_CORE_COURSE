@@ -4089,3 +4089,151 @@ Please consider the following too :
 
 This should give you a bit of a challenge too ! (You can use the final source code if needed, especially for the sra testbench that can be a bit challenging with python weird representation of negative numers !, you can refer to this [stack overflow post](https://stackoverflow.com/questions/64963170/how-to-do-arithmetic-right-shift-in-python-for-signed-and-unsigned-values) for this matter).
 
+## 9 : Rushing instructions : ```R-Types```
+
+Are you still here ? good, hope your implementation went well ! Now that we implemented all I-Types instructions, a logical follow-up would be implementing R-Types instructions.
+
+They do basically the same thing as I-types, execept the ```alu_source``` signal is not set to *immediate* but *rs2*.
+
+> You start to know the drill for these ones too, so I'll hint you on the first couple of instructions and then let you implement the rest on your own !
+
+## 9.1 : Implementing ```sub```
+
+We already added sub arithmetic for the ```beq``` instruction. This means we don't have to update the *ALU* and most likely won't for all of the R-Types as they all inherit the same arithmetic principles than the ```I-Type``` instructions we just implemented.
+
+Regarding the sub instruction, refering to the [instruction table](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table_00.svg) here is what it looks like :
+
+| F7   | rs2    | rs1     | f3           | rd      | op |
+| ------------ | ------------ | ------ | ------------ | ------- | ------- |
+| 0100000 | XXXXX| XXXXX    | 000        | XXXX | 0110011 |
+
+And here the logic will be the same as the shifts we added before, meaning we will check for a valid F7.
+
+## 9.1.a : *ALU*
+
+The *ALU* is already up-to-date. (damn that was hard ! we desrve a pause !)
+
+## 9.1.b : Updating the *Control* unit
+
+**SIKE !** The is no pause ! Now let's get to work shall we ?
+
+### 9.1.b : HDL Code
+
+For the HDL Logic, we need to keep someting in mind : As stated earlier, the logic will be kind of the same than for shifts. **Why ?** Well because ```add``` and ```sub``` both share the same *f3*, meaning we have to use *f7* do know which is which. And becase the ````ALU I-Type```` instruction : ```addi``` also shares the same alu_op signal than ```add``` and ```sub``` we also have to take this scenario into account ! *(because ```addi``` use immediate instead of f7, eaning the value could be anything !)*
+
+I will go once again with some good old high-level logic description, I know for a fact there are loads of more efficient ways to implement the check or f7, but I chose to do it like that because it is convinient :
+
+```sv
+// control.sv
+
+// ...
+
+/**
+* ALU DECODER
+*/
+
+always_comb begin
+    case (alu_op)
+        // LW, SW
+        2'b00 : alu_control = 4'b0000;
+        // R-Types, I-types
+        2'b10 : begin
+            case (func3)
+                // ADD (and later SUB with a different F7)
+                3'b000 : begin
+                    // 2 scenarios here :
+                    // - R-TYPE : either add or sub and we need to a check for that
+                    // - I-Type : aadi -> we use add arithmetic
+                    if(op == 7'b0110011) begin // R-type
+                        alu_control = func7[5] ? 4'b0001 : 4'b0000;
+                    end else begin // I-Type
+                        alu_control = 4'b0000;
+                    end
+                end
+                // AND
+
+                // ...
+```
+
+As you can see, the code is a bit sketchy but I seek to make somthing that work for now. What is important here is that the logic is right.
+
+To avoid bloating the code, I won't unvalidate the non-compliant f7 and only check for the bit #5 of f7 to either chose ```sub``` or ```add```. That will also be on less feature to test.
+
+Is it right ? no. But I plan on imlementing ```invalid_op``` flags once we set the constant and try to pipeline this thing. So let's leave that for later ! (coping hard rn, but the compiler knows what he's doing !)
+
+### 9.1.b : Verification
+
+In order to verify, first, update the first ```add``` test to include f7 :
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def add_control_test(dut):
+    # TEST CONTROL SIGNALS FOR ADD
+    await Timer(10, units="ns")
+    dut.op.value = 0b0110011 # R-TYPE
+    dut.func3.value = 0b000 # add, sub
+    dut.func7.value = 0b0000000 # add // CHANGED !
+    await Timer(1, units="ns")
+
+    assert dut.alu_control.value == "0000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.alu_source.value == "0"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+
+
+# ...
+```
+
+And then, add a test case for ```sub``` :
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def sub_control_test(dut):
+    # TEST CONTROL SIGNALS FOR SUB
+    await Timer(10, units="ns")
+    dut.op.value = 0b0110011 # R-TYPE
+    dut.func3.value = 0b000 # add, sub
+    dut.func7.value = 0b0100000 # sub
+    await Timer(1, units="ns")
+
+    assert dut.alu_control.value == "0001"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.alu_source.value == "0"
+    assert dut.write_back_source.value == "00"
+    assert dut.pc_source.value == "0"
+```
+
+## 9.1.c : Verifying ```sub``` support
+
+Here is the test program i'll use :
+
+```txt
+412A8933  //SUB TEST START :    sub x18 x21 x18     | x18 <= FFFFF8FF
+```
+
+And the associated test bench :
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    
+
+```
