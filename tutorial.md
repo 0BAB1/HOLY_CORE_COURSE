@@ -4234,6 +4234,15 @@ async def cpu_insrt_test(dut):
 
     # ...
 
-    
+    ##################
+    # 412A8933  //SUB TEST START :    sub x18 x21 x18     | x18 <= FFFFF8FF
+    ##################
+    print("\n\nTESTING SUB\n\n")
 
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "412A8933"
+
+    await RisingEdge(dut.clk) # sub x18 x21 x18
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFFFF8FF"
 ```
+
