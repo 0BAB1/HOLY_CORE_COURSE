@@ -42,7 +42,7 @@ FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 0249DA13  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
 404ADA93  //SRAI TEST START :   srai x21 x21 0x4    | x21 <= FFFFFFEE
 424ADA93  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
-00000013  //NOP
+412A8933  //SUB TEST START :    sub x18 x21 x18     | x18 <= FFFFF8FF
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
