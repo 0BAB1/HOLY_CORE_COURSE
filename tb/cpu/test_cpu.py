@@ -362,3 +362,51 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # sub x18 x21 x18
     assert binary_to_hex(dut.regfile.registers[18].value) == "FFFFF8FF"
     
+    ##################
+    # 00800393  //SLL TEST START :    addi x7 x0 0x8      | x7  <= 00000008
+    # 00791933  //                    sll x18 x18 x7      | x18 <= FFF8FF00
+    ##################
+    print("\n\nTESTING SLL\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "00800393"
+    await RisingEdge(dut.clk) # addi x7 x0 0x8
+    assert binary_to_hex(dut.regfile.registers[7].value) == "00000008"
+
+    await RisingEdge(dut.clk) # sll x18 x18 x7
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFF8FF00"
+    
+    ##################
+    # 013928B3  //SLT TEST START :    slt x17 x22 x23     | x17 <= 00000001 (-459008 < -4368)
+    ##################
+    print("\n\nTESTING SLT\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "013928B3"
+
+    await RisingEdge(dut.clk) # slt x17 x22 x23
+    assert binary_to_hex(dut.regfile.registers[17].value) == "00000001"
+    
+    ##################
+    # 013938B3  //SLTU TEST START :   sltu x17 x22 x23    | x17 <= 00000001
+    ##################
+    print("\n\nTESTING SLTU\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "013938B3"
+
+    await RisingEdge(dut.clk) # sltu x17 x22 x23
+    assert binary_to_hex(dut.regfile.registers[17].value) == "00000001"
+    
+    ##################
+    # 013948B3  //XOR TEST START :    xor x17 x18 x19     | x17 <= 000711F0
+    ##################
+    print("\n\nTESTING XOR\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "013948B3"
+
+    await RisingEdge(dut.clk) # xor x17 x18 x19
+    assert binary_to_hex(dut.regfile.registers[17].value) == "000711F0"
+    
+    
