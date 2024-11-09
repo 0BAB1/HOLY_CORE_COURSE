@@ -408,5 +408,27 @@ async def cpu_insrt_test(dut):
 
     await RisingEdge(dut.clk) # xor x17 x18 x19
     assert binary_to_hex(dut.regfile.registers[17].value) == "000711F0"
+
+    ##################
+    # 0079D433  //SRL TEST START :    srl x8 x19 x7       | x8  <= 00FFFFEE
+    ##################
+    print("\n\nTESTING SRL\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "0079D433"
+
+    await RisingEdge(dut.clk) # srl x8 x19 x7
+    assert binary_to_hex(dut.regfile.registers[8].value) == "00FFFFEE"
+
+    ##################
+    # 4079D433  //SRA TEST START :    sra x8 x19 x7       | x8  <= FFFFFFEE
+    ##################
+    print("\n\nTESTING SRA\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "4079D433"
+
+    await RisingEdge(dut.clk) # sra x8 x19 x7 
+    assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
     
     
