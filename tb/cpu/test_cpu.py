@@ -262,6 +262,20 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # xori x18 x19 0xAAA 
     assert binary_to_hex(dut.regfile.registers[18].value) == "21524445"
 
-    await RisingEdge(dut.clk) # sltiu x22 x19 0x001 
+    await RisingEdge(dut.clk) # xori x19 x18 0x000 
     assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
 
+    ##################
+    # AAA9EA13  //ORI TEST START :    ori x20 x19 0xAAA   | x20 <= FFFFFEEF
+    # 000A6A93  //                    ori x21 x20 0x000   | x21 <= FFFFFEEF
+    ##################
+    print("\n\nTESTING ORI\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "AAA9EA13"
+
+    await RisingEdge(dut.clk) # ori x20 x19 0xAAA 
+    assert binary_to_hex(dut.regfile.registers[20].value) == "FFFFFEEF"
+
+    await RisingEdge(dut.clk) # ori x21 x20 0x000
+    assert binary_to_hex(dut.regfile.registers[21].value) == binary_to_hex(dut.regfile.registers[20].value)
