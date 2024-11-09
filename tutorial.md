@@ -4266,3 +4266,24 @@ without touching anything !
 
 > Exercice for you : come up with a test programm and testbench to verify cpu behavior with these instructions ;)
 
+And what about ```srl``` and ```sra``` ?
+
+Well, nothing to do neither ! (if not testing it) Why ? Well, we did test for the *f7*-ish immediate before in a scenario specific to our ```I-Tpye``` stuggle to differentiate ```srl``` and ```sra``` because their *f3* encoding were the same.
+
+Turns out R-Types uses actual f7, and guess what :
+|    | F7   | rs2    | rs1     | f3           | rd      | op |
+| ------------ | ------------ | ------------ | ------ | ------------ | ------- | ------- |
+|  ```srl``` | 0000000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
+|  ```sra``` | 0100000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
+
+The 7 upper bits encodings (immediate for ```I-Type``` and f7 for ```R-Type```) **are the same**.
+
+So our decoder is already able to differentiate them, and given R-Type generic signals have already been implemented a whiiile ago, we just have to test them ! So let's do exactly that !
+
+### 9.2 : Final verification program
+
+Here is a summary of what we did, aka only testing, I'll let you com up with the test benches ;)
+
+```txt
+
+```
