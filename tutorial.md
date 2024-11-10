@@ -4504,9 +4504,36 @@ So we use that do do some assertions in the testbench, as usual :
 
 # ...
 
+@cocotb.test()
+async def lw_control_test(dut):
 
+    # ...
+
+    ##################
+    # 0088C463  //BLT TEST START :    blt x17 x8 0x8      | not taken : x8 neg (sign), x17 pos (no sign)
+    # 01144463  //                    blt x8 x17 0x8      | taken : x8 neg (sign), x17 pos (no sign)
+    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
+    ##################
+    print("\n\nTESTING BLT\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "0088C463"
+    assert binary_to_hex(dut.regfile.registers[17].value) == "000711F0"
+    assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
+
+    # execute, branch should NOT be taken !
+    await RisingEdge(dut.clk) # blt x17 x8 0x8
+    assert binary_to_hex(dut.instruction.value) == "01144463"
+
+    # execute, branch SHOULD be taken !
+    await RisingEdge(dut.clk) # blt x8 x17 0x8
+    assert not binary_to_hex(dut.instruction.value) == "00C00413"
+    # We verify x8 value was not altered by addi instruction, because it was never meant tyo be executed (sad)
+    assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
 
 ```
 
 And there you go ! you now have a strong base to implement all other ```B-Types``` ! I'll see you in the next section to implement ```jalr``` ;).
+
+> Spoiler, if you used 64 words wide memories like me, you mights wanna make it larger to test everything (depending on your tests complexity).
 

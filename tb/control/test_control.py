@@ -414,7 +414,7 @@ async def bne_control_test(dut):
 
 @cocotb.test()
 async def bge_control_test(dut):
-    # TEST CONTROL SIGNALS FOR BNE
+    # TEST CONTROL SIGNALS FOR BGE
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
     dut.func3.value = 0b101 # bge
@@ -433,6 +433,31 @@ async def bge_control_test(dut):
     # Test if branching condition is met
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b0
+    await Timer(1, units="ns")
+    assert dut.pc_source.value == "1"
+    assert dut.second_add_source.value == "0"
+
+@cocotb.test()
+async def bltu_control_test(dut):
+    # TEST CONTROL SIGNALS FOR BNE
+    await Timer(10, units="ns")
+    dut.op.value = 0b1100011 # B-TYPE
+    dut.func3.value = 0b110 # bltu
+    dut.alu_last_bit.value = 0b0
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "010"
+    assert dut.alu_control.value == "0111"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "0"
+    assert dut.alu_source.value == "0"
+    assert dut.branch.value == "1"
+    assert dut.pc_source.value == "0"
+    assert dut.second_add_source.value == "0"
+
+    # Test if branching condition is met
+    await Timer(3, units="ns")
+    dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
     assert dut.second_add_source.value == "0"
