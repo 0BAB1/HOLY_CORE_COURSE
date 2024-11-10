@@ -200,7 +200,7 @@ always_comb begin : branch_logic_decode
         // BNE
         3'b001 : assert_branch = ~alu_zero & branch;
         // BGE
-        3'b001 : assert_branch = ~alu_last_bit & branch;
+        3'b101 : assert_branch = ~alu_last_bit & branch;
         default : assert_branch = 1'b0;
     endcase
 end
