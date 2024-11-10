@@ -4451,7 +4451,7 @@ And to verify this behavior, we simply copy-paste the ```beq``` test case and ad
 # ...
 
 @cocotb.test()
-async def beq_control_test(dut):
+async def blt_control_test(dut):
     # TEST CONTROL SIGNALS FOR BLT (underlying logic same as BEQ)
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -4509,3 +4509,4 @@ So we use that do do some assertions in the testbench, as usual :
 ```
 
 And there you go ! you now have a strong base to implement all other ```B-Types``` ! I'll see you in the next section to implement ```jalr``` ;).
+

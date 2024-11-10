@@ -176,10 +176,10 @@ always_comb begin
         // BRANCHES
         2'b01 : begin
             case (func3)
-                // BEQ
-                3'b000 : alu_control = 4'b0001;
-                // BLT
-                3'b100 : alu_control = 4'b0101;
+                // BEQ, BNE
+                3'b000, 3'b001 : alu_control = 4'b0001;
+                // BLT, BGE
+                3'b100, 3'b101 : alu_control = 4'b0101;
             endcase
         end
     endcase
@@ -197,8 +197,10 @@ always_comb begin : branch_logic_decode
         3'b000 : assert_branch = alu_zero & branch;
         // BLT
         3'b100 : assert_branch = alu_last_bit & branch;
-        // BLT
-        3'b100 : assert_branch = alu_last_bit & branch;
+        // BNE
+        3'b001 : assert_branch = ~alu_zero & branch;
+        // BGE
+        3'b001 : assert_branch = ~alu_last_bit & branch;
         default : assert_branch = 1'b0;
     endcase
 end
