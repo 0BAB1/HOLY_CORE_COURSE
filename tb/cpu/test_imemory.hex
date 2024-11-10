@@ -62,9 +62,9 @@ FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 01146463  //BLTU TEST START :   bltu x8 x17 0x8     | not taken
 0088E463  //                    bltu x17 x8 0x8     | taken
 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+0088F463  //BGEU TEST START :   bgeu x17 x8 0x8     | not taken
+01147463  //                    bgeu x8 x17 0x8     | taken
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

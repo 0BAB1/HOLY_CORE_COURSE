@@ -180,8 +180,8 @@ always_comb begin
                 3'b000, 3'b001 : alu_control = 4'b0001;
                 // BLT, BGE
                 3'b100, 3'b101 : alu_control = 4'b0101;
-                // BLTU
-                3'b110 : alu_control = 4'b0111;
+                // BLTU, BGEU
+                3'b110, 3'b111 : alu_control = 4'b0111;
             endcase
         end
     endcase
@@ -201,8 +201,8 @@ always_comb begin : branch_logic_decode
         3'b100, 3'b110 : assert_branch = alu_last_bit & branch;
         // BNE
         3'b001 : assert_branch = ~alu_zero & branch;
-        // BGE
-        3'b101 : assert_branch = ~alu_last_bit & branch;
+        // BGE, BGEU
+        3'b101, 3'b111 : assert_branch = ~alu_last_bit & branch;
         default : assert_branch = 1'b0;
     endcase
 end
