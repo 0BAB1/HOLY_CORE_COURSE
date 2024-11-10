@@ -472,3 +472,25 @@ async def cpu_insrt_test(dut):
     assert not binary_to_hex(dut.instruction.value) == "00C00413"
     # We verify x8 value was not altered by addi instruction, because it was never meant tyo be executed (sad)
     assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
+
+    ##################
+    # 01145463  //BGE TEST START :    bge x8 x17 0x8      | not taken
+    # 00845463  //                    bge x8 x8 0x8       | taken
+    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
+    ##################
+    print("\n\nTESTING BGE\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "01145463"
+
+    # execute, branch should NOT be taken !
+    await RisingEdge(dut.clk) # bge x8 x17 0x8 
+    assert binary_to_hex(dut.instruction.value) == "00845463"
+
+    # execute, branch SHOULD be taken !
+    await RisingEdge(dut.clk) # bge x8 x8 0x8 
+    assert not binary_to_hex(dut.instruction.value) == "00C00413"
+    # We verify x8 value was not altered by addi instruction, because it was never meant tyo be executed (sad)
+    assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
+
+    
