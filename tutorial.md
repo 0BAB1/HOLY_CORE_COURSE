@@ -4536,4 +4536,3 @@ async def lw_control_test(dut):
 And there you go ! you now have a strong base to implement all other ```B-Types``` ! I'll see you in the next section to implement ```jalr``` ;).
 
 > Spoiler, if you used 64 words wide memories like me, you mights wanna make it larger to test everything (depending on your tests complexity).
-
