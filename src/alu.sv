@@ -7,7 +7,8 @@ module alu (
     input logic [31:0] src2,
     // OUT
     output logic [31:0] alu_result,
-    output logic zero
+    output logic zero,
+    output logic last_bit
 );
 
 wire [4:0] shamt = src2[4:0];
@@ -38,5 +39,6 @@ always_comb begin
 end
 
 assign zero = alu_result == 32'b0;
+assign last_bit = alu_result[0];
     
 endmodule

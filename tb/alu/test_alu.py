@@ -211,3 +211,39 @@ async def zero_test(dut):
     print(int(dut.alu_result.value))
     assert int(dut.zero.value) == 1
     assert int(dut.alu_result.value) == 0
+
+@cocotb.test()
+async def last_bit_test(dut):
+    # (logic copy-pasted from slt_test function)
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b0101
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+
+        await Timer(1, units="ns")
+
+        if src1 >> 31 == 0 and src2 >> 31 == 0:
+            expected = int(src1 < src2)
+        elif src1 >> 31 == 0 and src2 >> 31 == 1:
+            expected = int(src1 < (src2 - (1<<32)))
+        elif src1 >> 31 == 1 and src2 >> 31 == 0:
+            expected = int((src1 - (1<<32)) < src2)
+        elif src1 >> 31 == 1 and src2 >> 31 == 1:
+            expected = int((src1 - (1<<32)) < (src2 - (1<<32)))
+            
+        assert dut.last_bit.value == str(expected)
+    
+    # Test edge case where src1 == src2
+    # last bit should be 0 as slt is a "strict compare"
+    # (idk know the scientific ter for that in english).
+    for _ in range(100):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = src1
+        dut.src1.value = src1
+        dut.src2.value = src2
+        await Timer(1, units="ns")
+        expected = 0
+        assert int(dut.last_bit.value) == expected

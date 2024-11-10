@@ -4271,10 +4271,11 @@ And what about ```srl``` and ```sra``` ?
 Well, nothing to do neither ! (if not testing it) Why ? Well, we did test for the *f7*-ish immediate before in a scenario specific to our ```I-Tpye``` stuggle to differentiate ```srl``` and ```sra``` because their *f3* encoding were the same.
 
 Turns out R-Types uses actual f7, and guess what :
+
 |    | F7   | rs2    | rs1     | f3           | rd      | op |
 | ------------ | ------------ | ------------ | ------ | ------------ | ------- | ------- |
-|  ```srl``` | 0000000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
-|  ```sra``` | 0100000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
+|  ```srl``` | 0**0**00000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
+|  ```sra``` | 0**1**00000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
 
 The 7 upper bits encodings (immediate for ```I-Type``` and f7 for ```R-Type```) **are the same**.
 
@@ -4282,8 +4283,229 @@ So our decoder is already able to differentiate them, and given R-Type generic s
 
 ### 9.2 : Final verification program
 
-Here is a summary of what we did, aka only testing, I'll let you com up with the test benches ;)
+Here is a summary of what we did, aka only testing
+[I'll let you come up with the test benches ;)]*
 
 ```txt
+//...
+
+00800393  //SLL TEST START :    addi x7 x0 0x8      | x7  <= 00000008
+00791933  //                    sll x18 x18 x7      | x18 <= FFF8FF00
+013928B3  //SLT TEST START :    slt x17 x22 x23     | x17 <= 00000001 (-459008 < -4368)
+013938B3  //SLTU TEST START :   sltu x17 x22 x23    | x17 <= 00000001
+013948B3  //XOR TEST START :    xor x17 x18 x19     | x17 <= 000711F0
+0079D433  //SRL TEST START :    srl x8 x19 x7       | x8  <= 00FFFFEE
+4079D433  //SRA TEST START :    sra x8 x19 x7       | x8  <= FFFFFFEE
+00000013  //NOP
+
+//...
+```
+
+## 10 : The ```B-Types``` rush
+
+Okay, now that we have all this fancy ```slt``` arithmetic, we can use it to implement all the ```B-Type``` instructions !
+
+How ? Well, we'll simply add an output flags to our ALU that will serve the exact same role as ```zero```:
+
+- ```alu_last bit``` will be 1 if the last ```alu_result``` bit is 1.
+
+And to use the correct arithmetic, we'll have to improve our *control*'s *ALU_Decoder* to chose the correct arithmetic from the ALU. [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) dedicated tab contains all the data you need for reference.
+
+> As you can, we go for a strategy where the alu only gives us the state of its last bit and the *branch logic* inside the control unit will sort out from there, depending on the instruction, wheter we branch or not.
+
+And last but not least, after we got our flags and correct arithmetic, we'll also need to improve the ```pc_source``` selector, by adding awhole "*branch logic*" section. [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) also has a tab dedicated to this "*branch logic* if needed.
+
+I'll let you implement these instructions yourself ;) Nevertheless, I will hint you on the implementation of ```blt``` in **section 10.1** below.
+
+## 10.1 : ```B-Type``` Hint : Implementing ```blt```
+
+## 10.1.a : New *ALU* flag
+
+### 10.1.a : HDL Code
+
+As usual, we'll start by updating our alu. No need to add any arithmetic, only a flag that gets asserted when the last bit is 1 :
+
+```sv
+// alu.sv
+
+module alu (
+    // IN
+    input logic [3:0] alu_control,
+    input logic [31:0] src1,
+    input logic [31:0] src2,
+    // OUT
+    output logic [31:0] alu_result,
+    output logic zero,
+    output logic last_bit // NEW !
+);
+
+// ...
+
+assign zero = alu_result == 32'b0;
+assign last_bit = alu_result[0]; // NEW !
+
+endmodule
+```
+
+### 10.1.a : Verification
+
+To verify this, we'll simply get a bunch of random numbers, use ```slt``` arithmetic *(but it could be any, as the control unit wuill be the one figuring out wheter it is relevant or not)*, and check if the "last_bit" is behaving as expected :
+
+```python
+# test_alu.py
+
+# ...
+
+@cocotb.test()
+async def last_bit_test(dut):
+    # (logic copy-pasted from slt_test function)
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b0101
+    for _ in range(1000):
+        src1 = random.randint(0,0xFFFFFFFF)
+        src2 = random.randint(0,0xFFFFFFFF)
+        dut.src1.value = src1
+        dut.src2.value = src2
+
+        await Timer(1, units="ns")
+
+        if src1 >> 31 == 0 and src2 >> 31 == 0:
+            expected = int(src1 < src2)
+        elif src1 >> 31 == 0 and src2 >> 31 == 1:
+            expected = int(src1 < (src2 - (1<<32)))
+        elif src1 >> 31 == 1 and src2 >> 31 == 0:
+            expected = int((src1 - (1<<32)) < src2)
+        elif src1 >> 31 == 1 and src2 >> 31 == 1:
+            expected = int((src1 - (1<<32)) < (src2 - (1<<32)))
+            
+        assert dut.last_bit.value == str(expected)
+```
+
+## 10.1.b : Updating the *control* unit accordingly
+
+And now we need to update the branching logic and the ALU_Decoder. Once agin, you can use [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) to get the signals values right.
+
+### 10.1.b : HDL Code
+
+We start by re-arranging our *alu decoder*
+
+```sv
+module control (
+    // I/Os
+    // ...
+    input logic alu_last_bit, // NEW !
+    // ...
+);
+
+// (Main decoder) ... 
+
+/**
+* ALU DECODER
+*/
+
+always_comb begin
+    case (alu_op)
+
+        // ...
+        
+        2'b01 : begin
+            case (func3)
+                // BEQ
+                3'b000 : alu_control = 4'b0001;
+                // BLT
+                3'b100 : alu_control = 4'b0101;
+            endcase
+        end
+    endcase
+end
+
+// And we now create a whole new always_comp blocks for our new *branch logic* decoder :
+
+/**
+* PC_Source
+*/
+logic assert_branch;
+
+always_comb begin : branch_logic_decode
+    case (func3)
+        // BEQ
+        3'b000 : assert_branch = alu_zero & branch;
+        // BLT
+        3'b100 : assert_branch = alu_last_bit & branch;
+        default : assert_branch = 1'b0;
+    endcase
+end
+
+assign pc_source = assert_branch | jump;
+```
+
+You can see I used an intermediate "*assert_branch*" signal. There are **many** ways to implement this logic, some are more efficient if you concatenate the branch logic in the other decoders, **but who cares** ? (*coping again*)
+
+### 10.1.b : Verification
+
+And to verify this behavior, we simply copy-paste the ```beq``` test case and adapt the expected signals usgin the spreadsheet :
+
+```python
+# test_control.py
+
+# ...
+
+@cocotb.test()
+async def beq_control_test(dut):
+    # TEST CONTROL SIGNALS FOR BLT (underlying logic same as BEQ)
+    await Timer(10, units="ns")
+    dut.op.value = 0b1100011 # B-TYPE
+    dut.func3.value = 0b100 # blt
+    dut.alu_last_bit.value = 0b0
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "010"
+    assert dut.alu_control.value == "0101"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "0"
+    assert dut.alu_source.value == "0"
+    assert dut.branch.value == "1"
+    assert dut.pc_source.value == "0"
+    assert dut.second_add_source.value == "0"
+
+    # Test if branching condition is met
+    await Timer(3, units="ns")
+    dut.alu_last_bit.value = 0b1
+    await Timer(1, units="ns")
+    assert dut.pc_source.value == "1"
+    assert dut.second_add_source.value == "0"
+```
+
+## 1.1.c : Updating the *CPU* datapath
+
+For this part, you just need to route the ```alu_last_bit``` flag from the *ALU* the the *Control unit*.
+
+### 1.1.c : Test program example and verification
+
+We already test branches extensively before for ```beq``` so we'll stick to something simple :
+
+- An instruction with an untaken branch
+- An instruction with a taken branch to ```PC+0x8```
+
+And here is the resulting test program for ```blt``` :
+
+```txt
+//...
+0088C463  //BLT TEST START :    blt x17 x8 0x8      | not taken : x8 neg (sign), x17 pos (no sign)
+01144463  //                    blt x8 x17 0x8      | taken : x8 neg (sign), x17 pos (no sign)
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
+//...
+```
+
+So we use that do do some assertions in the testbench, as usual :
+
+```python
+# test_cpu.py
+
+# ...
+
+
 
 ```
+
+And there you go ! you now have a strong base to implement all other ```B-Types``` ! I'll see you in the next section to implement ```jalr``` ;).

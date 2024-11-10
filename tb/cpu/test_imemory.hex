@@ -50,9 +50,9 @@ FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 013948B3  //XOR TEST START :    xor x17 x18 x19     | x17 <= 000711F0
 0079D433  //SRL TEST START :    srl x8 x19 x7       | x8  <= 00FFFFEE
 4079D433  //SRA TEST START :    sra x8 x19 x7       | x8  <= FFFFFFEE
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+0088C463  //BLT TEST START :    blt x17 x8 0x8      | not taken : x8 neg (sign), x17 pos (no sign)
+01144463  //                    blt x8 x17 0x8      | taken : x8 neg (sign), x17 pos (no sign)
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

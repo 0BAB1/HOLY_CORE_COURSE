@@ -6,6 +6,7 @@ module control (
     input logic [2:0] func3,
     input logic [6:0] func7,
     input logic alu_zero,
+    input logic alu_last_bit,
 
     // OUT
     output logic [3:0] alu_control,
@@ -172,14 +173,36 @@ always_comb begin
                 end
             endcase
         end
-        // BEQ
-        2'b01 : alu_control = 4'b0001;
+        // BRANCHES
+        2'b01 : begin
+            case (func3)
+                // BEQ
+                3'b000 : alu_control = 4'b0001;
+                // BLT
+                3'b100 : alu_control = 4'b0101;
+            endcase
+        end
     endcase
 end
 
 /**
 * PC_Source
 */
-assign pc_source = (alu_zero & branch) | jump;
+
+logic assert_branch;
+
+always_comb begin : branch_logic_decode
+    case (func3)
+        // BEQ
+        3'b000 : assert_branch = alu_zero & branch;
+        // BLT
+        3'b100 : assert_branch = alu_last_bit & branch;
+        // BLT
+        3'b100 : assert_branch = alu_last_bit & branch;
+        default : assert_branch = 1'b0;
+    endcase
+end
+
+assign pc_source = assert_branch | jump;
     
 endmodule
