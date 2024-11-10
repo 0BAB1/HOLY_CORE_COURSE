@@ -71,6 +71,7 @@ assign f3 = instruction[14:12];
 logic [6:0] f7;
 assign f7 = instruction[31:25];
 wire alu_zero;
+wire alu_last_bit;
 // out of control unit
 wire [3:0] alu_control;
 wire [2:0] imm_source;
@@ -87,6 +88,7 @@ control control_unit(
     .func3(f3),
     .func7(f7), // we still don't use f7 (YET)
     .alu_zero(alu_zero),
+    .alu_last_bit(alu_last_bit),
 
     // OUT
     .alu_control(alu_control),
@@ -172,7 +174,8 @@ alu alu_inst(
     .src1(read_reg1),
     .src2(alu_src2),
     .alu_result(alu_result),
-    .zero(alu_zero)
+    .zero(alu_zero),
+    .last_bit(alu_last_bit)
 );
 
 /**
