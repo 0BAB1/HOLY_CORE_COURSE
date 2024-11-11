@@ -138,21 +138,20 @@ async def memory_data_test(dut):
     cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     await RisingEdge(dut.clk)
 
-    # Init and reset
+    # Reset
     dut.rst_n.value = 0
     dut.write_enable.value = 0
     dut.address.value = 0
-    dut.write_data.value = 0      # De-assert reset
+    dut.write_data.value = 0  
 
-    await RisingEdge(dut.clk)     # Wait for a clock edge after reset
-    dut.rst_n.value = 1           # De-assert reset
-    await RisingEdge(dut.clk)     # Wait for a clock edge after reset
+    await RisingEdge(dut.clk)    
+    dut.rst_n.value = 1 
+    await RisingEdge(dut.clk)  
 
-    # Assert all is 0 after reset
+    # All is 0 after reset
     for address in range(dut.WORDS.value):
         dut.address.value = address
         await Timer(1, units="ns")
-        # just 32 zeroes, you can also use int()
         assert dut.read_data.value == "00000000000000000000000000000000"
       
     # Test: Write and read back data
@@ -177,7 +176,7 @@ async def memory_data_test(dut):
         # Verify the write by reading back
         dut.address.value = address
         await RisingEdge(dut.clk)
-        assert dut.read_data.value == data, f"Readback error at address {address}: expected {hex(data)}, got {hex(dut.read_data.value)}"
+        assert dut.read_data.value == data
 
     # Test: Write to multiple addresses, then read back
     for i in range(40,4):
@@ -192,7 +191,7 @@ async def memory_data_test(dut):
         dut.address.value = i
         await RisingEdge(dut.clk)
         expected_value = i + 100
-        assert dut.read_data.value == expected_value, f"Expected {expected_value}, got {dut.read_data.value} at address {i}"
+        assert dut.read_data.value == expected_value
 ```
 
 Once agin, we increment memory by 4 beacause it is byte addressed.
@@ -4765,10 +4764,163 @@ async def cpu_insrt_test(dut):
 
 And it works ! GG
 
-## A bit of memory
+## 12 : A bit of memory
 
 Okay, we've implemented all locical operations ! GG.
 
 But now is time to enter the realms of "the things we said we would do later, don't worry bro". And the first one to take care of is the memory stuff as it will unclock all the load/stores for bytes and halfwords.
 
-But remember our memory ? and the way we built it so we could byte-address it but couldn't really operate on other things than words ? Well that's what we are goin to take care of in this section **to finally have a fully functionnal RV32I core !**
+But remember our *memory* module ? and the way we built it so we could byte-address it but couldn't really operate on other things than words ? Well that's what we are goin to take care of in this section **to finally have a fully functionnal RV32I core !**
+
+The goal here is to implement the following instructions :
+
+- ```lb```
+- ```lh```
+- ```lbu```
+- ```lhu```
+- ```sb```
+- ```sh```
+
+Which are non-aligned (aka not modulo 4) version of our already-existing ```sw``` and ```lw```.
+
+To really understand the behaior of these instruction, I suggest you use a risc-v ISA simulator like this ["*RISC-V Interpreter*"](https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter/) (you can find better one that support unsigned and half words).
+
+## 12.1 : Relfexions on CPU behavior
+
+For our stores instructions, we need to improve our memory first. To do so, we need to understand what is expected from our core from a programming standpoint.
+
+According to [this discussion](https://groups.google.com/a/groups.riscv.org/g/hw-dev/c/6oZYXzPj_Es/m/u6VfcaEzCAAJ), bytes aligned loads/stores are not a problem at all as the byte is the lowest possible unit of our memory.
+
+**BUT** halfwords can be mis-aligned : if the address is odd, that means we are trying to load in-between words :
+
+![lh non aligned exmaple](./lh_non_aligned.png)
+
+In this scneario, it is **up to us** to decide what to do. And the "what to do" will be : **nothing**. In that case, we should also throw an exception but remember : this is something for future improvements. On top of that, mis-aligned lh are, *theorically*, not supposed to happen as the compiler "knows" what he is doing.
+
+Now, the way we will handle that "noithing" can vary in many ways :
+
+- **Do we want the CPU or the memory to handle that ?** It depends on how we'll implement memory later on, maybe what controller we'll use, and how this said controller will handle these exceptions... To get the best predictible behavior, it is better to just handle these thing ourselve in the cpu core.
+- **Where exactly** do we want to handle these exceptions in the cpu ? Right now, we have a single cycle CPU. But in a pipelined cpu, every stage has its role. This kind of exception shall be caught in the "deconding" stage, aka at the very beginning of the cpu, where we generate control signals (right after fetching it from memory).
+
+> We could theorically implement that "yolo" style but it is a bit more important for future improvement that what we were used to procrastinate on until now, so might as well think about these problems before hand this time ;)
+
+## 12.2 ```sb``` and ```sh```
+
+So, now that we have a way to handle mis-alignment, we need to tell our memory to write this data, at a specific byte or halfword, and in a standard way !
+
+I decided to give another go at chatgpt, maybe this time he can give us some valuable insights :
+
+``` 
+=> Standard Behavior for Memory Writes
+
+When interfacing with standard memory modules on an FPGA, it's common to handle partial writes (like byte or halfword writes) using write enable masks. These masks indicate which byte(s) in a word should be updated. Here's a breakdown:
+1. SB (Store Byte)
+
+    Behavior: Write 1 byte (8 bits) to a specific location.
+    Implementation:
+        You provide a write_data signal with the full word, but only 1 byte of it is relevant.
+        You send a byte-enable mask to the memory, typically a 4-bit signal for 32-bit systems.
+            Example: To write the least significant byte of a word at address 0x1000, set write_mask = 0b0001.
+            For 0x1001, write_mask = 0b0010, etc.
+
+2. SH (Store Halfword)
+
+    Behavior: Write 2 bytes (16 bits) to a specific location.
+    Implementation:
+        Provide a write_data signal with the relevant 2 bytes filled in.
+        Send a byte-enable mask indicating which two bytes to write.
+            Example: For a halfword-aligned store at 0x1002, write_mask = 0b1100 for a 32-bit system.
+
+=> Memory Model
+
+Most standard memory modules support the concept of:
+
+    Write data bus (e.g., data_in).
+    Write mask or enable signal (e.g., byte_enable).
+
+When writing:
+
+    Align the data: For byte or halfword writes, shift the relevant data to the proper byte lanes.
+    Generate mask: Based on the address and size (SB, SH), create the appropriate byte-enable signal.
+```
+
+Great ! This time it's LLM for the win !
+
+Okay so it looks like we'll have to enhance our ```mem_write``` signal with something a bit more adapted : a 4bits wide signals telling the memory where to write ! We'll call it ```mem_byte_enable``` and it will work with ```mem_write``` to specify which byte to write.
+
+In summary, we need to :
+
+- Update our memory to works exclusively with byte masks.
+- Implement a load/store decoder to determine :
+  - mis-alignements
+  - a write mask
+
+## 12.2.a : Updating the memory
+
+By keeping in my what we just said in section 12.2, memory nerver sees non word-aligned addresses : our CPU will translate everything into :
+
+- A nice work-aligned address
+- And a ```byte_enable``` mask along the ```write_enable```
+
+### 12.2.a : HDL Code
+
+With that in mind, we can improve our memory like so :
+
+```sv
+// memory.sv
+
+module memory #(
+    parameter WORDS = 128,
+    parameter mem_init = ""
+) (
+    input logic clk,
+    input logic [31:0] address,
+    input logic [31:0] write_data,
+    input logic [3:0] byte_enable,
+    input logic write_enable,
+    input logic rst_n,
+
+    output logic [31:0] read_data
+);
+
+// Memory array (32-bit words)
+reg [31:0] mem [0:WORDS-1];
+
+initial begin
+    if (mem_init != "") begin
+        $readmemh(mem_init, mem);
+    end
+end
+
+// Write operation
+always @(posedge clk) begin
+    if (rst_n == 1'b0) begin
+        for (int i = 0; i < WORDS; i++) begin
+            mem[i] <= 32'b0;
+        end
+    end else if (write_enable) begin
+        if (address[1:0] != 2'b00) begin
+            $display("Misaligned write at address %h", address);
+        end else begin
+            // use byte-enable to selectively write bytes
+            for (int i = 0; i < 4; i++) begin
+                if (byte_enable[i]) begin
+                    mem[address[31:2]][(i*8)+:8] <= write_data[(i*8)+:8];
+                end
+            end
+        end
+    end
+end
+
+always_comb begin
+    read_data = mem[address[31:2]];
+end
+
+endmodule
+```
+
+We can see if our module behaves correctly by replacing ```if (byte_enable[i]) begin``` with ```if (1) begin``` as our previous test are only words operation in memory. And it works just fine so let's move on !
+
+### 12.2.a : Verification
+
+Okay, time to enhance our old memory tests : we keep the old one by asserting ```byte_enable = 0b1111``` and then do some test with different ```byte_enable``` value.
