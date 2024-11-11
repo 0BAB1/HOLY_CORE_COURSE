@@ -4723,12 +4723,15 @@ And that's it ! now let's verify that what we did is still working great and com
 ```txt
 //...
 
-00C00393  //JALR TEST START :   addi x7 x0 0xC      | x7 <= 0000000C                PC = 0x10C 
-FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000114 / goto PC+8    PC = 0x110
-00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+00000397  //JALR TEST START :   auipc x7 0x0        | x7 <= 00000110                PC = 0x10C 
+01438393  //                    addi x7 x7 0x10     | x7 <= 00000120                PC = 0x110
+FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000118, go @PC 0x11C  PC = 0x114
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x118
 
 //...
 ```
+
+This program loads a target PC using **auipc** and **addi** to build a constant, and then, we use ```jalr``` we a negative offset to this target, leading us to a final jump **@PC=0x11C**.
 
 And the testbench assertions :
 
@@ -4743,23 +4746,26 @@ async def cpu_insrt_test(dut):
     # ...
 
     ##################
-    # 00C00393  //JALR TEST START :   addi x7 x0 0xC      | x7 <= 0000000C                PC = 0x10C 
-    # FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000114 / goto PC+8    PC = 0x110
-    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+    # 00000397  //JALR TEST START :   auipc x7 0x0        | x7 <= 00000110                PC = 0x10C 
+    # 01438393  //                    addi x7 x7 0x10     | x7 <= 00000120                PC = 0x110
+    # FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000118, go @PC 0x11C  PC = 0x114
+    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x118
     ##################
     print("\n\nTESTING JALR\n\n")
 
     # Check test's init state
-    assert binary_to_hex(dut.instruction.value) == "00C00393"
+    assert binary_to_hex(dut.instruction.value) == "00000397"
     assert binary_to_hex(dut.pc.value) == "0000010C"
 
-    await RisingEdge(dut.clk) # addi x7 x0 0xC
-    assert binary_to_hex(dut.regfile.registers[7].value) == "0000000C"
+    await RisingEdge(dut.clk) # auipc x7 0x00 
+    await RisingEdge(dut.clk) # addi x7 x7 0x10 
+    assert binary_to_hex(dut.regfile.registers[7].value) == "00000120"
 
     await RisingEdge(dut.clk) # jalr x1  -4(x7)
-    assert binary_to_hex(dut.regfile.registers[1].value) == "00000114"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000118"
     assert not binary_to_hex(dut.instruction.value) == "00C00413"
     assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
+    assert binary_to_hex(dut.pc.value) == "0000011C"
 ```
 
 And it works ! GG
@@ -4800,20 +4806,21 @@ In this scneario, it is **up to us** to decide what to do. And the "what to do" 
 Now, the way we will handle that "noithing" can vary in many ways :
 
 - **Do we want the CPU or the memory to handle that ?** It depends on how we'll implement memory later on, maybe what controller we'll use, and how this said controller will handle these exceptions... To get the best predictible behavior, it is better to just handle these thing ourselve in the cpu core.
-- **Where exactly** do we want to handle these exceptions in the cpu ? Right now, we have a single cycle CPU. But in a pipelined cpu, every stage has its role. This kind of exception shall be caught in the "deconding" stage, aka at the very beginning of the cpu, where we generate control signals (right after fetching it from memory).
+- **Where exactly** do we want to handle these exceptions in the cpu ? Right now, we have a single cycle CPU. But in a pipelined cpu, every stage has its role. This kind of exception shall idealy be caught in the "deconding" stage, aka at the very beginning of the cpu, where we generate control signals (right after fetching it from memory) but in reality, it is a bit more tricky than that.
 
 > We could theorically implement that "yolo" style but it is a bit more important for future improvement that what we were used to procrastinate on until now, so might as well think about these problems before hand this time ;)
 
-## 12.2 ```sb``` and ```sh```
+## 12.2 : ```sb``` and ```sh```
 
 So, now that we have a way to handle mis-alignment, we need to tell our memory to write this data, at a specific byte or halfword, and in a standard way !
 
 I decided to give another go at chatgpt, maybe this time he can give us some valuable insights :
 
-``` 
-=> Standard Behavior for Memory Writes
+```md
+# Standard Behavior for Memory Writes
 
 When interfacing with standard memory modules on an FPGA, it's common to handle partial writes (like byte or halfword writes) using write enable masks. These masks indicate which byte(s) in a word should be updated. Here's a breakdown:
+
 1. SB (Store Byte)
 
     Behavior: Write 1 byte (8 bits) to a specific location.
@@ -4831,7 +4838,7 @@ When interfacing with standard memory modules on an FPGA, it's common to handle 
         Send a byte-enable mask indicating which two bytes to write.
             Example: For a halfword-aligned store at 0x1002, write_mask = 0b1100 for a 32-bit system.
 
-=> Memory Model
+# Memory Model
 
 Most standard memory modules support the concept of:
 
@@ -4844,7 +4851,7 @@ When writing:
     Generate mask: Based on the address and size (SB, SH), create the appropriate byte-enable signal.
 ```
 
-Great ! This time it's LLM for the win !
+Great ! This time it's LLM for the win ! Great explainations Mr GPT, now let's take back the control and actually use our brains to do something with these infos.
 
 Okay so it looks like we'll have to enhance our ```mem_write``` signal with something a bit more adapted : a 4bits wide signals telling the memory where to write ! We'll call it ```mem_byte_enable``` and it will work with ```mem_write``` to specify which byte to write.
 
@@ -5008,10 +5015,226 @@ async def memory_data_test(dut):
 
 And it works ! Great !
 
-## 12.2.b : Ensuring compatibility
+## 12.2.b : Ensuring compatibility : Creating the ```load_store_decoder``` unit
 
 Now if we run all the tests from the test runner, we obviously get failures everywhere in the cpu test because the memory isn't getting any info on its new ```byte_anable``` signal.
 
-We now take a minute to patch our control by adding a "load/store" decoder that, for now, only assert ```4'b1111``` and route this signal outside the *control* unit all the way to the data_memory :
+So, how do we generate valid ```byte_enable``` signals ?
 
+The thing is we **don't know** what the final read address is until **we've reached the ALU**. We could try to figure it out in control by getting info from the regitsers and alu back to the control, but these kind of design choices can lead to severe logic hazards when pipelining a CPU (which is an advanced technique to speed up clock speeds we will cover in another tutorial). The best practice here is simply to wait for the data to be availible and use it there.
 
+> Fun fact : Waiting for data to be availible like that leads to a bottleneck in pipined CPU, where branch prediction becomes a thing and we have to wait until the ALU to know if the prediction was right ! We'll have the opportunity to explore these concepts extensively in later tutorials ;)
+
+With that in mind, here is how we'll proceed to know where to write (or not) :
+
+![Write_enable decoder position in the CPU](./WE_Decoder.png)
+
+Also rememnber our design choice : "Do nothing if halfword or word alignment is not correct". Well, this will be done by setting the mask to ```4'b000``` if that's the case, which will avoid any altering in memory, even if ```write_enable``` is asserted.
+
+### 12.2.b : HDL Code
+
+So we start by creating a new module, and the tb subfolder config that goes with it, for now we only need to output ```4'b1111``` to make the tests pass, we'll iplement real logic later for ```sb``` and ```sh``` :
+
+```sv
+// load_store_decoder.sv
+
+module load_store_decoder (
+    input logic [31:0] alu_result_address,
+    output logic [3:0] byte_enable
+);
+
+assign byte_enable = 4'b1111;
+    
+endmodule
+```
+
+And we add it to our datapath, right after the ALU :
+
+```sv
+// cpu.sv
+
+// alu ...
+
+/**
+* LOAD/STORE DECODER
+*/
+
+wire [3:0] mem_byte_enable;
+
+load_store_decoder ls_decode(
+    .alu_result_address(alu_result),
+    .byte_enable(mem_byte_enable)
+);
+
+// ...
+
+memory #(
+    .mem_init("./test_dmemory.hex")
+) data_memory (
+    .clk(clk),
+    .address(alu_result),
+    .write_data(mem_write_data),
+    .write_enable(mem_write),
+    .byte_enable(mem_byte_enable), // ROUTED HERE !
+    .rst_n(1'b1),
+    .read_data(mem_read)
+);
+```
+
+### 12.2.b : Verification
+
+Running all the test does work now. We will also add a test bench for this sub module for good measure to ensure it is bahving as expected :
+
+```python
+# test_load_store_decoder.py
+
+import cocotb
+from cocotb.triggers import Timer
+
+@cocotb.test()
+async def ls_unit_test(dut):
+    await Timer(1, units="ns")
+    assert dut.byte_enable.value == "1111"
+```
+
+We'll put actual assertions in here as time goes on.
+
+## 12.2.c : Implementing ```sb```
+
+Okay, now everything is set up ! let's implement ```sb``` ! First, here is what the instruction looks like :
+
+| Imm [11:5]    | rs1           |rs1           | f3     | Imm [4:0]           | op      |
+| ------------  | ------------  |------------  | ------ | ------------ | ------- |
+| XXXXXXX  | XXXXX         |XXXXX         | 000    | XXXXX        | 0100011 |
+
+So we need to get that f3 into our decoder, let's do exactly that, first, here is a revised version of our datapath :
+
+![enhanced ls_decoder for single single cpu : F3](./f3_to_we_decode.png)
+
+> I will let you update the datapath on this one, pretty straight forward, don't forget to discard last two bit of the address you give to the data memory, as our new decoder will handle masking for this matter. It should look like something like the code snippet below :
+
+```sv
+// cpu.sv
+
+// ...
+memory #(
+    .mem_init("./test_dmemory.hex")
+) data_memory (
+    // Memory inputs
+    .clk(clk),
+    .address({alu_result[31:2], 2'b00}), // CHANGED HERE !
+    .write_data(mem_write_data),
+    .write_enable(mem_write),
+    .byte_enable(mem_byte_enable),
+    .rst_n(1'b1),
+
+    // Memory outputs
+    .read_data(mem_read)
+);
+// ...
+```
+
+## 12.2.c : HDL Code
+
+**After updating the datapath** to route f3 to our new *ls_decoder* unit, we can enhance this said unit to implement ```sb```.
+
+> Don't forget to add existing ```sw``` and make sure it will still be supported !
+
+```sv
+// load_store_decoder.sv
+
+module load_store_decoder (
+    input logic [31:0] alu_result_address,
+    input logic [2:0] f3,
+    output logic [3:0] byte_enable
+);
+
+logic [1:0] offset;
+
+assign offset = alu_result_address[1:0];
+
+always_comb begin
+    case (f3)
+        3'b000: begin // SB
+            case (offset)
+                2'b00: byte_enable = 4'b0001;
+                2'b01: byte_enable = 4'b0010;
+                2'b10: byte_enable = 4'b0100;
+                2'b11: byte_enable = 4'b1000;
+                default: byte_enable = 4'b0000;
+            endcase
+        end
+        
+        3'b010: begin // SW
+            byte_enable = (offset == 2'b00) ? 4'b1111 : 4'b0000;
+        end
+
+        default: begin
+            byte_enable = 4'b0000; // No operation for unsupported types
+        end
+    endcase
+end
+
+endmodule
+```
+
+## 12.2.c : Verification
+
+We can now ditch our old 3 lines long temporary test bench to get a brand new one that tests some actual expected behavior :
+
+```python
+# test_load-store_decoder.py
+
+import cocotb
+from cocotb.triggers import Timer
+
+@cocotb.test()
+async def ls_unit_test(dut):
+    word = 0x123ABC00
+
+    # ====
+    # SW
+    # ====
+    dut.f3.value = 0b010
+    for offset in range(4):
+        dut.alu_result_address.value = word | offset
+        await Timer(1, units="ns")
+        if offset == 0b00:
+            assert dut.byte_enable.value == 0b1111
+        else :
+            assert dut.byte_enable.value == 0b0000
+    
+    # ====
+    # SB
+    # ====
+    await Timer(10, units="ns")
+
+    dut.f3.value = 0b000
+    for offset in range(4):
+        dut.alu_result_address.value = word | offset
+        await Timer(1, units="ns")
+        if offset == 0b00:
+            assert dut.byte_enable.value == 0b0001
+        elif offset == 0b01:
+            assert dut.byte_enable.value == 0b0010
+        elif offset == 0b10:
+            assert dut.byte_enable.value == 0b0100
+        elif offset == 0b11:
+            assert dut.byte_enable.value == 0b1000
+```
+
+Great ! Now support should be good for  ```sb```. Let's check it out !
+
+## 12.2.d : Verifying ```sb``` support
+
+We need to test 2 things here as a "bare minimum" verification:
+
+- make sure misaligned ```sw``` don't alter memory.
+- make sure ```sb``` only wite 1 byte only
+
+Here is a test programm that does just that :
+
+```txt
+008020A3  //SB TEST START :     sw x8 0x1(x0)       | NO WRITE ! (mis-aligned !)    PC = 0x11C
+00800323  //                    sb x8 0x6(x0)       | mem @ 0x4 <= 00FF0000         PC = 0x120
+```

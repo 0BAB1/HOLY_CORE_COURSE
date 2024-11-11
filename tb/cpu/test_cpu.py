@@ -535,20 +535,39 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
 
     ##################
-    # 00C00393  //JALR TEST START :   addi x7 x0 0xC      | x7 <= 0000000C                PC = 0x10C 
-    # FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000114 / goto PC+8    PC = 0x110
-    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+    # 00000397  //JALR TEST START :   auipc x7 0x0        | x7 <= 00000110                PC = 0x10C 
+    # 01438393  //                    addi x7 x7 0x10     | x7 <= 00000120                PC = 0x110
+    # FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000118, go @PC 0x11C  PC = 0x114
+    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x118
     ##################
     print("\n\nTESTING JALR\n\n")
 
     # Check test's init state
-    assert binary_to_hex(dut.instruction.value) == "00C00393"
+    assert binary_to_hex(dut.instruction.value) == "00000397"
     assert binary_to_hex(dut.pc.value) == "0000010C"
 
-    await RisingEdge(dut.clk) # addi x7 x0 0xC
-    assert binary_to_hex(dut.regfile.registers[7].value) == "0000000C"
+    await RisingEdge(dut.clk) # auipc x7 0x00 
+    await RisingEdge(dut.clk) # addi x7 x7 0x10 
+    assert binary_to_hex(dut.regfile.registers[7].value) == "00000120"
 
     await RisingEdge(dut.clk) # jalr x1  -4(x7)
-    assert binary_to_hex(dut.regfile.registers[1].value) == "00000114"
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000118"
     assert not binary_to_hex(dut.instruction.value) == "00C00413"
     assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
+    assert binary_to_hex(dut.pc.value) == "0000011C"
+
+    #################
+    # 008020A3  //SB TEST START :     sw x8 0x1(x0)       | NO WRITE ! (mis-aligned !)
+    # 00800323  //                    sb x8 0x6(x0)       | mem @ 0x4 <= 00EE0000
+    ##################
+    print("\n\nTESTING SB\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "008020A3"
+
+    await RisingEdge(dut.clk) # sw x8 0x1(x0)
+    assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE" # remains UNFAZED
+
+    await RisingEdge(dut.clk) # sb x8 0x6(x0)
+    # address is 1 because 0x6 is word @ address 4 and the test bench gets data by word
+    assert binary_to_hex(dut.data_memory.mem[1].value) == "00FF0000"

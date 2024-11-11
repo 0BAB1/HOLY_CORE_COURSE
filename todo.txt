@@ -9,3 +9,5 @@ i'd like to do so much with this afterwards ! like actually use it for so many p
 UPDATE THE CONTROL TESTS IN THE TUTORIAL : THEY LACK NEW INPUT RESET !
 
 Also apply new input reset method for ALU testbenches !
+
+create a test setup explanatory md file.
