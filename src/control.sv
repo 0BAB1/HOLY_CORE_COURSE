@@ -16,7 +16,7 @@ module control (
     output logic alu_source,
     output logic [1:0] write_back_source,
     output logic pc_source,
-    output logic second_add_source
+    output logic [1:0] second_add_source
 );
 
 /**
@@ -58,10 +58,12 @@ always_comb begin
                 // slli only accept f7 7'b0000000
                 reg_write = (func7 == 7'b0000000) ? 1'b1 : 1'b0;
             end
-            if(func3 == 3'b101)begin
+            else if(func3 == 3'b101)begin
                 // srli only accept f7 7'b0000000
                 // srli only accept f7 7'b0100000
                 reg_write = (func7 == 7'b0000000 | func7 == 7'b0100000) ? 1'b1 : 1'b0;
+            end else begin
+                reg_write = 1'b1;
             end
         end
         // S-Type
@@ -93,17 +95,24 @@ always_comb begin
             alu_op = 2'b01;
             branch = 1'b1;
             jump = 1'b0;
-            second_add_source = 1'b0;
+            second_add_source = 2'b00;
         end
-        // J-type
-        7'b1101111 : begin
+        // J-type + JALR weird Hybrib
+        7'b1101111, 7'b1100111 : begin
             reg_write = 1'b1;
             imm_source = 3'b011;
             mem_write = 1'b0;
             write_back_source = 2'b10; //pc_+4
             branch = 1'b0;
             jump = 1'b1;
-            second_add_source = 1'b0;
+            if(op[3]) begin// jal
+                second_add_source = 2'b00;
+                imm_source = 3'b011;
+            end
+            else if (~op[3]) begin // jalr
+                second_add_source = 2'b10;
+                imm_source = 3'b000;
+            end
         end
         // U-type
         7'b0110111, 7'b0010111 : begin
@@ -114,8 +123,8 @@ always_comb begin
             branch = 1'b0;
             jump = 1'b0;
             case(op[5])
-                1'b1 : second_add_source = 1'b1; // lui
-                1'b0 : second_add_source = 1'b0; // auipc
+                1'b1 : second_add_source = 2'b01; // lui
+                1'b0 : second_add_source = 2'b00; // auipc
             endcase
         end
         // EVERYTHING ELSE

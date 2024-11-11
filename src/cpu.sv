@@ -24,8 +24,9 @@ end
 
 always_comb begin : second_add_select
     case (second_add_source)
-        1'b0 : pc_plus_second_add = pc + immediate;
-        1'b1 : pc_plus_second_add = immediate;
+        2'b00 : pc_plus_second_add = pc + immediate;
+        2'b01 : pc_plus_second_add = immediate;
+        2'b10 : pc_plus_second_add = read_reg1 + immediate;
     endcase
 end
 
@@ -81,7 +82,7 @@ wire reg_write;
 wire alu_source;
 wire [1:0] write_back_source;
 wire pc_source;
-wire second_add_source;
+wire [1:0] second_add_source;
 
 control control_unit(
     .op(op),

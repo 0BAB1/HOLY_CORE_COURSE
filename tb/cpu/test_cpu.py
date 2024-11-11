@@ -533,3 +533,22 @@ async def cpu_insrt_test(dut):
     assert not binary_to_hex(dut.instruction.value) == "00C00413"
     # We verify x8 value was not altered by addi instruction, because it was never meant tyo be executed (sad)
     assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
+
+    ##################
+    # 00C00393  //JALR TEST START :   addi x7 x0 0xC      | x7 <= 0000000C                PC = 0x10C 
+    # FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000114 / goto PC+8    PC = 0x110
+    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+    ##################
+    print("\n\nTESTING JALR\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "00C00393"
+    assert binary_to_hex(dut.pc.value) == "0000010C"
+
+    await RisingEdge(dut.clk) # addi x7 x0 0xC
+    assert binary_to_hex(dut.regfile.registers[7].value) == "0000000C"
+
+    await RisingEdge(dut.clk) # jalr x1  -4(x7)
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000114"
+    assert not binary_to_hex(dut.instruction.value) == "00C00413"
+    assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"

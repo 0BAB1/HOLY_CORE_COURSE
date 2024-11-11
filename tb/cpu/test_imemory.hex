@@ -64,10 +64,10 @@ FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
 0088F463  //BGEU TEST START :   bgeu x17 x8 0x8     | not taken
 01147463  //                    bgeu x8 x17 0x8     | taken
-00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+00C00393  //JALR TEST START :   addi x7 x0 0xC      | x7 <= 0000000C                PC = 0x10C 
+FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000114 / goto PC+8    PC = 0x110
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP
