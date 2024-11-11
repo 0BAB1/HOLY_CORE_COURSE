@@ -1,9 +1,22 @@
 import cocotb
 from cocotb.triggers import Timer
 import random
+from cocotb.binary import BinaryValue
+
+@cocotb.coroutine
+async def set_unknown(dut):
+    # Set all input to unknown before each test
+    await Timer(1, units="ns")
+    dut.op.value = BinaryValue("XXXXXXX")
+    dut.func3.value = BinaryValue("XXX")
+    dut.func7.value = BinaryValue("XXXXXXX")
+    dut.alu_zero.value = BinaryValue("X")
+    dut.alu_last_bit.value = BinaryValue("X")
+    await Timer(1, units="ns")
 
 @cocotb.test()
 async def lw_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR LW
     await Timer(1, units="ns")
     dut.op.value = 0b0000011 # I-TYPE
@@ -21,6 +34,7 @@ async def lw_control_test(dut):
 
 @cocotb.test()
 async def sw_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SW
     await Timer(10, units="ns")
     dut.op.value = 0b0100011 # S-TYPE
@@ -35,6 +49,7 @@ async def sw_control_test(dut):
 
 @cocotb.test()
 async def add_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR ADD
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
@@ -51,6 +66,7 @@ async def add_control_test(dut):
 
 @cocotb.test()
 async def and_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR AND
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
@@ -66,6 +82,7 @@ async def and_control_test(dut):
 
 @cocotb.test()
 async def or_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR OR
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
@@ -81,6 +98,7 @@ async def or_control_test(dut):
 
 @cocotb.test()
 async def beq_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BEQ
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -101,13 +119,14 @@ async def beq_control_test(dut):
     dut.alu_zero.value = 0b1
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
 @cocotb.test()
 async def jal_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR JAL
     await Timer(10, units="ns")
-    dut.op.value = 0b1101111 # J-TYPE
+    dut.op.value = 0b1101111 # J-TYPE : jalr
     await Timer(1, units="ns")
 
     assert dut.imm_source.value == "011"
@@ -117,10 +136,11 @@ async def jal_control_test(dut):
     assert dut.jump.value == "1"
     assert dut.pc_source.value == "1"
     assert dut.write_back_source.value == "10"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
 @cocotb.test()
 async def addi_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR ADDI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
@@ -139,6 +159,7 @@ async def addi_control_test(dut):
 
 @cocotb.test()
 async def lui_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR LUI
     await Timer(10, units="ns")
     dut.op.value = 0b0110111 # U-TYPE (lui)
@@ -151,10 +172,11 @@ async def lui_control_test(dut):
     assert dut.write_back_source.value == "11"
     assert dut.branch.value == "0"
     assert dut.jump.value == "0"
-    assert dut.second_add_source.value == "1"
+    assert dut.second_add_source.value == "01"
 
 @cocotb.test()
 async def auipc_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR AUIPC
     await Timer(10, units="ns")
     dut.op.value = 0b0010111 # U-TYPE (auipc)
@@ -167,10 +189,11 @@ async def auipc_control_test(dut):
     assert dut.write_back_source.value == "11"
     assert dut.branch.value == "0"
     assert dut.jump.value == "0"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
 @cocotb.test()
 async def slti_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SLTI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
@@ -189,6 +212,7 @@ async def slti_control_test(dut):
 
 @cocotb.test()
 async def sltiu_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SLTIU
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
@@ -207,6 +231,7 @@ async def sltiu_control_test(dut):
 
 @cocotb.test()
 async def xori_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR XORI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
@@ -225,6 +250,7 @@ async def xori_control_test(dut):
 
 @cocotb.test()
 async def slli_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SLLI
 
     # VALID F7
@@ -264,6 +290,7 @@ async def slli_control_test(dut):
 
 @cocotb.test()
 async def srli_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SRLI
 
     # VALID F7
@@ -306,6 +333,7 @@ async def srli_control_test(dut):
 
 @cocotb.test()
 async def srai_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SRAI
 
     # VALID F7
@@ -348,6 +376,7 @@ async def srai_control_test(dut):
 
 @cocotb.test()
 async def sub_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SUB
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
@@ -364,6 +393,7 @@ async def sub_control_test(dut):
 
 @cocotb.test()
 async def blt_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BLT (underlying logic same as BEQ)
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -378,17 +408,18 @@ async def blt_control_test(dut):
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
 @cocotb.test()
 async def bne_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BNE
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -403,17 +434,18 @@ async def bne_control_test(dut):
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
     dut.alu_zero.value = 0b0
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
 @cocotb.test()
 async def bge_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BGE
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -428,17 +460,18 @@ async def bge_control_test(dut):
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b0
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
 @cocotb.test()
 async def bltu_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BNE
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -453,17 +486,18 @@ async def bltu_control_test(dut):
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
 @cocotb.test()
 async def bgeu_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BNE
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -478,11 +512,28 @@ async def bgeu_control_test(dut):
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b0
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
-    assert dut.second_add_source.value == "0"
+    assert dut.second_add_source.value == "00"
+
+@cocotb.test()
+async def jalr_control_test(dut):
+    await set_unknown(dut)
+    # TEST CONTROL SIGNALS FOR JALR
+    await Timer(10, units="ns")
+    dut.op.value = 0b1100111 # Jump / I-type : jalr 
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "1"
+    assert dut.pc_source.value == "1"
+    assert dut.write_back_source.value == "10"
+    assert dut.second_add_source.value == "10"

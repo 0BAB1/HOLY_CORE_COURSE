@@ -608,9 +608,16 @@ The tesbench is veristraight forward, we emulate ONLY the important signals desc
 ```python
 import cocotb
 from cocotb.triggers import Timer
+import random
+from cocotb.binary import BinaryValue
+
+@cocotb.coroutine
+async def set_unknown(dut):
+    # we'll see what this is in a minute ...
 
 @cocotb.test()
 async def control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR LW
     await Timer(1, units="ns")
     dut.op.value = 0b0000011 #lw
@@ -619,6 +626,26 @@ async def control_test(dut):
     assert dut.imm_source.value == "00"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
+```
+
+> ```await set_unknown(dut)``` is here to set the signals to default ```X``` values. You can check the section on tests setup or the source code for more info. If you don't use it, you may having passing test whereas you are checking on other tests states. It will be up to you to update it (**by uncommenting the assignements**) as we add input to the *control* unit. Don't, worry, it will come to mind naturally.
+
+Here is what the ```set_unknown``` function looks like :
+
+```python
+@cocotb.coroutine
+async def set_unknown(dut):
+    # Set all input to unknown before each test
+    await Timer(1, units="ns")
+    dut.op.value = BinaryValue("XXXXXXX")
+    #
+    # Uncomment the following throughout the course whan needed
+    #
+    # dut.func3.value = BinaryValue("XXX")
+    # dut.func7.value = BinaryValue("XXXXXXX")
+    # dut.alu_zero.value = BinaryValue("X")
+    # dut.alu_last_bit.value = BinaryValue("X")
+    await Timer(1, units="ns")
 ```
 
 For the curious who may ask "so what is the f3 for in the ```lw``` instruction then ?". Great question. We can use F3 to implement different flavors of the ```load``` instruction
@@ -1170,7 +1197,7 @@ As you can see it is simple a matter of adding a decoding case.
 For the verification, it is also pretty somple :
 
 ```python
-#test_control.py
+# test_control.py
 
 import cocotb
 from cocotb.triggers import Timer
@@ -1181,6 +1208,7 @@ async def lw_control_test(dut):
 
 @cocotb.test()
 async def sw_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SW
     await Timer(10, units="ns")
     dut.op.value = 0b0100011 #sw
@@ -1810,6 +1838,7 @@ Then we add a test case in the testbench and make sure control stills runs smoot
 
 @cocotb.test()
 async def and_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR AND
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
@@ -1955,6 +1984,8 @@ end
 
 @cocotb.test()
 async def or_control_test(dut):
+    await set_unknown(dut)
+
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 
     dut.func3.value = 0b110
@@ -2243,6 +2274,7 @@ async def or_control_test(dut):
 
 @cocotb.test()
 async def beq_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BEQ
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -2807,6 +2839,7 @@ and add out ```jal``` test case (it's fairly simple) :
 
 @cocotb.test()
 async def jal_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR JAL
     await Timer(10, units="ns")
     dut.op.value = 0b1101111 # J-TYPE
@@ -3048,6 +3081,7 @@ Only the source of the write_back changes ! Which makes sense ! Let's test that 
 
 @cocotb.test()
 async def addi_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR ADDI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE
@@ -3327,6 +3361,7 @@ Verification is pretty simple, here is the resulting test bench :
 
 @cocotb.test()
 async def auipc_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR AUIPC
     await Timer(10, units="ns")
     dut.op.value = 0b0010111 # U-TYPE (auipc)
@@ -3656,6 +3691,7 @@ Here is the tb. As usual for control : basic assertions
 
 @cocotb.test()
 async def slti_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SLTI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
@@ -3841,6 +3877,7 @@ And here are the assertions for the tb :
 
 @cocotb.test()
 async def sltiu_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SLTI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
@@ -4009,6 +4046,7 @@ And the tesbench, as usual :
 
 @cocotb.test()
 async def xori_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR XORI
     await Timer(10, units="ns")
     dut.op.value = 0b0010011 # I-TYPE (alu)
@@ -4172,6 +4210,7 @@ In order to verify, first, update the first ```add``` test to include f7 :
 
 @cocotb.test()
 async def add_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR ADD
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
@@ -4199,6 +4238,7 @@ And then, add a test case for ```sub``` :
 
 @cocotb.test()
 async def sub_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR SUB
     await Timer(10, units="ns")
     dut.op.value = 0b0110011 # R-TYPE
@@ -4452,6 +4492,7 @@ And to verify this behavior, we simply copy-paste the ```beq``` test case and ad
 
 @cocotb.test()
 async def blt_control_test(dut):
+    await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR BLT (underlying logic same as BEQ)
     await Timer(10, units="ns")
     dut.op.value = 0b1100011 # B-TYPE
@@ -4476,11 +4517,11 @@ async def blt_control_test(dut):
     assert dut.second_add_source.value == "0"
 ```
 
-## 1.1.c : Updating the *CPU* datapath
+## 10.1.c : Updating the *CPU* datapath
 
 For this part, you just need to route the ```alu_last_bit``` flag from the *ALU* the the *Control unit*.
 
-### 1.1.c : Test program example and verification
+### 10.1.c : Test program example and verification
 
 We already test branches extensively before for ```beq``` so we'll stick to something simple :
 
@@ -4505,7 +4546,7 @@ So we use that do do some assertions in the testbench, as usual :
 # ...
 
 @cocotb.test()
-async def lw_control_test(dut):
+async def cpu_insrt_test(dut):
 
     # ...
 
@@ -4536,3 +4577,198 @@ async def lw_control_test(dut):
 And there you go ! you now have a strong base to implement all other ```B-Types``` ! I'll see you in the next section to implement ```jalr``` ;).
 
 > Spoiler, if you used 64 words wide memories like me, you mights wanna make it larger to test everything (depending on your tests complexity).
+
+## 11 : The come back of ```JALR```
+
+Before moving on to the "partial" memory operation that we yet have to implement, let's get rid of the final operation to have a complete processor (that only works on word aligned memory accesses) : ```jalr```.
+
+Here is what ```jalr``` looks like :
+
+| Imm [11:0]    | rs1           | f3     | rd           | op      |
+| ------------  | ------------  | ------ | ------------ | ------- |
+| XXXXXXXXXXXX  | XXXXX         | 000    | XXXXX        | 110**0**111 |
+
+This instruction is formated as an I-Type and behaves as a J-Type (it's a "jump" after all !)
+
+Its unique *OP* code makes it easy to distinguish (still similar to ```jal```'s : 110**01**111).
+
+Here is how we use it in a program :
+
+```asm
+jalr rd offset(rs1)
+```
+
+So i'ts exatly the same as jal excepts it uses a pre-stored address from rs1 to jump. (rd gets the value of pc+4). Here is the recap :
+
+- ```rd``` <- PC + 4 (*write_back_source* = 010)
+- ```pc_next``` <- rs1 + offset (*we can't currently do that*)
+
+So, we have to choices :
+
+- Use the *ALU* to compute the target PC and add ```alu_result``` to our pc sources for pc_next
+- Use our second and add a second_add source
+
+I'll go with the second choice, as we've always computed PC-related stuff in the *second_add* logic so far. This is far from ideal, and I know for a fact that we should re-use the ALU to refactor our cpu logic **BUT** I am a biased human and I mainly try to get this thing working first. Optimisation will come later, don't worry. (*more coping*).
+
+Here is a recap of our datapath we will implement of ```jalr```:
+
+![jalr and final logic datapath](./final%20JALR.png)
+
+## 11.1 : Laying down the work to do
+
+So you though it wass all easy fro now on ? **WRONG** ! We now have more to do on the datapth. Which is not hard by itself but rather long as we have to update signals width in both the logic AND the tests.
+
+> Once again, we should add constants to make our job easier on this part, but I also plan on doing this *later* in this course (which is not now).
+
+So let's start shall we ? You can use [the spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for reference.
+
+## 11.1.a : Updating *control*
+
+### 11.1.a : HDL Code
+
+First of all, we have to start with the *control* unit by adding our ```jalr``` special case in the main decoder. To do so, we'll reuse J-Type logic and add a check on the op difference to decide which ```second_add_source``` to go for :
+
+```sv
+// control.sv
+
+// ... 
+
+    // J-type + JALR weird Hybrib
+    7'b1101111, 7'b1100111 : begin
+        reg_write = 1'b1;
+        imm_source = 3'b011;
+        mem_write = 1'b0;
+        write_back_source = 2'b10; //pc_+4
+        branch = 1'b0;
+        jump = 1'b1;
+        if(op[3]) begin// jal
+            second_add_source = 2'b00;
+            imm_source = 3'b011;
+        end
+        else if (~op[3]) begin // jalr
+            second_add_source = 2'b10;
+            imm_source = 3'b000;
+        end
+    end
+
+// ...
+
+```
+
+As you can see, we do not forget about the ```imm_source``` too !
+
+### 11.1.a : Verification
+
+As for the test bench, not much to do if not add a [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing)-compliant test case, and update all the checks on ```second_add_source``` to take the new signal width into account :
+
+```python
+# test_control.py
+
+# Updated tests (...)
+
+@cocotb.test()
+async def jalr_control_test(dut):
+    await set_unknown(dut)
+    # TEST CONTROL SIGNALS FOR JALR
+    await Timer(10, units="ns")
+    dut.op.value = 0b1100111 # Jump / I-type : jalr 
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "000"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "1"
+    assert dut.pc_source.value == "1"
+    assert dut.write_back_source.value == "10"
+    assert dut.second_add_source.value == "10"
+```
+
+We can now update our datapath !
+
+## 11.1.b : Updating the datapath
+
+To update our datapth, here is a refresher of our new layout :
+
+![jalr and final logic datapath](./final%20JALR.png)
+
+### 11.1.b : HDL Code
+
+We quickly identify that there is not much to do, if not updating the ```second_add_source``` width and add a MUX option accordignly :
+
+```sv
+// cpu.sv
+
+// ...
+
+wire [1:0] second_add_source; // width updated !
+
+// ...
+
+always_comb begin : second_add_select
+    case (second_add_source)
+        2'b00 : pc_plus_second_add = pc + immediate; // width updated !
+        2'b01 : pc_plus_second_add = immediate; // width updated !
+        2'b10 : pc_plus_second_add = read_reg1 + immediate; // NEW
+    endcase
+end
+
+// ...
+
+```
+
+### 11.1.b : Verification
+
+And that's it ! now let's verify that what we did is still working great and come up with a new test program:
+
+```txt
+//...
+
+00C00393  //JALR TEST START :   addi x7 x0 0xC      | x7 <= 0000000C                PC = 0x10C 
+FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000114 / goto PC+8    PC = 0x110
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+
+//...
+```
+
+And the testbench assertions :
+
+```python
+# test_cpu.py
+
+# ...
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    ##################
+    # 00C00393  //JALR TEST START :   addi x7 x0 0xC      | x7 <= 0000000C                PC = 0x10C 
+    # FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000114 / goto PC+8    PC = 0x110
+    # 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+    ##################
+    print("\n\nTESTING JALR\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "00C00393"
+    assert binary_to_hex(dut.pc.value) == "0000010C"
+
+    await RisingEdge(dut.clk) # addi x7 x0 0xC
+    assert binary_to_hex(dut.regfile.registers[7].value) == "0000000C"
+
+    await RisingEdge(dut.clk) # jalr x1  -4(x7)
+    assert binary_to_hex(dut.regfile.registers[1].value) == "00000114"
+    assert not binary_to_hex(dut.instruction.value) == "00C00413"
+    assert binary_to_hex(dut.regfile.registers[8].value) == "FFFFFFEE"
+```
+
+And it works ! GG
+
+## A bit of memory
+
+Okay, we've implemented all locical operations ! GG.
+
+But now is time to enter the realms of "the things we said we would do later, don't worry bro". And the first one to take care of is the memory stuff as it will unclock all the load/stores for bytes and halfwords.
+
+But remember our memory ? and the way we built it so we could byte-address it but couldn't really operate on other things than words ? Well that's what we are goin to take care of in this section **to finally have a fully functionnal RV32I core !**
