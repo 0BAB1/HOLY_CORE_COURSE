@@ -180,6 +180,19 @@ alu alu_inst(
 );
 
 /**
+* LOAD/STORE DECODER
+*/
+
+wire [3:0] mem_byte_enable;
+
+load_store_decoder ls_decode(
+    .alu_result_address(alu_result),
+    .f3(f3),
+    .byte_enable(mem_byte_enable)
+);
+
+
+/**
 * DATA MEMORY
 */
 wire [31:0] mem_read;
@@ -194,9 +207,10 @@ memory #(
 ) data_memory (
     // Memory inputs
     .clk(clk),
-    .address(alu_result),
+    .address({alu_result[31:2], 2'b00}),
     .write_data(mem_write_data),
     .write_enable(mem_write),
+    .byte_enable(mem_byte_enable),
     .rst_n(1'b1),
 
     // Memory outputs
