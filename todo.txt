@@ -11,3 +11,7 @@ UPDATE THE CONTROL TESTS IN THE TUTORIAL : THEY LACK NEW INPUT RESET !
 Also apply new input reset method for ALU testbenches !
 
 create a test setup explanatory md file.
+
+REVIEW OF THE DOCUMENT STARTED :
+
+-> Stopped at the biggin or RTYPE (just made the figure)

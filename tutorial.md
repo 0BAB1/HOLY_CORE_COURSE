@@ -1,29 +1,34 @@
-# The complete RISC-V tutorial : single cycle edition
+# The HOLY CORE project : A full RISC-V Tutorial, for everyone.
 
-Tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs). PS :  the intro is legendary.
+This tutorial will teach you how to build and test a RISC-V Single cycle core at the RTL Level.
 
-<!-- TODO : ADD A DISCLAIMER ABOUT THE TECHNIQUES, like the usage of one single program, why is it so simple, why hardcoded names... spoiler : its because we do thing the gudol' way !-->
+We'll use a set of open-source tools to allow everyone to complete this project at home using little to no specific resources. If you need more info on the tools or the setup process, check out the [project setup](./setup.md) file. **The setup file also contains important informations on what you need to know, have and learn before starting this tutorial**.
 
-It is also based on the *Digital Design and
-Computer Architecture, RISC-V Edition* Book from Sarah & David Harris (The persons that teaches the youtube lectures mentionned above). I'll let you do your own research to get your hands on the PDF ;)
+This tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) and on the *Digital Design and Computer Architecture, RISC-V Edition* Book from Sarah & David Harris. (*I'll let you do your own research to get your hands on the PDF*).
 
-Here is what we'll aim to build in this tutorial :
+> Why **Holy** core ? Because I like this name and wanted to a little credit to god. It is also a reference to Terry A. Davis. But the naming does not really impact this project, *at all*.
 
-![finished single cycle](./Complete_single_cycle.png)
+In this tutorial, we will build the following core :
 
-Which aims at implementing all of the RV32 base instruction set :
+![finished single cycle](./Holy_core.jpg)
 
-![rv32 base and type](./RV32_base_types.png)
+Which aims at implementing all of the RV32I base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each intruction we'll implement (only **RV32I** here).
 
-That looks like a lot, but by implementing each type 1 by 1 (e.g. I,S,R,B,...) it can be done !dd> We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than basics like full aders and gate-level design.
+We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than basics (e.g. full aders and gate-level design).
 
 You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
-In order to achieve this, we'll (more or less) follow the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube).
+## 0 : Where do we start
 
-The plan consist in thinking about each type of instruction we can encounter and implement the necessary building block whilst thinking about the datapath for a specific instruction example.
+In order to build this core, we'll start by following the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube). You can also use their book cited in the intro. This will allow you to have another reference to start this project, which can be extremely useful if there is something you struggle to understand.
 
-Of course, the first instruction will necessitate the most as we'll start from 0. But once we implement a couple of them, the others will be way easier to implement ! So let's get started !
+The plan now consists in thinking about each type of instruction we can encounter and create the logic blocks necessary to make them happen. As stated in the [project setup](./setup.md) We'll test these block individually to make sure each feature works, and we'll them put them togheter to form our core that we'll test using one big test program.
+
+> Note that the testbenches and verification technique can be improved and people smarter than me may comment on "how unefficient" this is. **But** I simply do not care and invite them to go outside and enjoy the sun a little bit.
+
+Of course, the first couple of instructions we'll implement will require the most amount of work as we'll start from 0. But once we implement a few, **the others will be way easier to implement** ! So keep in mind that the first few instructions are the hardest, and once this is done, it only gets more practical.
+
+Let's get started !
 
 ## 1 : Implementing the "load word" ```lw``` instruction (basic I-Type)
 
@@ -51,26 +56,34 @@ here is a quick breakdown :
 
 ## 1.1 : What do we need to implement ```lw``` ?
 
-Before doing any actual hardware digital interpretation of this instruction, the lecture tells us what we first need some basic logic blocks :
+Here is an overview of what we'll try to do :
+
+![lw partial datapath img](./Lw_partial_datapath.png)
+
+As you can see, before doing any actual hardware digital interpretation of this instruction, we first need to build some basic logic blocks :
 
 - A register file
 - An instruction memory
 - Some data memory too
 - A sign extender
-- A basic ALU we'll improve as time goes on
+- A basic ALU
 - And a decoder/control unit we will improve as time goes on
 
-Gotta build it then ! We'll start by crezting basic versions of the different building blocks, test them seperatly and assemble them.
+We'll start by ceazting basic versions of the different building blocks and test their bahavior seperatly.
+
+We'll then assemble them to form our first version of our datapath.
 
 ## 1.1.a : Implementing memory
 
 ### 1.1.a : HDL Code
 
-Memory is memory, on FPGA for example, we would just take everything from a DDR IP of some sort. Here we'll implement some basic piece of memory that can store X amount of words and it will respond in 1 clock cycle (which is way too good to be true, but memory is a pain so we'll *conviniently* ignore that for now...).
+We'll implement some basic piece of memory that can store X amount of words and it will respond in 1 clock cycle (which is way too good to be true, but memory is a pain so we'll *conviniently* ignore that for now...).
 
-So, let's get to work shall we ? We create a memeory.sv file in which we'll write some [code](./src/memory.sv) :
+So, let's get to work shall we ? We create a memeory.sv file in which we'll write some RTL logic :
 
 ```sv
+// memory.sv
+
 module memory #(
     parameter WORDS = 64
 ) (
@@ -116,17 +129,23 @@ end
 endmodule
 ```
 
-Note the trick here, we use a [byte adressed momory](https://youtu.be/P2oFPtdDgTg?feature=shared&t=233) (watch the video if you don't know the difference with word addressed memory). However, the memory stays fairly simple as we do not add support for non-aligned read and writes. It just add statements like ``mem[address[31:2]] <= write_data;`` which can be tricky to get your head around at first as a begginer, but do some research, take your time to understand if you don't. If you do, let's move on shall we ?
+Note the trick here, we use a [byte adressed momory](https://youtu.be/P2oFPtdDgTg?feature=shared&t=233) (watch the video if you don't know the difference with word addressed memory). However, the memory stays fairly simple as we do not add support for non-aligned read and writes (we'll add byte and halfword R/W towards then end of the tutorial).
 
-(If you know your way around HDL, this should be farly easy for you)
+If you are not fully used to verilog/systemVerilog syntax yet, take your time to get your head around it but you can learn along the way. I will also leave "blanks" in this tutorial sometimes, where you will have some room for creativity which should allow you to learn.
 
-Each and everytime we implement something, we also test it, as stated in the main [readme file](./readme.md), we will use cocotb and verilator to verify our HDL.
+Each and everytime we implement something, we also test it, as stated in the [setup file](./setup.md), we will use cocotb and verilator to verify our HDL.
 
 ### 1.1.a : Verification
 
-When it comes to verifying memory, we'll simply do some writes while tinkering with the ``write_enable`` flag. Since I don't like writing tests and this is a simple case, I can ask my favorite LLM to generate some tests but turns out they are bad at digital design and I don't recommend using it fot this course (written in late 2024). Here is the testbench :
+When it comes to verifying memory, we'll simply do some writes while tinkering with the ``write_enable`` flag.
+
+> It turns out LLMs are bad at digital design and I don't recommend using it for this course, especially for test benches so please try to write them yourself (written in late 2024).
+
+Here is the testbench :
 
 ```python
+# test_memory.py
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
@@ -194,21 +213,21 @@ async def memory_data_test(dut):
         assert dut.read_data.value == expected_value
 ```
 
-Once agin, we increment memory by 4 beacause it is byte addressed.
+Once again, we increment memory by 4 because it is byte addressed.
 
-To run this, I create a ``Makefile`` according to the [cocotb docs](https://docs.cocotb.org/en/stable/quickstart.html#creating-a-makefile) and, still in the memory tesbench subdir, I use ``gtkwave ./sim_build/memory.fst`` to visualize the waveforms. It's all open-source ! *But once again, without linux, you will have some troubles.*
+To run this, check out the [setup file](./setup.md).
 
-After it's done, I can go back to the root dir and run ``make clean`` to clean out the simulation results.
-
-## 1.1.b : Implementing the regfile
+## 1.1.b : Implementing the Register File
 
 ### 1.1.b : HDL Code
 
-For the reg file, it's just 32x32bits registers. we'll implement it like memory execpt the size is fixes the 32 bits with 5bits addressing.
+For the reg file, it's just 32x32bits registers. we'll implement it like memory execpt the size is fixed to 32 bits with 5bits addressing.
 
-The I/Os are a bit different though as we have to accomodate all the instrction types : in R-Types (which operates ONLY on registers) we can write to a register whilst getting data from 2 of them at the same time.
+The I/Os are a bit different though as we have to accomodate all the instruction types. E.g. in R-Types (which operates ONLY on registers) we can write to a register whilst getting data from 2 of them at the same time.
 
 ```sv
+// regfile.sv
+
 module regfile (
     // basic signals
     input logic clk,
@@ -254,9 +273,9 @@ endmodule
 
 ### 1.1.b : Verification
 
-Now to verify this HDL, we'll simply use random write on A3, and read after each write on both address. We then compare to a therorical golden state update in software in the testbench.
+Now to verify this HDL, we'll simply use random write on A3, and read after each write on both addresses. We then compare to a therorical golden state update in software in the testbench.
 
-We also add small tests at the end to test the 0 constant, It's simple but helps us getting used to cocotb.
+We also add small tests at the end to test the 0 constant.
 
 Note that we use small timer delay to test out the async properties of our design.
 
@@ -337,7 +356,7 @@ async def random_write_read_test(dut):
 
 For the Load Word datapath, we only need to add :
 
-- The content of a source register, containing an alged adress
+- The content of a source register, containing a target address
 - A 12bits immediate / offset
 
 Here is a very basic implementation, **note that this design will evolve heavily !**.
@@ -417,14 +436,14 @@ async def zero_test(dut):
     assert int(dut.alu_result.value) == 0
 ```
 
-New ! we declare multiple tests, it's exactly the same as making a single block but it improve readability so why not.
+Here we declare multiple tests, it's exactly the same as making a single block but it improves readability so why not.
 
 ## 1.1.d : Implementing the sign extender
 
 In odrer to manipulte the immediate in other computation block, we need to make it 32bit wide. Also, Immediates can be "scatered" around in the instruction in RISC-V (e.g. Sotre Word ```sw```). This means that we'll need to :
 
-- 1 Gather the immediate in the instruction, depending on the op code (ie, include some control inputs)
-- 2 Extend the gathered immediate sign to 32bits. Here is a basic implemention for our basic lw only with some preparations for the future :
+1. Gather the immediate in the instruction, depending on the op code (ie, include some control inputs)
+2. Extend the gathered immediate sign to 32bits. Here is a basic implemention for our basic lw only with some preparations for the future :
 
 ```sv
 // signext.sv
@@ -499,13 +518,17 @@ async def random_write_read_test(dut):
     assert int(dut.immediate.value) - (1 << 32)  == -42
 ```
 
-Once again, we'll add oher feature to this a bit later ;)
+Once again, we'll add other features to this a bit later ;)
 
 ## 1.1.e : Implementing basic control
 
 Below is an image of what we need to do implement for the control unit. Note that the following image contains the logic for the **FULL** controller, for now, we'll focus on implementing the ```lw``` logic.
 
 ![Controller logic img](./Controller_logic.png)
+
+> You can find the definitives tables for the HOLY CORE in this [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for reference.
+
+### 1.1.e : HDL Code
 
 First we lay down the only I/Os we need so far for ```lw```:
 
@@ -529,19 +552,17 @@ module control (
 endmodule
 ```
 
-### 1.1.e : HDL Code
-
 This will help us focus on the important stuff to get a first ```lw``` example working.
 
-As you can see, there is aan ALU control as well. This is because a single instruction type require different kinds of arithmetics (e.g. R-Types that can be ```add```, ```sub```, ```mul```, ...).
+As you can see, there is an ALU control as well. This is because a single instruction type can require different kinds of arithmetics (e.g. R-Types that can be ```add```, ```sub```, ```mul```, ...). So we put it here now because it is one of the main purpose of the control unit to assert what arithmetic to use using this signal.
 
-So, the plan is to deduce a general ```alu_op``` and then add an ```alu_decoder``` unit will deduce the qrithmetic from indicators like ```func3``` (That i'll also call f3) and ```func7``` (That i'll also call f7). This will finally raise some ```alu_control``` control signals to tell the ALU what to do, here is another truth table to use that :
+**To know what ```alu_control```to use**, the plan is to deduce a general ```alu_op``` depending on the instruction type and then add an ```alu_decoder``` unit will deduce the arithmetic from indicators like ```func3``` and ```func7``` (Also called simply *f3* & *f7*). This will finally assert some ```alu_control``` control signals to tell the ALU what to do, here is another truth table to use that :
 
 ![Alu_op truth table img](./Alu_op_tt.png)
 
 > You can find the full table for the entire course at [this google calc link](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing).
 
-This process may seem weird as everything is in the same block at the end of the day but this makes the comb logics way easier to write and readable :
+This process of seperating ```alu_op``` and ```alu_control``` may seem weird but trust me, it is for the better as we add mulptiple arithmetic option for each type of instruction :
 
 ```sv
 module control (
@@ -837,7 +858,7 @@ endmodule
 
 This one is large but failry simple, no fancy logic here as we pretty much just assemble legos according to the plan with a bunch of additional wires. Note the "always comb" muxes we add in preparetion for further improvements, even though they are pretty useless right now.
 
-> Tip : to navigate such HDL files, use the "find" feature of your text editor **extensively** ! It will be you best friend when it comes to finding out *what* goes *where* !
+> Tip : to navigate such HDL files, use the "find" feature of your text editor **extensively** ! It will be you best friend when it comes to finding out *what* goes *where* when these files gets big.
 
 Note that I added some ```.mem_init("blablabla")``` parameters to the memory. This has to do with verification afterward. Here is the updated memory's verilog to acoomodate this change :
 
@@ -874,13 +895,13 @@ So here is our todo list to lay down the tests :
 
 Sounds simple enough, but our current project testing setup has some limitations that have to be carefully taken into account. These limitation leads to :
 
-- We will only have 1 memory file for each memory in the system. Wich will prove to be annoying when we'll have to test dozens of differents instructions. (it is what it is).
-- We have to load the initial "ROMs" memory hexfiles directly via hardcoded verilog. Thus the modifications and limitations described above. (thanksfully, verilog will ignre comments, allowing us to explain what instruction does what and why)
-- The cocotb framework is great but when test benches and data get more complex, we have to use a bunch of tricks, that I'll do my best to explain here.
+- We will only have 1 memory (*it is what it is*).
+- We have to load the initial "ROMs" memory hexfiles directly via hardcoded verilog. Thus the modifications and limitations described above.
+- The cocotb framework is great **but** when test benches and data get more complex, we have to use these kinds of tricks.
 
-Whith all of these facts in mind, let's write some test ROMs for our lw datapath !
+With all of these facts in mind, let's write some test ROMs for our lw datapath !
 
-for the instrcution memory to test our data path, we'll use a simple
+For the instrcution memory to test our data path, we'll use a simple lw test  :
 
 ```asm
 lw x18 8(x0) // loads daata from addr 0x00000008 in reg x18 (s2)
@@ -892,8 +913,10 @@ Which translates as this in HEX format (comments like ```//blablabla``` are igno
 00802903  //LW TEST START : lw x18 8(x0)
 00000013  //NOP
 00000013  //NOP
-//(...) 
+//(Filled the rest with NOPs...) 
 ```
+
+> To translate ASM to HEX, you can use [this website](https://luplab.gitlab.io/rvcodecjs/) (better than doing it on paper like I did haha).
 
 And here is the data we'll try to load :
 
@@ -906,7 +929,7 @@ DEADBEEF  // @ 0x00000008 What we'll try to get in x18
 //(...)
 ```
 
-Great ! Here is how we are going to organize ou cpu tb folder (we put ```*.hex``` file in there as th HDL file are called from here so ```$readmemh("myrom.hex")``` will gets the ```.hex``` files from there) :
+Great ! Here is how we are going to organize ou cpu tb folder (we put the ```.hex``` file in there as the HDL file are called from here so ```$readmemh("myrom.hex")``` will gets the ```.hex``` files from there) :
 
 ```txt
 tb
@@ -917,7 +940,7 @@ tb
 │   └── test_imemory.hex
 ```
 
-And now we can design a test bench ! First, we design some halper functions that will convert str data from ```HEX``` to ```BIN``` as needed (python tricks to deal with multiple data types expressed as ```str``` in cocotb), we also declare a ```cocotb.coroutine``` that will handle cpu resets :
+And now we can design a test bench ! First, we design some helper functions that will convert str data from ```HEX``` to ```BIN``` as needed (python tricks to deal with multiple data types expressed as ```str``` in cocotb), we also declare a ```cocotb.coroutine``` that will handle cpu resets :
 
 ```python
 # test_cpu.py
@@ -1023,6 +1046,8 @@ Here is what enhancements we need to make to add basic ```sw (S-type)``` support
 
 ![sw enhancements img](./Sw_datapath.png)
 
+As you can see, it is simply about adding a wire from *RD2* to write data and an other *imm_source* control signal.
+
 Below is a S-type instruction example (S standing for "Store") that loads data from reg x18 (s1), to the address pointer in x5 (t0) with an offset of C on the address :
 
 ```asm
@@ -1061,6 +1086,8 @@ Here is a todo list to implement these new changes :
 So let's get to work shall we ? We'll statrt by updating the sign extender to take into account our new source type
 
 ```sv
+// signext.sv
+
 module signext (
     // IN
     input logic [24:0] raw_src,
@@ -1786,10 +1813,12 @@ In terms of math, it is extremely basic, so let's go over what we need to do :
 
 And that's pretty much it ! the same will go for ```and``` !
 
-BTW, Here are the tables I use (From the Harris' *DDCA book* just like all the other figures) for my control values, which can be whatever as long as it is consistent throughout your design :
+BTW, Here are the tables I use (From the Harris' *DDCA book* just like many other temporary tables) for my control values, which can be whatever as long as it is consistent throughout your design :
 
 ![Main decoder table img](./Main_decoder.png)
 ![Alu decoder table img](./Alu_decoder.png)
+
+> You can find the definitives tables for the HOLY CORE in this [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for reference.
 
 ### AND
 
