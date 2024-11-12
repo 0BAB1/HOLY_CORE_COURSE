@@ -1,4 +1,4 @@
-# The HOLY CORE project : A full RISC-V Tutorial, for everyone.
+# The HOLY CORE project : A full RISC-V Tutorial, for everyone
 
 This tutorial will teach you how to build and test a RISC-V Single cycle core at the RTL Level.
 
@@ -10,7 +10,7 @@ This tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.co
 
 In this tutorial, we will build the following core :
 
-![finished single cycle](./Holy_core.jpg)
+![finished single cycle](./todo.png)
 
 Which aims at implementing all of the RV32I base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each intruction we'll implement (only **RV32I** here).
 
@@ -1261,18 +1261,13 @@ Globally in the datapath, nothing much changes, we just link the signals we prev
 */
 wire [31:0] mem_read;
 
-logic [31:0] write_data;
-always_comb begin : mem_write_data_source_selection
-    mem_write_data = read_reg2;
-end
-
 memory #(
     .mem_init("./test_dmemory.hex")
 ) data_memory (
     // Memory inputs
     .clk(clk),
     .address(alu_result),
-    .write_data(mem_write_data),
+    .write_data(read_reg2),
     .write_enable(mem_write),
     .rst_n(1'b1),
 
@@ -1722,18 +1717,13 @@ alu alu_inst(
 */
 wire [31:0] mem_read;
 
-logic [31:0] mem_write_data;
-always_comb begin : mem_write_data_source_selection
-    mem_write_data = read_reg2;
-end
-
 memory #(
     .mem_init("./test_dmemory.hex")
 ) data_memory (
     // Memory inputs
     .clk(clk),
     .address(alu_result),
-    .write_data(mem_write_data),
+    .write_data(read_reg2),
     .write_enable(mem_write),
     .rst_n(1'b1),
 
@@ -2173,7 +2163,7 @@ To implement ```beq``` just like everython we did until now, we have to implemen
 
 Here is a figure from the Harris' **DDCA Books, RISC-V Edition** alonside a table for the new weird IMM source
 
-![beq / B-type datapath enhancements](Beq_datapath.png)
+![beq / B-type datapath enhancements](todo.png)
 
 ## 4.1.a : Updating the control unit
 
@@ -2682,7 +2672,7 @@ so, we pretty much have nothing to check as this is an unconditional event that 
 
 Here is what we want to implement :
 
-![J Type datapath](Jtype_datapath.png)
+![J Type datapath](todo.png)
 
 So,
 
@@ -3222,7 +3212,7 @@ Well we shall do multiple things this time :
 
 Here is a somewhat accurate scheme of what we'll implement :
 
-![aU_datapath img](./U_datapath.png)
+![aU_datapath img](./todo.png)
 
 The mux before pc target chooses between :
 
@@ -4640,7 +4630,7 @@ I'll go with the second choice, as we've always computed PC-related stuff in the
 
 Here is a recap of our datapath we will implement of ```jalr```:
 
-![jalr and final logic datapath](./final%20JALR.png)
+![jalr and final logic datapath](./todo.png)
 
 ## 11.1 : Laying down the work to do
 
@@ -5046,7 +5036,7 @@ And it works ! Great !
 
 ## 12.2.b : Ensuring compatibility : Creating the ```load_store_decoder``` unit
 
-Now if we run all the tests from the test runner, we obviously get failures everywhere in the cpu test because the memory isn't getting any info on its new ```byte_anable``` signal.
+Now if we run all the tests from the test runner, we obviously get failures everywhere in the cpu test because the memory isn't getting any info on its new ```byte_enable``` signal.
 
 So, how do we generate valid ```byte_enable``` signals ?
 
@@ -5056,7 +5046,15 @@ The thing is we **don't know** what the final read address is until **we've reac
 
 With that in mind, here is how we'll proceed to know where to write (or not) :
 
-![Write_enable decoder position in the CPU](./WE_Decoder.png)
+![New datapath with load_store decoder](./todo.png)
+
+As you can see, we added a whole "*load_store_decoder*" oe "*byte_enable_decoder*" (you can call it however you want) which will produce the adequate ```byte_enable``` mask depending on the address offset and the instruction being fetched.
+
+**This unit also processes the data we send to the memory**, and the reeason why come from this extract of the [RISC-V Specs](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) :
+
+> The SW, SH, and SB instructions store 32-bit, 16-bit, and 8-bit values from the low bits of register rs2 to memory
+
+That means : we'll have to apply a shift to these lower bits for ```sb``` and ```sh``` to match the mask ! But more on this later. Note that this does not affect the way our memory ```byte_enable```'s interpretation works at all.
 
 Also rememnber our design choice : "Do nothing if halfword or word alignment is not correct". Well, this will be done by setting the mask to ```4'b000``` if that's the case, which will avoid any altering in memory, even if ```write_enable``` is asserted.
 
@@ -5069,7 +5067,10 @@ So we start by creating a new module, and the tb subfolder config that goes with
 
 module load_store_decoder (
     input logic [31:0] alu_result_address,
-    output logic [3:0] byte_enable
+    input logic [2:0] f3,
+    input logic [31:0] reg_read,
+    output logic [3:0] byte_enable,
+    output logic [31:0] data
 );
 
 assign byte_enable = 4'b1111;
@@ -5102,13 +5103,15 @@ memory #(
 ) data_memory (
     .clk(clk),
     .address(alu_result),
-    .write_data(mem_write_data),
+    .write_data(read_reg2),
     .write_enable(mem_write),
     .byte_enable(mem_byte_enable), // ROUTED HERE !
     .rst_n(1'b1),
     .read_data(mem_read)
 );
 ```
+
+For now, we only seek to make the test pass to check if our new memory integrates well in our design so we wont connect more wires for now, you can if you want, it doesn't really matter.
 
 ### 12.2.b : Verification
 
@@ -5126,7 +5129,7 @@ async def ls_unit_test(dut):
     assert dut.byte_enable.value == "1111"
 ```
 
-We'll put actual assertions in here as time goes on.
+We'll put actual assertions in here as time goes on. but for now, this will have to do.
 
 ## 12.2.c : Implementing ```sb```
 
@@ -5138,20 +5141,43 @@ Okay, now everything is set up ! let's implement ```sb``` ! First, here is what 
 
 So we need to get that f3 into our decoder, let's do exactly that, first, here is a revised version of our datapath :
 
-![enhanced ls_decoder for single single cpu : F3](./f3_to_we_decode.png)
+![enhanced ls_decoder for single single cpu : F3](./todo.png)
 
-> I will let you update the datapath on this one, pretty straight forward, don't forget to discard last two bit of the address you give to the data memory, as our new decoder will handle masking for this matter. It should look like something like the code snippet below :
+### Quick word on the datapath
+
+For the datapath on this one, don't forget to discard last two bit of the address you give to the data memory, as our new decoder will handle masking for this matter. And also make the register data go trough or design for the treatment we are about to apply. It should look like something like the code snippet below :
 
 ```sv
 // cpu.sv
 
 // ...
+/**
+* LOAD/STORE DECODER
+*/
+
+wire [3:0] mem_byte_enable;
+wire [31:0] mem_write_data;
+
+load_store_decoder ls_decode(
+    .alu_result_address(alu_result),
+    .reg_read(read_reg2),
+    .f3(f3),
+    .byte_enable(mem_byte_enable),
+    .data(mem_write_data)
+);
+
+
+/**
+* DATA MEMORY
+*/
+wire [31:0] mem_read;
+
 memory #(
     .mem_init("./test_dmemory.hex")
 ) data_memory (
     // Memory inputs
     .clk(clk),
-    .address({alu_result[31:2], 2'b00}), // CHANGED HERE !
+    .address({alu_result[31:2], 2'b00}),
     .write_data(mem_write_data),
     .write_enable(mem_write),
     .byte_enable(mem_byte_enable),
@@ -5175,7 +5201,9 @@ memory #(
 module load_store_decoder (
     input logic [31:0] alu_result_address,
     input logic [2:0] f3,
-    output logic [3:0] byte_enable
+    input logic [31:0] reg_read,
+    output logic [3:0] byte_enable,
+    output logic [31:0] data
 );
 
 logic [1:0] offset;
@@ -5186,16 +5214,29 @@ always_comb begin
     case (f3)
         3'b000: begin // SB
             case (offset)
-                2'b00: byte_enable = 4'b0001;
-                2'b01: byte_enable = 4'b0010;
-                2'b10: byte_enable = 4'b0100;
-                2'b11: byte_enable = 4'b1000;
+                2'b00: begin
+                    byte_enable = 4'b0001;
+                    data = (reg_read & 32'h000000FF);
+                end
+                2'b01: begin 
+                    byte_enable = 4'b0010;
+                    data = (reg_read & 32'h000000FF) << 8;
+                end
+                2'b10: begin 
+                    byte_enable = 4'b0100;
+                    data = (reg_read & 32'h000000FF) << 16;
+                end
+                2'b11: begin 
+                    byte_enable = 4'b1000;
+                    data = (reg_read & 32'h000000FF) << 24;
+                end
                 default: byte_enable = 4'b0000;
             endcase
         end
         
         3'b010: begin // SW
             byte_enable = (offset == 2'b00) ? 4'b1111 : 4'b0000;
+            data = reg_read;
         end
 
         default: begin
@@ -5207,15 +5248,18 @@ end
 endmodule
 ```
 
+This logic summurizes all the requirements we listed until now for ```sb```.
+
 ## 12.2.c : Verification
 
-We can now ditch our old 3 lines long temporary test bench to get a brand new one that tests some actual expected behavior :
+We can now ditch our old 3 lines long temporary test bench to get a brand new one that tests some actual expected behavior on the signals AND the data being fed to the memory :
 
 ```python
 # test_load-store_decoder.py
 
 import cocotb
 from cocotb.triggers import Timer
+import random
 
 @cocotb.test()
 async def ls_unit_test(dut):
@@ -5225,13 +5269,18 @@ async def ls_unit_test(dut):
     # SW
     # ====
     dut.f3.value = 0b010
-    for offset in range(4):
-        dut.alu_result_address.value = word | offset
-        await Timer(1, units="ns")
-        if offset == 0b00:
-            assert dut.byte_enable.value == 0b1111
-        else :
-            assert dut.byte_enable.value == 0b0000
+
+    for _ in range(100):
+        reg_data = random.randint(0, 0xFFFFFFFF)
+        dut.reg_read.value = reg_data
+        for offset in range(4):
+            dut.alu_result_address.value = word | offset
+            await Timer(1, units="ns")
+            assert dut.data.value == reg_data & 0xFFFFFFFF
+            if offset == 0b00:
+                assert dut.byte_enable.value == 0b1111
+            else :
+                assert dut.byte_enable.value == 0b0000
     
     # ====
     # SB
@@ -5239,20 +5288,28 @@ async def ls_unit_test(dut):
     await Timer(10, units="ns")
 
     dut.f3.value = 0b000
-    for offset in range(4):
-        dut.alu_result_address.value = word | offset
-        await Timer(1, units="ns")
-        if offset == 0b00:
-            assert dut.byte_enable.value == 0b0001
-        elif offset == 0b01:
-            assert dut.byte_enable.value == 0b0010
-        elif offset == 0b10:
-            assert dut.byte_enable.value == 0b0100
-        elif offset == 0b11:
-            assert dut.byte_enable.value == 0b1000
+
+    for _ in range(100):
+        reg_data = random.randint(0, 0xFFFFFFFF)
+        dut.reg_read.value = reg_data
+        for offset in range(4):
+            dut.alu_result_address.value = word | offset
+            await Timer(1, units="ns")
+            if offset == 0b00:
+                assert dut.byte_enable.value == 0b0001
+                assert dut.data.value == (reg_data & 0x000000FF)
+            elif offset == 0b01:
+                assert dut.byte_enable.value == 0b0010
+                assert dut.data.value == (reg_data & 0x000000FF) << 8
+            elif offset == 0b10:
+                assert dut.byte_enable.value == 0b0100
+                assert dut.data.value == (reg_data & 0x000000FF) << 16
+            elif offset == 0b11:
+                assert dut.byte_enable.value == 0b1000
+                assert dut.data.value == (reg_data & 0x000000FF) << 24
 ```
 
-Great ! Now support should be good for  ```sb```. Let's check it out !
+Great ! ```sb``` should be supported now ! Let's check it out !
 
 ## 12.2.d : Verifying ```sb``` support
 
@@ -5265,5 +5322,146 @@ Here is a test programm that does just that :
 
 ```txt
 008020A3  //SB TEST START :     sw x8 0x1(x0)       | NO WRITE ! (mis-aligned !)    PC = 0x11C
-00800323  //                    sb x8 0x6(x0)       | mem @ 0x4 <= 00FF0000         PC = 0x120
+00800323  //                    sb x8 0x6(x0)       | mem @ 0x4 <= 00EE0000         PC = 0x120
+```
+
+and here are the associated test bench :
+
+```python
+# test_cpu.py
+
+# ...
+
+    ################
+    # 008020A3  //SB TEST START :     sw x8 0x1(x0)       | NO WRITE ! (mis-aligned !)
+    # 00800323  //                    sb x8 0x6(x0)       | mem @ 0x4 <= 00EE0000
+    ##################
+    print("\n\nTESTING SB\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "008020A3"
+
+    await RisingEdge(dut.clk) # sw x8 0x1(x0)
+    # address is 1 because 0x6 is word @ address 4 and the test bench gets data by word
+    assert binary_to_hex(dut.data_memory.mem[1].value) == "00000000" # remains UNFAZED
+
+    await RisingEdge(dut.clk) # sb x8 0x6(x0)
+    assert binary_to_hex(dut.data_memory.mem[1].value) == "00EE0000"
+```
+
+## 12.2.d : Implementing ```sh```
+
+Now that we have our underlying masking logic, we can re-use that new decoder to implement ```sh```.
+
+Here's a little reminder of our requierements for ```sh``` :
+
+- Alignement is mandatory, so we'll check for odd addresses to determine that.
+- The final mask produced is either ```4'b1100``` or ```4'b0011```
+- Don't forget to shift the lower bits to the portion we want to write on to match mask.
+
+And here is how ```sh``` looks like :
+
+| Imm [11:5]    | rs1           |rs1           | f3     | Imm [4:0]           | op      |
+| ------------  | ------------  |------------  | ------ | ------------ | ------- |
+| XXXXXXX  | XXXXX         |XXXXX         | 001    | XXXXX        | 0100011 |
+
+So yeah, it's basically the same except *f3* is ```3'b001```.
+
+## 12.2.d : HDL Code
+
+Here is the *f3* case we add to handle ```sh``` in our decoder :
+
+```sv
+// load_store_decoder.sv
+
+// ...
+
+    3'b001: begin // SH
+        case (offset)
+            2'b00: begin 
+                byte_enable = 4'b0011;
+                data = (reg_read & 32'h0000FFFF);
+            end
+            2'b10: begin
+                byte_enable = 4'b1100;
+                data = (reg_read & 32'h0000FFFF) << 16;
+            end
+            default: byte_enable = 4'b0000;
+        endcase
+    end
+
+// ...
+```
+
+So yeah, we are not really checking for odds after all, I prefered making something readable instad of relying on some weird modulos.
+
+## 12.2.d : Verification
+
+And here are the assotiated assertions :
+
+```python
+# test_load_store_decoder.py
+
+@cocotb.test()
+async def ls_unit_test(dut):
+
+    # ...
+
+    # ====
+    # SH
+    # ====
+    await Timer(10, units="ns")
+
+    dut.f3.value = 0b001
+    
+    for _ in range(100):
+        reg_data = random.randint(0, 0xFFFFFFFF)
+        dut.reg_read.value = reg_data
+        for offset in range(4):
+            dut.alu_result_address.value = word | offset
+            await Timer(1, units="ns")
+            if offset == 0b00:
+                assert dut.byte_enable.value == 0b0011
+                assert dut.data.value == (reg_data & 0x0000FFFF)
+            elif offset == 0b10:
+                assert dut.byte_enable.value == 0b1100
+                assert dut.data.value == (reg_data & 0x0000FFFF) << 16
+            else:
+                assert dut.byte_enable.value == 0b0000
+```
+
+## 12.2.e : ```sh``` test program
+
+Here is a simple test program that tests for bahavior when mis-aligned and then performs a genuine write :
+
+```txt
+008010A3  //SH TEST START :     sh x8 1(x0)         | NO WRITE ! (mis-aligned !)
+008011A3  //                    sh x8 3(x0)         | NO WRITE ! (mis-aligned !)
+00801323  //                    sh x8 6(x0)         | mem @ 0x4 <= FFEE0000  
+```
+
+and the assertions :
+
+```python
+# test_cpu.py
+
+    #################
+    # 008010A3  //SH TEST START :     sh x8 1(x0)         | NO WRITE ! (mis-aligned !)
+    # 008011A3  //                    sh x8 3(x0)         | NO WRITE ! (mis-aligned !)
+    # 00801323  //                    sh x8 6(x0)         | mem @ 0x4 <= FFEE0000    
+    ##################
+    print("\n\nTESTING SH\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "008010A3"
+
+    await RisingEdge(dut.clk) # sh x8 1(x0)
+    assert binary_to_hex(dut.data_memory.mem[1].value) == "00EE0000" # remains UNFAZED
+
+    await RisingEdge(dut.clk) # sh x8 3(x0)
+    assert binary_to_hex(dut.data_memory.mem[1].value) == "00EE0000" # remains UNFAZED
+
+    await RisingEdge(dut.clk) # sh x8 6(x0) 
+    # address is 1 because 0x6 is word @ address 4 and the test bench gets data by word
+    assert binary_to_hex(dut.data_memory.mem[1].value) == "FFEE0000"
 ```
