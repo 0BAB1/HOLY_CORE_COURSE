@@ -184,11 +184,14 @@ alu alu_inst(
 */
 
 wire [3:0] mem_byte_enable;
+wire [31:0] mem_write_data;
 
 load_store_decoder ls_decode(
     .alu_result_address(alu_result),
+    .reg_read(read_reg2),
     .f3(f3),
-    .byte_enable(mem_byte_enable)
+    .byte_enable(mem_byte_enable),
+    .data(mem_write_data)
 );
 
 
@@ -196,11 +199,6 @@ load_store_decoder ls_decode(
 * DATA MEMORY
 */
 wire [31:0] mem_read;
-
-logic [31:0] mem_write_data;
-always_comb begin : mem_write_data_source_selection
-    mem_write_data = read_reg2;
-end
 
 memory #(
     .mem_init("./test_dmemory.hex")
