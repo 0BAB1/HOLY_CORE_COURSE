@@ -43,6 +43,9 @@ def test_signext():
 def test_load_store_decoder():
     generic_tb_runner("load_store_decoder")
 
+def test_reader():
+    generic_tb_runner("reader")
+
 if __name__ == "__main__":
     test_alu()
     test_control()
@@ -51,3 +54,4 @@ if __name__ == "__main__":
     test_regfile()
     test_signext()
     test_load_store_decoder()
+    test_reader()
