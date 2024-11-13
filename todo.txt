@@ -12,6 +12,13 @@ Also apply new input reset method for ALU testbenches !
 
 create a test setup explanatory md file.
 
+
+9.1.b : add a default case to hadle unsupported f7
+
 REVIEW OF THE DOCUMENT STARTED :
 
 -> Stopped at the biggin or RTYPE (just made the figure)
+
+then make the setup file including all the simulation details, (normal & CPU ROM files).
+
+And than startworking on the PDF, do the same for the AI tutorials.
