@@ -388,7 +388,7 @@ We also add a ```alu_control``` option, to later select other arithmetic operati
 
 ### 1.1.c : Verification
 
-Simple design, simple tesbench, but this time, the alu being pur combinational logic, we do not use a clock :
+Simple design, simple testbench, but this time, the alu being pur combinational logic, we do not use a clock :
 
 ```python
 import cocotb
@@ -623,7 +623,7 @@ And everything is ready for the future instruction to be added in control !
 
 ### 1.1.e : Verification
 
-The tesbench is veristraight forward, we emulate ONLY the important signals described in the truth tables for a given instruction (we don't care about the other one being ```X``` or ```Z``` in simulation). And we assert the outputs states :
+The testbench is very straight forward, we emulate ONLY the important signals described in the truth tables for a given instruction (we don't care about the other one being ```X``` or ```Z``` in simulation). And we assert the outputs states :
 
 ```python
 import cocotb
@@ -3163,7 +3163,7 @@ F2130C93  //                    addi x25 x6 0xF21   | x25 <= DEADBE10
 //...
 ```
 
-And here is the tesbench in python to test for these expected results & behavior :
+And here is the testbench in python to test for these expected results & behavior :
 
 ```python
 # test_cpu.sv
@@ -4080,7 +4080,7 @@ end
 
 ### 8.3.b : Verification
 
-And the tesbench, as usual :
+And the testbench, as usual :
 
 ```python
 # test_control.py
@@ -5525,3 +5525,341 @@ And the assertions :
     # address is 1 because 0x6 is word @ address 4 and the test bench gets data by word
     assert binary_to_hex(dut.data_memory.mem[1].value) == "FFEE0000"
 ```
+
+## 12.3 : Partial loads : ```lb```, ```lh```, ```lbu``` & ```lhu```
+
+Now that we added partial store, time to add partial loads which can either load byte or halfwords; signed and unsigned.
+
+What we'll do is the masks comming from the ```be_decoder``` and add the necessary *f3* to support all partials write.
+
+Then, we'll use the mask in a ```reader``` module that will simply **read the data from the memory and proc it** (i.e. apply mask & apply sign extension if needed).
+
+Here is how this new data path would look like :
+
+![reader datapath](./reader%20lb%20datapath.jpg)
+
+You can see the new ```reader``` module which also gets info on what instruction is being fetched from *f3*. We need this information to know whether or not we should sign extend the data but also how to behave in all aspects of the data processing (data processing will be necessary to make the data ready to be written in a register).
+
+Here are how each of these instructions look like :
+
+|        | IMM [11:0]   | rs1          | f3     | rd           | op      |
+| ------ | ------------ | ------------ | ------ | ------------ | ------- |
+| ```lb``` | XXXXXXXXXXXX | XXXXX        | 000    | XXXXX        | 0000011 |
+| ```lh``` | XXXXXXXXXXXX | XXXXX        | 001    | XXXXX        | 0000011 |
+| ```lbu``` | XXXXXXXXXXXX | XXXXX        | 100    | XXXXX        | 0000011 |
+| ```lhu``` | XXXXXXXXXXXX | XXXXX        | 101    | XXXXX        | 0000011 |
+
+## 12.3.a : Creating the ```reader```
+
+For this, I chose to add a separate module with its own testbench.
+
+The logic is pretty straight forward. On top of that, we can see that the bit ```f3[2]``` is the only one that changes for sign/unsigned matter :
+
+- ```f3[2] == 0``` means we sign extend.
+- ```f3[2] == 1``` means we don't.
+
+### 12.3.a : HDL Code
+
+With that in mind, we create the module following the [setup](./setup.md) guidelines, prepare all the files, and write some HDL logic :
+
+```sv
+// reader.sv
+
+module reader (
+    input logic [31:0] mem_data,
+    input logic [3:0] be_mask,
+    input logic [2:0] f3,
+
+    output logic [31:0] wb_data 
+);
+
+logic sign_extend;
+assign sign_extend = ~f3[2];
+
+logic [31:0] masked_data; // just a mask applied
+logic [31:0] raw_data; // Data shifted according to instruction
+// and then mem_data is the final output with sign extension
+
+always_comb begin : mask_apply
+    for (int i = 0; i < 4; i++) begin
+        if (be_mask[i]) begin
+            masked_data[(i*8)+:8] = mem_data[(i*8)+:8];
+        end else begin
+            masked_data[(i*8)+:8] = 8'h00;
+        end
+    end
+end
+
+always_comb begin : shift_data
+    case (f3)
+        3'b010 : raw_data = masked_data; // masked data is full word in that case
+
+        3'b000, 3'b100: begin // LB, LBU
+            case (be_mask)
+                4'b0001: raw_data = masked_data;
+                4'b0010: raw_data = masked_data >> 8;
+                4'b0100: raw_data = masked_data >> 16;
+                4'b1000: raw_data = masked_data >> 24;
+            endcase
+        end
+
+        3'b001, 3'b101: begin // LH, LHU
+            case (be_mask)
+                4'b0011: raw_data = masked_data;
+                4'b1100: raw_data = masked_data >> 16;
+            endcase
+        end
+    endcase
+end
+
+always_comb begin : sign_extend_logic
+    case (f3)
+        // LW
+        3'b010 : wb_data = raw_data;
+
+        // LB, LBU
+        3'b000, 3'b100: wb_data = sign_extend ? {{24{raw_data[7]}},raw_data[7:0]} : raw_data;
+
+        // LH, LHU
+        3'b001, 3'b101: wb_data = sign_extend ? {{16{raw_data[15]}},raw_data[15:0]} : raw_data;
+    endcase
+end
+    
+endmodule
+```
+
+As you can see, I went for a... very descriptive file ! (*wait until you see the test bench haha*)
+
+I guess there are more efficient ways to implement this logic using syntax tricks but I went for something that works and kept it very descriptive by addressing each case one by one.
+
+Let's break down the different comb. logic blocks :
+
+- ```mask_apply``` : simply applies the byte_enable mask coming from ```be_decoder```
+- ```shift_data``` : put the masked data in the lower bits, ready to be loaded in a register
+- ```sign_extend_logic``` : will apply sign extension to the *ready-to-load* data if needed.
+
+> We can directly apply the mask coming from the ```be_decoder``` because *f3* are consistent in ```lb & sb```, ```lw & sw``` etc... meaning the masking logic we developped in ```be_decoder``` will not need to be updated for now (we'll have to slightly re-adjust to take unsigned load into account).
+
+So I implemented all at once ! Here is a chellenge for you (and yet another **todo** for me) : **make this logic more efficient** (coding-wise).
+
+### 12.3.a : Verification
+
+You guessed it, now is the time to verify the behavior of our new module.
+
+To check how it behaves, I setted up random test **for each intruction**, for **signed & unsigned** and for **each mask**.
+
+This may be a bit overkill, especially since this makes the testbench kind of long and, *ahem* not extremely readable.
+
+Anyway, I added a bunch of comment to break it down, but there still is some bitwise arithmetic you need to get your head around.
+
+I'll let you be the judge of that :
+
+```python
+# test_reader.py
+
+
+import cocotb
+from cocotb.triggers import Timer
+import random
+
+# 100 random test per mask
+
+@cocotb.test()
+async def reader_lw_test(dut):
+    """In this test, the input data is the same as the output, simple !"""
+    
+    # LW TEST CASE
+
+    dut.f3.value = 0b010
+    await Timer(1, units="ns")
+    dut.be_mask.value = 0b1111
+    await Timer(1, units="ns")
+    for _ in range(100):
+        mem_data = random.randint(0,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == mem_data 
+
+
+@cocotb.test()
+async def reader_lh_test(dut):
+    # LH TEST CASE
+    dut.f3.value = 0b001
+
+    await Timer(1, units="ns")
+
+    dut.be_mask.value = 0b1100 # ! start the test with this mask
+    await Timer(1, units="ns")
+    for _ in range(100):
+        # UNSIGNED
+        mem_data = random.randint(0,0x7FFFFFFF) # ! we first assert for unsigned as the behavior is not the same with sign extended numbers !
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0xFFFF0000) >> 16
+
+        # SIGNED
+        mem_data = random.randint(0x80000000,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        expected = ((mem_data & 0xFFFF0000) >> 16) - (1 << 16)
+        await Timer(1, units="ns")
+        assert int(dut.wb_data.value) - (1 << 32) == expected
+
+    dut.be_mask.value = 0b0011 # ! try the other mask, this changes the bitwise arithmetic for the test
+    await Timer(1, units="ns")
+    for _ in range(100):
+        # UNSIGNED
+        mem_data = random.randint(0,0x00007FFF) | 0xAEAE0000 # Add some random AE to check if they are ignored
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x0000FFFF)
+
+        # SIGNED
+        mem_data = random.randint(0x00008000,0x0000FFFF) | 0xAEAE0000
+        dut.mem_data.value = mem_data
+        expected = (mem_data & 0x0000FFFF) - (1 << 16)
+        await Timer(1, units="ns")
+        assert int(dut.wb_data.value) - (1 << 32) == expected
+
+    # LHU TEST CASE
+
+    # LHU is way simpler, as we only do 1 test per mask. Because it bahaves the same for all nubers (no sign extension)
+
+    dut.f3.value = 0b101
+
+    await Timer(1, units="ns")
+
+    dut.be_mask.value = 0b1100
+    await Timer(1, units="ns")
+    for _ in range(100):
+        mem_data = random.randint(0,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0xFFFF0000) >> 16
+
+    dut.be_mask.value = 0b0011
+    await Timer(1, units="ns")
+    for _ in range(100):
+        mem_data = random.randint(0,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x0000FFFF)
+
+@cocotb.test()
+async def reader_lb_test(dut):
+    """These are EXACTLY the same as LH, except there are more masks to test..."""
+    # LB TEST CASE
+    dut.f3.value = 0b000
+
+    await Timer(1, units="ns")
+
+    dut.be_mask.value = 0b1000
+    await Timer(1, units="ns")
+    for _ in range(100):
+        # UNSIGNED
+        mem_data = random.randint(0,0x7FFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0xFF000000) >> 24
+
+        # SIGNED
+        mem_data = random.randint(0x80000000,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        expected = ((mem_data & 0xFF000000) >> 24) - (1 << 8)
+        await Timer(1, units="ns")
+        assert int(dut.wb_data.value) - (1 << 32) == expected
+
+    dut.be_mask.value = 0b0100
+    await Timer(1, units="ns")
+    for _ in range(100):
+        # UNSIGNED
+        mem_data = random.randint(0,0x007FFFFF) | 0xAE000000
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x00FF0000) >> 16
+
+        # SIGNED
+        mem_data = random.randint(0x00800000,0x00FFFFFF) | 0xAE000000
+        dut.mem_data.value = mem_data
+        expected = ((mem_data & 0x00FF0000) >> 16) - (1 << 8)
+        await Timer(1, units="ns")
+        assert int(dut.wb_data.value) - (1 << 32) == expected
+
+    dut.be_mask.value = 0b0010
+    await Timer(1, units="ns")
+    for _ in range(100):
+        # UNSIGNED
+        mem_data = random.randint(0,0x00007FFF) | 0xAEAE0000
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x0000FF00) >> 8
+
+        # SIGNED
+        mem_data = random.randint(0x00008000,0x0000FFFF) | 0xAEAE0000
+        dut.mem_data.value = mem_data
+        expected = ((mem_data & 0x0000FF00) >> 8) - (1 << 8)
+        await Timer(1, units="ns")
+        assert int(dut.wb_data.value) - (1 << 32) == expected
+
+    dut.be_mask.value = 0b0001
+    await Timer(1, units="ns")
+    for _ in range(100):
+        # UNSIGNED
+        mem_data = random.randint(0,0x0000007F) | 0xAEAEAE00
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x000000FF)
+
+        # SIGNED
+        mem_data = random.randint(0x00000080,0x000000FF) | 0xAEAEAE00
+        dut.mem_data.value = mem_data
+        expected = (mem_data & 0x000000FF) - (1 << 8)
+        await Timer(1, units="ns")
+        assert int(dut.wb_data.value) - (1 << 32) == expected
+
+    # LBU TEST CASE
+    dut.f3.value = 0b100
+
+    await Timer(1, units="ns")
+
+    dut.be_mask.value = 0b1000
+    await Timer(1, units="ns")
+    for _ in range(100):
+        mem_data = random.randint(0,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0xFF000000) >> 24
+
+    dut.be_mask.value = 0b0100
+    await Timer(1, units="ns")
+    for _ in range(100):
+        mem_data = random.randint(0,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x00FF0000) >> 16
+
+    dut.be_mask.value = 0b0010
+    await Timer(1, units="ns")
+    for _ in range(100):
+        mem_data = random.randint(0,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x0000FF00) >> 8
+
+    dut.be_mask.value = 0b0001
+    await Timer(1, units="ns")
+    for _ in range(100):
+        mem_data = random.randint(0,0xFFFFFFFF)
+        dut.mem_data.value = mem_data
+        await Timer(1, units="ns")
+        assert dut.wb_data.value == (mem_data & 0x000000FF)
+```
+
+And there we go ! Note that you can get in touch with me if needed if you have trouble with this kind of etricate testbenches. **But** if you made it this far, I'm sure you'll be fine ;)
+
+## 12.3.b : Update the ```be_decoder``` / ```load_store_decoder```
+
+## 12.3.c : Update the *CPU* data path
+
+*also run the old tests to see if they're still okay !
+
+## 12.3.d : Verification program for ```lb```, ```lh```, ```lbu``` & ```lhu``` 

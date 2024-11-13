@@ -120,7 +120,7 @@ logic [31:0] write_back_data;
 always_comb begin : write_back_source_select
     case (write_back_source)
         2'b00: write_back_data = alu_result;
-        2'b01: write_back_data = mem_read;
+        2'b01: write_back_data = mem_read_write_back;
         2'b10: write_back_data = pc_plus_four;
         2'b11: write_back_data = pc_plus_second_add;
     endcase
@@ -213,6 +213,19 @@ memory #(
 
     // Memory outputs
     .read_data(mem_read)
+);
+
+/**
+* READER
+*/
+
+wire [31:0] mem_read_write_back;
+
+reader reader_inst(
+    .mem_data(mem_read),
+    .be_mask(mem_byte_enable),
+    .f3(f3),
+    .wb_data(mem_read_write_back)
 );
     
 endmodule
