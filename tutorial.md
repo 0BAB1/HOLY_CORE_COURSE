@@ -1309,7 +1309,7 @@ F2F2F2F2
 //...
 ```
 
-And for the testbench, I simple did some assertion based on how the CPU should react to these instructions. We also get rit of the "init" test that test for init memory state as it executed the instruction to verify PC & memory behavior, which messed up all of the memory state for assertions. Here is the final result :
+And for the testbench, I simply did some assertions based on how the CPU should react to these instructions. We also get rit of the "init" test that test for init memory state as it executed the instruction to verify PC & memory behavior, which messed up all of the memory state for assertions. Here is the final result :
 
 ```python
 # test_cpu.py
@@ -1372,7 +1372,7 @@ async def cpu_insrt_test(dut):
 
 [Lecture](https://youtu.be/sVZmqLRkbVk?feature=shared&t=297)
 
-Okay ! It's going great, we implemented a second king of instructions, so let's recap what we did so far :
+Okay ! It's going great, we implemented a second kind of instruction ! so let's recap what we did so far :
 
 - Created all the basic logic blocks
 - Layed down the datapath for ```I-Type``` instructions and added ```lw``` support
@@ -1380,25 +1380,25 @@ Okay ! It's going great, we implemented a second king of instructions, so let's 
 - Created a basic control unit accordingly
 - Tested everything along the way
 
-We now have a very strong base, and we can almost say that the CPU is starting to look like a tru processing unit ! Let's take a look at what remains to do :
+We now have a very strong base to build on ! and we can almost say that the CPU is starting to look like a true processing unit ! Let's take a look at what remains to do :
 
 - Implement ```R-Type``` format (arithmetic between regitser)
 - Implement ```B-Type & J-Type``` formats (Jumps and conditional branches)
 - Implement ```U-Type``` Instructions (Just a convenient way to build constants with immediates)
 
-Oh.. That's actually quite a lot ! But do not fret, as most of these mostly uses what we already layed down !
+Oh.. That's actually quite a lot ! But do not fret, as most of these mostly uses what we already built. In this section, we'll focus on implementing ```R-Type``` support through the examples of ```add```, ```and``` & ```or``` instructions.
 
 Here is what we'll try to implement :
 
 ![R tpye improvements img](Rtype_datapath.png)
 
-In this example, the ```or``` operation is used. What I suggest we do do go gradually, is to first implement the ```add``` and than we exercice a bit by adding ```and``` & ```or``` before moving on to jumps & branches instructions.
+What I suggest we do is to first implement the ```add``` instruction (because our *ALU* already had *addition* arithmetic) and than we exercice a bit by adding ```and``` & ```or``` before moving on to jumps & branches instructions.
 
 ## 3.1 : What we need to do for ```R-Type```
 
-First, we'll add ```add``` support, and there isn't much to do outside of the control unit as we already have the ALU add logic availible. The idea will be to only operate with register as source for the ALU and use the alu_result directly as write-back data for reg_write.
+First, we'll add ```add``` support, and there isn't much to do outside of the control unit as we already have the ALU add logic availible. The idea will be to only operate with registers as source for the ALU and use the alu_result directly as write-back data for reg_write.
 
-Here is what an ```R-Type : add``` instruction look like so we don't mess up the op, f3 and f7 values :
+Here is what an ```add``` instruction look like :
 
 | f7 | rs2 | rs1 |f3 |rd | OP |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -1501,7 +1501,7 @@ endmodule
 
 ### 3.1.a : Verification
 
-We also need to udate our verification, to see if the new signals are okay for our previous instructions, and add a new one for ```add``` :
+We also need to update our test bench, to see if the new signals are okay for our previous instructions, and add a new one for ```add``` :
 
 ```python
 import cocotb
@@ -1551,9 +1551,11 @@ async def add_control_test(dut):
     assert dut.write_back_source.value == "0"
 ```
 
-Note that if a signal is not necessary to the instruction (eg ```write_back_source``` for ```sw```) we just don't check for it.
+Note that if a signal is not necessary to the instruction (eg ```write_back_source``` for ```sw```) we just don't check for it. You can see a reference for the signals values on [the HOLY CORE spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing). (with 'X' values meaning that we don't care about what it is as we don't have a use for it).
 
 ## 3.2 : Laying down the datapath for ```R-Type```
+
+To implement ```R-Type```, we simply follow the guidelines of the schematics you saw at the beggining of Section 3.
 
 Here is a fully updated version of the cpu datapath :
 
@@ -1736,11 +1738,11 @@ endmodule
 
 As you can see, I chose not to add F7 just yet, as we still don't need it for supporting the very few instruction we have so far.
 
-before moving any further, we chack that out old tests still works, because they should ! on my side, they do, great ! So let's move on.
+before moving any further, we check that our old tests still works, because they should ! on my side, they do, great ! So let's move on.
 
 ### 3.2 : Verification
 
-As usual, we create a predectible environement. I chose to go with this program to include a ```add``` test :
+As usual, we create a predectible program to test our new datapath. When it come to ```add``` the program is pretty simple :
 
 ```txt
 //test_imemory.hex
@@ -1753,7 +1755,7 @@ As usual, we create a predectible environement. I chose to go with this program 
 //...
 ```
 
-And I added some data to memory for this test (```0x0000AAA``` for the addition) :
+We simply load some data in a register and then add it. I added the said data to memory for this test (```0x0000AAA``` for the addition) :
 
 ```txt
 //test_dmemory.hex
@@ -1835,7 +1837,7 @@ always_comb begin
                 // ADD (and later SUB with a different F7)
                 3'b000 : alu_control = 3'b000;
                 // AND
-                3'b111 : alu_control = 3'b011;
+                3'b111 : alu_control = 3'b011; // NEW !
                 // ALL THE OTHERS
                 default: alu_control = 3'b111;
             endcase
@@ -1941,9 +1943,9 @@ And guess what ? No need to change the datapath ! ```R-Type``` was already imple
 //...
 ```
 
-As you can see, I made my comment a bit better, and we don't even have to touch data memory for this one as we can start to re-use previous results ! After all, we are working wth a CPU ;)
+As you can see, I made the comments a bit better, and we don't even have to touch data memory for this one as we can start to re-use previous results ! After all, we are working wth a CPU ;)
 
-And now fot he testing...
+And now for the testing...
 
 ```python
 # test_cpu.py
@@ -2073,7 +2075,7 @@ async def or_test(dut):
 //...
 ```
 
-As you can see, I got myself some new other values than deadbeef to add a bit or enthropy in there. Here is the updated data memory :
+As you can see, I got myself some new other values than deadbeef to add a bit or "enthropy" in there. Here is the updated data memory :
 
 ```txt
 AEAEAEAE
@@ -2088,7 +2090,7 @@ F2F2F2F2
 //...
 ```
 
-and testing :
+And testing :
 
 ```python
 # test_cpu.py
@@ -2119,26 +2121,23 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.regfile.registers[7].value) == "7F5FD56F"
 ```
 
-And there we go ! We just added suport for 2 more instructions ! This passage was to demonstrate the it is way faster to implement instructions once we already have most of the required logic.
+And there we go ! We just added suport for 2 more instructions ! This section was to demonstrate that it is way faster to implement instructions once we already have most of the required logic.
 
 ## 4 : ```beq```, an introduction to ```B-types``` instructions
 
 [The Lecture](https://youtu.be/sVZmqLRkbVk?feature=shared&t=550)
 
-Okay, now we can start to see how to remember data and do basic math ! great, we got ourselve a very dumb calculator. But the very essence of modern computing is :
-
-> Conditional programing
+Okay, now we can start to see how to remember data and do basic math ! great, we got ourselve a very dumb calculator. But the very essence of modern computing is **Conditional programing**.
 
 When you first lean programming, conditions are the first thing you learn
 Even loops depends on them (We could even argue they are the same thing) !
 It allows us to automate computing in ways that leverages the power of digital computing.
-Without these, we could just tell the computer to execute a dumb set of math operations, exactly like a modern calculator would,
-but in less convinient.
+Without these, we could just tell the computer to execute a dumb set of math operations, exactly like a calculator would, but in less convinient (even though it is faster).
 
-So, conditions sounds great, and I guess you already know how they work in C, Python or maybe assembly.
+So, conditions sounds great, and I guess you already know how they work in C, Python and assembly.
 But how will we implement it here ?
 
-Well, in the low level world, branching is just about changing the ```pc``` (program counter) to whatever we want instead of going to the dumb ```pc + 4``` we had until now. (thus the pc source selector we addedf at the very beginning).
+Well, in the low level world, branching is just about changing the ```pc``` (program counter) to whatever we want instead of going to the default ```pc + 4``` we had until now. (thus the pc source selector we addedf at the very beginning).
 
 Here will try to implement ```beq``` that branches (changes the next pc to...) to whatever address we want in the instruction memory if a condition is met. This condition is that the two regs are equal.
 
@@ -2148,7 +2147,7 @@ Here will try to implement ```beq``` that branches (changes the next pc to...) t
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | XXXXXXX | XXXXX | XXXXX | 000 | XXXXX |1100011 |
 
-(yes th immediate is weird I know...)
+(yes the immediate is weird I know...)
 
 So let's get to work shall we ?
 
@@ -2157,17 +2156,24 @@ So let's get to work shall we ?
 To implement ```beq``` just like everython we did until now, we have to implement the intruction type datapath in the cpu. Here is a little todo list of what awaits us :
 
 - Update the control to be able to change the source of ```pc``` and ```immediate```
-- Add substraction arithmetic to the ALU
+- Add substraction arithmetic to the ALU to check for equal
 - Update the ```pc_next``` choice
 - Add some add arithmetic to compute a ```PC_target```
 
 Here is a figure from the Harris' **DDCA Books, RISC-V Edition** alonside a table for the new weird IMM source
 
-![beq / B-type datapath enhancements](todo.png)
+![beq / B-type datapath enhancements](./Beq_datapath.png)
 
-## 4.1.a : Updating the control unit
+What is new here *(in terms of datapath)* ?
 
-Okay, so in terms of control, we need to
+- We added a second adder that take the immediate and adds it to the PC.
+- The resulting target PC is then fed in a MUX as a potential source for the nex PC.
+- We add a control signal to select that new source.
+- We also add a new immediate source
+
+## 4.1.a : Updating the *control* unit
+
+Okay, so in terms of *control*, we need to
 
 - Take the ```B-Type``` OP into account
 - Add a ```branch``` flag to signal the **possibility** of branching
@@ -2322,7 +2328,7 @@ Note that our ```beq``` testbench is separated in two :
 
 ## 4.1.b : Update the ALU for substraction arithmetic
 
-Before going any further, here are some basics that are neverthelesss important (and are pretty umportant details that ANYONE can get wrong) :
+Before going any further, here are some basics that are neverthelesss important (and are pretty important details that ANYONE can get wrong) :
 
 - In RISC-V, when the LU, performs a ```sub```, we do ```srcA - srcB``` and not the contrary.
   - e.g. ```sub rd, rs1, rs2```
@@ -2332,7 +2338,7 @@ Before going any further, here are some basics that are neverthelesss important 
 
 ### 4.1.b : HDL Code
 
-With the previous details in minf, for the logic, we simply make an addition with the 2's complement of src2 :
+With the previous details in mind, for the logic, we simply make an addition with the 2's complement of src2 :
 
 ```sv
 // alu.sv
@@ -2358,6 +2364,8 @@ end
 ```
 
 ### 4.1.b : Verification
+
+And as usual, we verify our *ALU* works before going anyfurther or event thinking about using it in our *CPU* !
 
 ```python
 # test_alu.py
@@ -2389,7 +2397,7 @@ async def sub_test(dut):
 # ...
 ```
 
-As you can see, they are a lot of assertions and comments, as I wanted to make sure this whole 2's complement stuff worked as intended reagrdless of our sign interpretation. I chose to keep them in the code if you want to experiment as well.
+As you can see, they are a lot of assertions and comments, as I wanted to make sure this whole 2's complement stuff worked as intended regardless of our sign interpretation. I chose to keep them in the code if you want to experiment with this testbench as well.
 
 ## 4.1.c : Updating the ```signextend``` logic
 
@@ -2400,7 +2408,7 @@ And now is the time to tackle the monstruosity of an instruction format :
 
 By updating the sign extender's logic to support this new ```imm_source = 2'b10```
 
-> Tip : I Highly suggest you you pen and paper, this is tru for many things, but as immediates sources gets weirder, it will be more and more helpful. By doing so, you will easily pick up the patterns and quickly write the "bitwise gymnastics".
+> Tip : I Highly suggest you you pen and paper, this is true for many things, but as immediates sources gets weirder, it will be more and more helpful. By doing so, you will easily pick up the patterns and quickly get  the "bitwise gymnastics".
 
 ![Paper example for B-Type immediate](./B_imm.jpg)
 
@@ -2445,7 +2453,7 @@ As you can see, the immediate range is 13 bits (we add a single 0 bit at the end
 
 > But why a single 0 and not two ? an instruction is 32 bits ! so the theorical minimum offset is 4Bytes not 2Bytes !
 
-Yes and no, This allows the user to point on "half words" on 16 bits. **In our case, this is not useful** and will autamatically be discarded by the way we implemented our memory. **BUT** it can be useful if the Compressed extension set is implemented, but this is out of the scope of this tutorial.
+Yes and no, This allows the user to point on "half words" on 16 bits. **In our case, this is not useful** and will autamatically be discarded by the way we implemented our memory. **BUT** it can be useful if the **Compressed** extension set is implemented, but this is out of the scope of this tutorial. (It's a pain to work with AND it's optional so let's just not do that for now).
 
 ### 4.1.c : Verification
 
@@ -2493,7 +2501,7 @@ async def signext_b_type_test(dut):
         assert int(dut.immediate.value) - (1 << 32) == imm - (1 << 13)
 ```
 
-and just like th other signext tests, we sepearated + and - tests to assert interger value in python. (we could assert binary values, but this a good bitwise operation exercice, so why not ?)
+And just like the other signext tests, we sepearated + and - tests to assert interger value in python. (we could assert binary values, but this a good bitwise operation exercice, so why not ?)
 
 ## 4.2 : Laying down the ```B-Type : beq``` datapath
 
@@ -2535,7 +2543,7 @@ control control_unit(
 
 ```
 
-And use it to select our pc_next either from ```pc+4``` ou our new ```pc+imm```:
+And use it to select our pc_next either from ```pc+4``` or our new ```pc+imm```:
 
 ```sv
 // cpu.sv
@@ -2567,7 +2575,9 @@ end
 //..other logic...
 ```
 
-As we touched the datapath and other logics, now is a good time to see if all testbenches are still okay, we run them... Good ! let's build a test program for our new ```beq```.
+> As we touched the datapath and other logics, now is a good time to see if all testbenches are still okay. I suggest you re-test all the design after each mofification by the way.
+
+Let's now build a test program for our new ```beq```.
 
 ### 4.2 : Verification
 
@@ -2661,9 +2671,13 @@ Still in the "changing the pc" theme, I'd like to introduce the J-Type instructi
 |:---:|:---:|:---:|
 | XXXXXXXXXXXXXXXXXXXX | XXXXX | 1101111 |
 
-According to the [RV32 Table](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table_00.svg), ```jal``` is the only instruction the uses this type for the base RV32 ISA. So ? What does it do ?
+According to the [RV32 Table](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table_00.svg), ```jal``` is the only instruction that uses the  *J-Type* for the RV32I ISA.
 
-The idea behind this instruction is to jump **without a condition** and store PC+4 in a return register ```rd``` to come back to it later, often used to call a function for example.
+And yes, the immediate is absolutely terrible.
+
+So ? What does it do ?
+
+The idea behind this instruction is to jump **without a condition** and store PC+4 in a return register ```rd``` (usually ```x1```)to come back to it later, often used to call a function for example.
 
 so, we pretty much have nothing to check as this is an unconditional event that will store ```PC_target```.
  into ```rd```.
@@ -2672,13 +2686,15 @@ so, we pretty much have nothing to check as this is an unconditional event that 
 
 Here is what we want to implement :
 
-![J Type datapath](todo.png)
+![J Type datapath](./Jtype_datapath.png)
 
 So,
 
 - We need a new ```imm_source```
 - We need a new ```write_back_source```
 - Update the control unit accordingly
+
+Don't mind the last **2'b11** value for the *write_back* mux on the scheme, we reserve that one for later ;)
 
 ## 5.1.a : Updating the sign extender
 
@@ -2688,7 +2704,7 @@ So,
 
 ### 5.1 : HDL Code
 
-As usual, we add this imm source to our HDL Code (I heavily re-factored the signext code as immediates size were now too different from one to another to simply apply 1 sign extend at the "end"):
+As usual, we add this imm source to our HDL Code. I grabed this opportunity to heavily re-factored the signext code as immediates sizes were now too different from one to another :
 
 ```sv
 // signext.sv 
@@ -2718,11 +2734,13 @@ end
 endmodule
 ```
 
-(yes, this is the entire module ;p)
+This module is now shorter and makes more sense. Let's move on to verifying it.
 
 ### 5.1 : Verification
 
-To verify that, we do as usual, using some bitwise gymnastic, a pen and some paper :
+First, run the old tests to make sur our HDL code chages did not affect the underlying logic.
+
+And then, to verify our new immediate, we do as usual: using some bitwise gymnastic, a pen and some paper :
 
 ```python
 # test_signext.sv
@@ -2771,6 +2789,8 @@ async def signext_j_type_test(dut):
 Here is a recap of what we'll need to do now for the control unit (ignore "I-Type ALU" for now)
 
 ![Enhancements to decoder for J-Type](./J_decoder.png)
+
+(figures from *Digital Design and Computer Architecture, RISC-V Edition*, and as usual, you can find all the definitive signal in [the HOLY CORE spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing))
 
 Let's :
 
@@ -2832,7 +2852,7 @@ endmodule
 
 ### 5.1.b : Verification
 
-To verify this new deisng, we first need to update our tests cases by replacing :
+To verify this new desing, we first need to update our tests cases by replacing :
 
 ```python
 # test_control.py
@@ -2840,7 +2860,7 @@ To verify this new deisng, we first need to update our tests cases by replacing 
 assert dut.write_back_source.value == "X"
 ```
 
-by :
+By :
 
 ```python
 # test_control.py
@@ -2848,7 +2868,7 @@ by :
 assert dut.write_back_source.value == "XX"
 ```
 
-and add out ```jal``` test case (it's fairly simple) :
+And add our ```jal``` test case :
 
 ```python
 # test_control.py
@@ -2874,7 +2894,7 @@ async def jal_control_test(dut):
 
 ## 5.2 : Lay down the datapath for ```jal```
 
-For the datapath, we shall simply update the ```write_back_source``` wire to support 2bits and also update the Result Src mux.
+For the datapath, we shall simply update the ```write_back_source``` wire to support 2bits and also update the **result_src** mux.
 
 ### 5.2 : HDL Code
 
@@ -3030,7 +3050,9 @@ And it works ! ```J-Type``` instructions are now supported.
 
 ## 6 : Adding new instructions based on our datapath : the example of ```addi```
 
-Great our CPU is capable of doing many things, in we only have one instrction type left before being done with all the types. But right before moving on to that (see part 7), we'll implement the ```addi``` instruction.
+Great ! Our CPU is capable of doing many things ! We only have one instruction type left before being done with all the types. But right before moving on to that (see part 7), we'll implement the ```addi``` instruction.
+
+**Why ?** This is to show you [how convinient](https://youtu.be/z6qxMFgNEM4?feature=shared&t=35) to add new instrcution now that we have most of the logic written down.
 
 ```addi``` is an ```I-Type``` instruction that does this :
 
@@ -3044,11 +3066,11 @@ And here is how this instruction is structured :
 |:---:|:---:|:---:| :---:| :---:|
 | XXXXXXXXXXXX | XXXXX | 000 | XXXXX | 0010011 |
 
-So yes, the op isn't quite the same as ```lw``` but still, it is an ```I-Type``` instruction, the ones that do not interact with memory ! So to still differenciate it from regular "*memory interfering*" *I-Types, we'll call these immediates operation : ```ALU I-Types```.
+So yes, the op isn't quite the same as ```lw``` but still, it is an ```I-Type``` instruction (*the ones that do not interact with memory*). So to differenciate these from regular "*memory interfering*" ```I-Types```, we'll call these : ```ALU I-Types```.
 
 ## 6.1 : What do we need to implement ```addi```
 
-Here is the very long list of what we need to do :
+Here is the **very long list** of what we need to do :
 
 - Update control
 
@@ -3064,9 +3086,11 @@ So let's get to work !
 
 ### 6.1.a : HDL Code
 
-Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book):
+Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book) :
 
 ![Enhancements to decoder for J-Type](./J_decoder.png)
+
+> You can find the full list of definitive signals in [the HOLY CORE spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing)
 
 ```sv
 // control.sv
@@ -3167,17 +3191,17 @@ And here is the tesbench in python to test for these expected results & behavior
 
 And it works ! GG ! This ```addi``` instruction can also be used as ```li``` aka : *Load Immediate* because if we take x0 as a source register, the immediate will imediatly get stored in the ```rd``` (destination register).
 
-> Instruction like ```li``` are known as pseudo-instruction as they literraly are a mre convinient name for another instruction, which means that, yes, assembly does have it's lots of abstraction layers ;)
+> Instruction like ```li``` are known as pseudo-instruction as they are just a more convinient name for another instruction, which means that, yes, assembly does have it's lots of abstraction layers ;)
 
-**But** yhe immediate here is only 12 bits ! What if I need to load 32 bits in my register, I am doomed to write all my 32 bits data in memory to load it ?
+**But** the immediate here is only 12 bits ! What if I need to load 32 bits in my register, am I doomed to write all my 32 bits data in memory to load it ?
 
 **NO !** There are convinient instruction out there to load the upper 20 bits of an immediate, and they are called ```U-Types``` ! See you in part 7 to implement them !
 
 ## 7 : Implementing ```U-Type``` instructions
 
-Okay ! Our CPU is now capable of doing many things ! And as we implemented most of the instructions types, adding new instrctions sould be fairly easy.
+Okay ! Our CPU is now capable of doing many things ! And as we implemented most of the instructions types, adding new instructions sould be fairly easy.
 
-> **BUT WAIT !** An instrion type is missing !
+> **BUT WAIT !** An instruction type is missing !
 
 And you are right indeed ! If we take a look at the [base RV32 I Types table](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table_00.svg), we see that we still have to implement ```U-Type``` ! But what is ```U-Type```  exactly ?
 
@@ -3210,16 +3234,18 @@ Well we shall do multiple things this time :
 - Update the control accordignly
 - Add a new source signal for the pc target arithmetic
 
-Here is a somewhat accurate scheme of what we'll implement :
+Here is a scheme of what we'll implement :
 
-![aU_datapath img](./todo.png)
+![U type datapath scheme img](./U_datapath.png)
 
 The mux before pc target chooses between :
 
 - 32'b0 for *lui*
 - PC for *auipc*
 
-These modifs will tend to move some stuff around fir the sources format (make imm source 3 bits...) so we'll have to update things accordingly.
+There also is a new source for the *second_adder* to add to the decoder. (*don't mind the empty mux input for the second add, we keep this one for later*)
+
+These modifs will make ```imm_source``` 3 bits wide instead of 2. So we'll have to update things accordingly. (*This will sometimes happen, remenber to always update everython accordingly*).
 
 > To keep track of all of these modifs, you can find an up-to-date table for the decoder signal here : [Link to google sheets](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing)
 
@@ -3227,7 +3253,7 @@ These modifs will tend to move some stuff around fir the sources format (make im
 
 ### 7.1.a : HDL Code
 
-Let's get started with the *signext* logic. Nothing to hard here, here is the updated code :
+Let's get started with the *signext* logic. Here is the updated code :
 
 ```sv
 // signext.sv
@@ -3287,7 +3313,7 @@ async def signext_u_type_test(dut):
 
 So, as stated before, we need to update the ```imm_source``` signals (make them 3 bits) add a new source for the add arithmetic (we'll call it ```second_add_source``` to stay as simple and explicit as possible).
 
-> I will add ```second_add_source``` values for the decoder int [this spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing).
+> I will add ```second_add_source``` values for the decoder in [this spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing).
 
 ### 7.1.b HDL Code
 
@@ -3364,7 +3390,7 @@ end
 endmodule
 ```
 
-Notice that we used the changing bity between the two *OP* Codes to discriminate both instructions to determine ```second_add_source```.
+Notice that we used the changing bit between the two *OP* Codes to discriminate both instructions to determine ```second_add_source```.
 
 ### 7.1.b Verification
 
@@ -3401,7 +3427,7 @@ Now let's implement and test the datapath ! Refer to the previous scheme (see 7.
 
 ### 7.2 : HDL Code
 
-Here is an overviewof the updates we shall make :
+Here is an overview of the updates we shall make :
 
 ```sv
 // cpu.sv
@@ -3500,7 +3526,7 @@ By the way, here is a little fun fact : **we still don't use F7 at all in our CP
 
 ### 7.2 : Verification
 
-As usual , le't update our main program and make assertions on the results based ont the RISC-V ISA.
+As usual , let's update our main program and make assertions on the results based ont the RISC-V ISA.
 
 ```txt
 //test_imemory.hex
@@ -3514,7 +3540,7 @@ As usual , le't update our main program and make assertions on the results based
 //...
 ```
 
-and we add these test case to our cpu testbench :
+And we add these tests cases to our *CPU* testbench :
 
 ```python
 # test_cpu.py
@@ -3557,9 +3583,9 @@ And it works ! two birds with one stone !
 
 > This part will contain less details as I assume you now have enough experience to understands problems and fixes more easily.
 
-Okay, we just implement our last instruction type ! Meaning we now have a pretty robust datapath on which we can implement more instructions (*hopefully*) without much of a problem !
+Okay, we just implemented our last instruction type ! Meaning we now have a pretty robust datapath on which we can implement more instructions (*hopefully*) without much of a problem !
 
-Now that we enter the "DIY" realm (given DDCA stop covering what we're doing since we did the ```U-Types```), here is a reminder you can find all the signals deconding, their meaning etc... [here](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing)
+Now that we enter the "DIY" realm (given DDCA lectures & book stopped covering what we're doing since we did the ```U-Types```), here is a reminder you can find all the signals encodings, their meanings, etc... [in this spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing).
 
 In this sub-part, we'll use our datapath to rush the implementation of :
 
@@ -3586,8 +3612,7 @@ slti rd rs1 0xXXX
 
 According to the [RISC-V ISA Manual](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) :
 
-> SLTI (set less than immediate) places the value 1 in register rd if register rs1 is less than the sign-
-extended immediate when both are treated as signed numbers, else 0 is written to rd.
+> SLTI (set less than immediate) places the value 1 in register rd if register rs1 is less than the sign- extended immediate when both are treated as signed numbers, else 0 is written to rd.
 
 ## 8.1.a : Add *less than* comparison to the ALU
 
@@ -3604,7 +3629,7 @@ The logic is pretty straight-forward :
 
 // ...
 
-    // LESS THAN COMPARE STUFF (src1 < rrc2)
+    // LESS THAN COMPARE STUFF (src1 < src2)
     3'b101 : alu_result = {31'b0, $signed(src1) < $signed(src2)};
 
 // ...
@@ -3656,7 +3681,7 @@ As usual, we update our control, please refer to the [spreadsheet](https://docs.
 
 ### 8.1.b : HDL Code
 
-We use previous muxes that have been layed our for ```R-Type``` and ```I-Type (alu)```, and we use the *f3* of the instruction to figure out the arithmetic (which is what we'll do for *(almost)* all I and R Types):
+We use previous muxes that have been layed our for ```R-Type``` and ```I-Type (alu)```, and we use the *f3* of the instruction to figure out the arithmetic (which is what we'll do for *(almost)* all ```I-Types``` and ```R-Types```):
 
 ```sv
 // control.sv
@@ -3694,13 +3719,13 @@ end
 // ...
 ```
 
-> I also got rid of the default case, because it's useless. I'll do the same for the others from now on.
+> I also got rid of the default case, because it's useless. I'll do the same for the others from now on when necessary.
 
 ### 8.1.b : Verification
 
 Here is the tb. As usual for control : basic assertions
 
-(Almost copy-pasted from ```addi```) :
+(Almost copy-pasted from our previous ```addi``` test case) :
 
 ```python
 # test_control.py
@@ -3790,13 +3815,13 @@ extended immediate when both are treated as signed numbers, else 0 is written to
 **similar but compares the values as unsigned numbers (i.e., the immediate is first sign-extended to**
 **XLEN bits then treated as an unsigned number)**
 
-As you can read above (from the *RISC-V USER MANUAL*), the immediate is first sign extended and then treated as unsigned. It's weird **but it also allows us to avoid adding an ```imm_source```**.
+As you can read above (from the *RISC-V USER MANUAL*), the immediate is first sign extended and then treated as unsigned. It's weird **but it also allows us to avoid adding an ```imm_source```** so I'll take it.
 
 ## 8.2.a : Updating the alu to add ```sltiu``` support
 
 Check out the [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) for signal values reference.
 
-### 8.2.a HDL Code
+### 8.2.a : HDL Code
 
 We simply add this statement in the alu logic :
 
@@ -3813,7 +3838,7 @@ We simply add this statement in the alu logic :
 
 I also deleted the "default" statement, now rendered useless (and it always was tbh).
 
-### 8.2.a Verification
+### 8.2.a : Verification
 
 And we verify using this testbench, slighlty simpler than the signed version as every number here is treated as positive :
 
@@ -3838,13 +3863,13 @@ async def sltu_test(dut):
         assert dut.alu_result.value == 31*"0" + str(int(dut.alu_result.value))
 ```
 
-I also deleted the "default" test case, now rendered useless (and it always was as well haha).
+I also deleted the "default" test case for the *ALU* as well.
 
 ## 8.2.b : Update the *control* unit for ```sltiu```
 
 ### 8.2.b : HDL Code
 
-Following the [spreadsheet reference](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing), here is the updated ALU decoder :
+Following the [spreadsheet reference](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing), here is the updated *ALU decoder* :
 
 ```sv
 // control.sv
@@ -3966,7 +3991,7 @@ And the [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9
 
 ## 8.3.a : Updating the *alu*
 
-The problem here is than we encoded or alu_control signal on 3 bits and we just ran out of encoding to add another instruction. so we'll add some ! Keep in mind that we have to update the signal width in both :
+The problem here is than we encoded our ```alu_control``` signal on 3 bits until now. **And we just ran out of encoding** to add another instruction. so we'll add some ! Keep in mind that we have to update the signal width in both :
 
 - The HDL
 - The testbench binary assertions
@@ -4018,7 +4043,7 @@ async def xor_test(dut):
 
 ### 8.3.b : HDL Code
 
-Here is th updated control :
+Here is the updated control :
 
 ```sv
 // control.sv
@@ -4089,7 +4114,7 @@ async def xori_control_test(dut):
 
 ### 8.3.c : HDL Code
 
-As the datapath is starting to get a bit beefy, I won't display it here, the only modif are to **update the data width of the ```alu_control``` signal wire** :
+As the datapath is starting to get a bit beefy, I won't display it here,just know that the only modif is to **update the data width of the ```alu_control``` signal wire**.
 
 ### 8.3.c : Verification
 
@@ -4128,34 +4153,40 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.regfile.registers[19].value) == binary_to_hex(dut.regfile.registers[18].value)
 ```
 
-## 8.4 The actual ```I_type``` Rush : You are on your own (and so am I)
+## 8.4 The actual ```I_type``` Rush : You are on your own ;)
 
-Okay, you start to know the drill, and this tutorial will not be conplete without a part where you actually do stuff yourself ! I will now let you implement them on your own too ! Don't worry, you are not completely on your own of you still struggle. Read the next few lines and go get it !
+Okay, you start to know the drill, and this tutorial would not be complete without a part where you actually do stuff yourself ! **I will now let you implement them on your own too !** Don't worry, you are not completely on your own !
 
-I will now rush the implementation of all ```I_type``` instructions (and so will you !) nevertheless, gere is a list of the point of attention to keep in mind whilst doing this :
+If you still struggle. Read the next few lines.
 
-- ```ori, andi``` : we already have the logic. should be fairly easy
-- ```slli, srli, srai``` : The thing about those is that there are multple ways to go about it hardware-wise. I won't get into the details here, as we focus on the CPU logic rether than precise hardware implementation. so we'll implement these in the alu using system verilog's ```<<``` (*sll*), ```>>``` (*srl*) and ```>>>``` (*sra*) operators.
+Here is a list of the points of attention to keep in mind whilst implementing ```I_type``` :
 
-> The difference between ```>>``` (*srl*) and ```>>>``` (*sra*) is the fact that ```sra``` extends the sign where ```srl``` just shift, effectively devinding the number by 2 by filling the upper bits with 0s.
+- ```ori``` & ```andi``` : we already have the logic so thiese should be fairly easy
+- ```slli```, ```srli``` & ```srai``` : The thing about these is that there are multiple ways to go about it hardware-wise. I won't get into the details here, as we focus on the CPU *RTL* logic rather than precise hardware implementation. so we'll implement these in the alu using system verilog's ```<<``` (*sll*), ```>>``` (*srl*) and ```>>>``` (*sra*) operators.
+
+> The difference between ```>>``` (*srl*) and ```>>>``` (*sra*) is the fact that ```sra``` extends the sign where ```srl``` just shifts, effectively dividing the number by 2 by filling the upper bits with 0s.
 
 Please consider the following too :
 
-> Also don't forget to use a 5 bit shamt for the *shift* instructions ! The upper 7 bits of the immediate (*for shift instructions*) acts like a f7 ! so we need to invalidate the instruction that are not conform to that ! This translate in a 0 in reg write if "*f7*" is invalid. (We *may* add an ```illegal_op``` flag later in future tutorials if we re-use this core for other projects). We also only use the 5 lower bits of ```src2``` in the alu. So make sure to add f7 to the datapath, and invalidate the non-support f7s for shift in control !
+> Don't forget to use a 5 bit shamt for the *shift* instructions ! The upper 7 bits of the immediate (*for shift instructions*) acts like a f7 ! so we need to invalidate (*or add a default case that does nothing*) the instructions that are not conform to that ! This translate in a 0 in reg write if "*f7*" is invalid. (We *may* add an ```illegal_op``` flag later in future tutorials if we re-use this core for other projects). We also only use the 5 lower bits of ```src2``` in the alu. So make sure to add f7 to the datapath, and invalidate the non-support f7s for shift in control !
 
-This should give you a bit of a challenge too ! (You can use the final source code if needed, especially for the sra testbench that can be a bit challenging with python weird representation of negative numers !, you can refer to this [stack overflow post](https://stackoverflow.com/questions/64963170/how-to-do-arithmetic-right-shift-in-python-for-signed-and-unsigned-values) for this matter).
+This should give you a bit of a challenge too ! (You can use the final source code if needed, especially for the ```sra``` testbench which can be a bit challenging with python's weird representation of negative numers ! (You can refer to this [stack overflow post](https://stackoverflow.com/questions/64963170/how-to-do-arithmetic-right-shift-in-python-for-signed-and-unsigned-values) for this matter).
 
 ## 9 : Rushing instructions : ```R-Types```
 
-Are you still here ? good, hope your implementation went well ! Now that we implemented all I-Types instructions, a logical follow-up would be implementing R-Types instructions.
+Are you still here ? good, hope your implementation went well !
+
+Now that we implemented all I-Types instructions, a logical follow-up would be implementing R-Types instructions.
 
 They do basically the same thing as I-types, execept the ```alu_source``` signal is not set to *immediate* but *rs2*.
 
-> You start to know the drill for these ones too, so I'll hint you on the first couple of instructions and then let you implement the rest on your own !
+> You start to know the drill for these ones too, so I'll hint you on the first couple of instructions and then let you implement the rest on your own, just like ```I-Type``` !
+
+Also remember we already have ```or```, ```and``` & ```add``` supported on the core so far.
 
 ## 9.1 : Implementing ```sub```
 
-We already added sub arithmetic for the ```beq``` instruction. This means we don't have to update the *ALU* and most likely won't for all of the R-Types as they all inherit the same arithmetic principles than the ```I-Type``` instructions we just implemented.
+We already added sub arithmetic for the ```beq``` instruction. This means we don't have to update the *ALU* and most likely won't for all of the ```R-Types``` as they **all inherit the same arithmetic principles than the ```I-Type```** instructions we just implemented.
 
 Regarding the sub instruction, refering to the [instruction table](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table_00.svg) here is what it looks like :
 
@@ -4171,11 +4202,17 @@ The *ALU* is already up-to-date. (damn that was hard ! we desrve a pause !)
 
 ## 9.1.b : Updating the *Control* unit
 
-**SIKE !** The is no pause ! Now let's get to work shall we ?
+**SIKE !** There is no pause ! Now let's get to work shall we ?
 
 ### 9.1.b : HDL Code
 
-For the HDL Logic, we need to keep someting in mind : As stated earlier, the logic will be kind of the same than for shifts. **Why ?** Well because ```add``` and ```sub``` both share the same *f3*, meaning we have to use *f7* do know which is which. And becase the ````ALU I-Type```` instruction : ```addi``` also shares the same alu_op signal than ```add``` and ```sub``` we also have to take this scenario into account ! *(because ```addi``` use immediate instead of f7, eaning the value could be anything !)*
+For the control's HDL Logic, we need to keep something in mind : 
+
+As stated earlier, the logic will be kind of the same than for shifts. **Why ?** Well because ```add``` and ```sub``` **both share the same *f3***
+
+That means meaning we have to use *f7* to know which is which. And becase the ````addi```` also shares the same ```alu_op``` signal than ```add``` and ```sub``` we also have to take this scenario into account ! *(because ```addi``` use immediate instead of f7, meaning the value could be anything !)*
+
+I added comments in the code below to make that a bit clearer.
 
 I will go once again with some good old high-level logic description, I know for a fact there are loads of more efficient ways to implement the check or f7, but I chose to do it like that because it is convinient :
 
@@ -4199,7 +4236,7 @@ always_comb begin
                 3'b000 : begin
                     // 2 scenarios here :
                     // - R-TYPE : either add or sub and we need to a check for that
-                    // - I-Type : aadi -> we use add arithmetic
+                    // - I-Type : addi -> we use add arithmetic
                     if(op == 7'b0110011) begin // R-type
                         alu_control = func7[5] ? 4'b0001 : 4'b0000;
                     end else begin // I-Type
@@ -4211,11 +4248,13 @@ always_comb begin
                 // ...
 ```
 
-As you can see, the code is a bit sketchy but I seek to make somthing that work for now. What is important here is that the logic is right.
-
 To avoid bloating the code, I won't unvalidate the non-compliant f7 and only check for the bit #5 of f7 to either chose ```sub``` or ```add```. That will also be on less feature to test.
 
-Is it right ? no. But I plan on imlementing ```invalid_op``` flags once we set the constant and try to pipeline this thing. So let's leave that for later ! (coping hard rn, but the compiler knows what he's doing !)
+<!-- TODO : add a case statement with defaults -->
+
+Is it right ? no. But I plan on imlementing ```invalid_op``` flags once we set the constant and try to pipeline this thing. So let's leave that for later !
+
+-*"the compiler knows what he's doing anyway"* -famous last words.
 
 ### 9.1.b : Verification
 
@@ -4311,7 +4350,7 @@ Well, we do have all the logic for the rest of the instructions now...
 For most of them, we don't even need to do anything ! Think about it :
 
 - The main decoder in the *control* unit already treats the ```R-Type``` generic signals.
-- The *ALU decoder* already tkes all *f3* into account !
+- The *ALU decoder* already takes all *f3* into account !
 
 So this way, we can already verify :
 
@@ -4326,7 +4365,7 @@ without touching anything !
 
 And what about ```srl``` and ```sra``` ?
 
-Well, nothing to do neither ! (if not testing it) Why ? Well, we did test for the *f7*-ish immediate before in a scenario specific to our ```I-Tpye``` stuggle to differentiate ```srl``` and ```sra``` because their *f3* encoding were the same.
+Well, nothing to do neither ! *(except test it of course)* Why ? Well, we did test for the *f7*-ish immediate before in a scenario specific to our ```I-Tpye``` stuggle to differentiate ```srl``` and ```sra``` because their *f3* encoding were the same.
 
 Turns out R-Types uses actual f7, and guess what :
 
@@ -4335,14 +4374,13 @@ Turns out R-Types uses actual f7, and guess what :
 |  ```srl``` | 0**0**00000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
 |  ```sra``` | 0**1**00000 | XXXXX| XXXXX    | 101        | XXXX | 0110011 |
 
-The 7 upper bits encodings (immediate for ```I-Type``` and f7 for ```R-Type```) **are the same**.
+The **7 upper bits encodings** (immediate for ```I-Type```) and **f7** for ```R-Type``` **are the same**.
 
 So our decoder is already able to differentiate them, and given R-Type generic signals have already been implemented a whiiile ago, we just have to test them ! So let's do exactly that !
 
 ### 9.2 : Final verification program
 
 Here is a summary of what we did, aka only testing
-[I'll let you come up with the test benches ;)]*
 
 ```txt
 //...
@@ -4359,6 +4397,8 @@ Here is a summary of what we did, aka only testing
 //...
 ```
 
+[I'll let you come up with the test benches ;)]
+
 ## 10 : The ```B-Types``` rush
 
 Okay, now that we have all this fancy ```slt``` arithmetic, we can use it to implement all the ```B-Type``` instructions !
@@ -4369,9 +4409,13 @@ How ? Well, we'll simply add an output flags to our ALU that will serve the exac
 
 And to use the correct arithmetic, we'll have to improve our *control*'s *ALU_Decoder* to chose the correct arithmetic from the ALU. [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) dedicated tab contains all the data you need for reference.
 
-> As you can, we go for a strategy where the alu only gives us the state of its last bit and the *branch logic* inside the control unit will sort out from there, depending on the instruction, wheter we branch or not.
+Here is the recap of the datapath we'll have after ```blt```, not much is changing except for the new ```alu_last_bit``` signal.
 
-And last but not least, after we got our flags and correct arithmetic, we'll also need to improve the ```pc_source``` selector, by adding awhole "*branch logic*" section. [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) also has a tab dedicated to this "*branch logic* if needed.
+![blt new signal datapath inmg](./blt_datapath.jpg)
+
+> As you can see, we go for a strategy where the alu only gives us the state of its last bit and the *branch logic* inside the control unit will sort out from there, depending on the instruction, wheter we branch or not.
+
+And last but not least, after we got our flags and correct arithmetic, we'll also need to improve the ```pc_source``` selector, by adding a whole *branch logic* section. [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) also has a tab dedicated to this *branch logic* if needed.
 
 I'll let you implement these instructions yourself ;) Nevertheless, I will hint you on the implementation of ```blt``` in **section 10.1** below.
 
@@ -4441,7 +4485,7 @@ async def last_bit_test(dut):
 
 ## 10.1.b : Updating the *control* unit accordingly
 
-And now we need to update the branching logic and the ALU_Decoder. Once agin, you can use [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) to get the signals values right.
+And now we need to update the branching logic and the ALU_Decoder. Once again, you can use [The spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) to get the signals values right.
 
 ### 10.1.b : HDL Code
 
@@ -4501,7 +4545,7 @@ You can see I used an intermediate "*assert_branch*" signal. There are **many** 
 
 ### 10.1.b : Verification
 
-And to verify this behavior, we simply copy-paste the ```beq``` test case and adapt the expected signals usgin the spreadsheet :
+And to verify this behavior, we simply copy-paste the ```beq``` test case and adapt the expected signals using the [spreadsheet](https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing) :
 
 ```python
 # test_control.py
@@ -4598,7 +4642,7 @@ And there you go ! you now have a strong base to implement all other ```B-Types`
 
 ## 11 : The come back of ```JALR```
 
-Before moving on to the "partial" memory operation that we yet have to implement, let's get rid of the final operation to have a complete processor (that only works on word aligned memory accesses) : ```jalr```.
+Before moving on to the "partial" memory operations that we yet have to implement, let's get rid of the final operation to have a complete processor (that only works on word aligned memory accesses) : ```jalr```.
 
 Here is what ```jalr``` looks like :
 
@@ -4606,9 +4650,9 @@ Here is what ```jalr``` looks like :
 | ------------  | ------------  | ------ | ------------ | ------- |
 | XXXXXXXXXXXX  | XXXXX         | 000    | XXXXX        | 110**0**111 |
 
-This instruction is formated as an I-Type and behaves as a J-Type (it's a "jump" after all !)
+This instruction is formated as an I-Type and "behaves" as a J-Type (it's a jump instruction after all !)
 
-Its unique *OP* code makes it easy to distinguish (still similar to ```jal```'s : 110**01**111).
+Its unique *OP* code makes it easy to distinguish (still similar to ```jal```'s : 110**0**111).
 
 Here is how we use it in a program :
 
@@ -4616,12 +4660,12 @@ Here is how we use it in a program :
 jalr rd offset(rs1)
 ```
 
-So i'ts exatly the same as jal excepts it uses a pre-stored address from rs1 to jump. (rd gets the value of pc+4). Here is the recap :
+So it's exactly the same as ```jal``` excepts it uses a pre-stored address from rs1 to jump. (rd gets the value of pc+4). Here is the recap :
 
 - ```rd``` <- PC + 4 (*write_back_source* = 010)
 - ```pc_next``` <- rs1 + offset (*we can't currently do that*)
 
-So, we have to choices :
+So, we have two choices :
 
 - Use the *ALU* to compute the target PC and add ```alu_result``` to our pc sources for pc_next
 - Use our second and add a second_add source
@@ -4630,11 +4674,13 @@ I'll go with the second choice, as we've always computed PC-related stuff in the
 
 Here is a recap of our datapath we will implement of ```jalr```:
 
-![jalr and final logic datapath](./todo.png)
+![jalr and final logic datapath](./jalr_datapath.jpg)
 
 ## 11.1 : Laying down the work to do
 
-So you though it wass all easy fro now on ? **WRONG** ! We now have more to do on the datapth. Which is not hard by itself but rather long as we have to update signals width in both the logic AND the tests.
+So you though it was all easy from now on ?
+
+**WRONG** ! We now have more to do on the datapth. Which is not hard by itself but rather long as we have to update signals width in both the logic AND the tests.
 
 > Once again, we should add constants to make our job easier on this part, but I also plan on doing this *later* in this course (which is not now).
 
@@ -4708,7 +4754,7 @@ We can now update our datapath !
 
 To update our datapth, here is a refresher of our new layout :
 
-![jalr and final logic datapath](./final%20JALR.png)
+![jalr and final logic datapath](./jalr_datapath.jpg)
 
 ### 11.1.b : HDL Code
 
@@ -4787,15 +4833,17 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.pc.value) == "0000011C"
 ```
 
-And it works ! GG
+And it works ! GG to us.
 
 ## 12 : A bit of memory
 
 Okay, we've implemented all locical operations ! GG.
 
-But now is time to enter the realms of "the things we said we would do later, don't worry bro". And the first one to take care of is the memory stuff as it will unclock all the load/stores for bytes and halfwords.
+But now is time to enter the realms of "*the things we said we would do later, don't worry bro*".
 
-But remember our *memory* module ? and the way we built it so we could byte-address it but couldn't really operate on other things than words ? Well that's what we are goin to take care of in this section **to finally have a fully functionnal RV32I core !**
+The first one to take care of is the memory stuff as it will unclock all the load/stores for bytes and halfwords.
+
+But remember our *memory* module ? Remember the way we built it so we could byte-address it but couldn't really operate on other things than words ? Well that's what we are going to take care of in this section **to finally have a fully functionnal RV32I core !**
 
 The goal here is to implement the following instructions :
 
@@ -4808,7 +4856,9 @@ The goal here is to implement the following instructions :
 
 Which are non-aligned (aka not modulo 4) version of our already-existing ```sw``` and ```lw```.
 
-To really understand the behaior of these instruction, I suggest you use a risc-v ISA simulator like this ["*RISC-V Interpreter*"](https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter/) (you can find better one that support unsigned and half words).
+> Non aligned ? not really. I will elaborate on that more in section 12.1; Just know that byte-wise memory operations cannot really be mis-aligned technically speaking.
+
+To really understand the behaior of these instruction, I suggest you use a risc-v ISA simulator like this ["*RISC-V Interpreter*"](https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter/) (you can find better one that support unsigned and half words but this one can give you an idea).
 
 ## 12.1 : Relfexions on CPU behavior
 
@@ -4820,18 +4870,20 @@ According to [this discussion](https://groups.google.com/a/groups.riscv.org/g/hw
 
 ![lh non aligned exmaple](./lh_non_aligned.png)
 
-In this scneario, it is **up to us** to decide what to do. And the "what to do" will be : **nothing**. In that case, we should also throw an exception but remember : this is something for future improvements. On top of that, mis-aligned lh are, *theorically*, not supposed to happen as the compiler "knows" what he is doing.
+In this sceneario, it is **up to us** to decide what to do. And the "what to do" will be : **nothing**.
 
-Now, the way we will handle that "noithing" can vary in many ways :
+In that case, we should also throw an exception but remember : this is something for future improvements. On top of that, mis-aligned lh are, *theorically*, not supposed to happen as the compiler "knows" what he is doing.
 
-- **Do we want the CPU or the memory to handle that ?** It depends on how we'll implement memory later on, maybe what controller we'll use, and how this said controller will handle these exceptions... To get the best predictible behavior, it is better to just handle these thing ourselve in the cpu core.
-- **Where exactly** do we want to handle these exceptions in the cpu ? Right now, we have a single cycle CPU. But in a pipelined cpu, every stage has its role. This kind of exception shall idealy be caught in the "deconding" stage, aka at the very beginning of the cpu, where we generate control signals (right after fetching it from memory) but in reality, it is a bit more tricky than that.
+Now, the way we will handle that "**nothing**" can vary in many ways :
 
-> We could theorically implement that "yolo" style but it is a bit more important for future improvement that what we were used to procrastinate on until now, so might as well think about these problems before hand this time ;)
+- **Do we want the CPU or the memory to handle these mis-alignement ?** It depends on how we'll implement memory later on, maybe what controller we'll use, and how this said controller will handle these exceptions... To get the best predictible behavior, it is better to just handle these thing ourselve in the cpu core. It is also a more standard way to handle this stuff.
+- **Where exactly do we want to handle these exceptions in the cpu ?** Right now, we have a single cycle CPU. But in a pipelined cpu, every stage has its role. This kind of exception shall idealy be caught in the "decoding" stage, aka at the very beginning of the cpu, where we generate control signals (right after fetching it from memory) but in reality, it is a bit more tricky than that. More on that in the later sections.
+
+> We could theorically implement that "yolo" style but it is a bit more important for future improvement that what we were used to procrastinate on until now, so might as well think about these problems early this time ;)
 
 ## 12.2 : ```sb``` and ```sh```
 
-So, now that we have a way to handle mis-alignment, we need to tell our memory to write this data, at a specific byte or halfword, and in a standard way !
+So, now that we have a broad idea on how to handle mis-alignment, we need to tell our memory to write this data, at a specific *byte* or *halfword*, and in a "standard" way !
 
 I decided to give another go at chatgpt, maybe this time he can give us some valuable insights :
 
@@ -4872,21 +4924,23 @@ When writing:
 
 Great ! This time it's LLM for the win ! Great explainations Mr GPT, now let's take back the control and actually use our brains to do something with these infos.
 
-Okay so it looks like we'll have to enhance our ```mem_write``` signal with something a bit more adapted : a 4bits wide signals telling the memory where to write ! We'll call it ```mem_byte_enable``` and it will work with ```mem_write``` to specify which byte to write.
+It looks like we'll have to enhance our ```mem_write``` signal with something a bit more adapted : a 4bits wide signals telling the memory where to write (1 for each byte) ! We'll call it ```mem_byte_enable``` and it will work with ```mem_write``` to specify which byte to write.
 
 In summary, we need to :
 
-- Update our memory to works exclusively with byte masks.
-- Implement a load/store decoder to determine :
+- Update our memory to works with **byte masks**.
+- Implement a **new "decoder"** to determine :
   - mis-alignements
   - a write mask
 
 ## 12.2.a : Updating the memory
 
-By keeping in my what we just said in section 12.2, memory nerver sees non word-aligned addresses : our CPU will translate everything into :
+By keeping in mind what we just said in section 12.2, memory never sees non word-aligned addresses : our **new "decoder"** will translate everything into :
 
-- A nice work-aligned address
-- And a ```byte_enable``` mask along the ```write_enable```
+- A nice word-aligned address
+- And a ```byte_enable``` mask along the ```write_enable``` signal
+
+But let's leaver the decoder for later and focus on the momory for now as this section is about updating our new memory according to our new requierements.
 
 ### 12.2.a : HDL Code
 
@@ -4945,11 +4999,15 @@ end
 endmodule
 ```
 
-We can see if our module behaves correctly by replacing ```if (byte_enable[i]) begin``` with ```if (1) begin``` as our previous test are only words operation in memory. And it works just fine so let's move on !
+To test of this new code did not affect underlying memory logic, we can see if our module still behaves correctly by **temporarly** replacing ```if (byte_enable[i]) begin``` with ```if (1) begin``` which will enable write on all bytes and *hopefully* make our previous tests pass.
+
+And it works just fine so let's revert this temporary change and move on !
 
 ### 12.2.a : Verification
 
-Okay, time to enhance our old memory tests : we keep the old one by asserting ```byte_enable = 0b1111``` and then do some test with different ```byte_enable``` value using a simple for loop.
+Time to enhance our old memory tests : we keep the old one by asserting ```byte_enable = 0b1111``` (*because we were only dealing with word memory operations*) 
+
+And then do some new tests with different ```byte_enable``` value using a simple for loop.
 
 Here is the final testbench :
 
@@ -5036,31 +5094,33 @@ And it works ! Great !
 
 ## 12.2.b : Ensuring compatibility : Creating the ```load_store_decoder``` unit
 
-Now if we run all the tests from the test runner, we obviously get failures everywhere in the cpu test because the memory isn't getting any info on its new ```byte_enable``` signal.
+Now if we run all the tests from the test runner, **we obviously get failures everywhere** in the cpu test because the memory isn't getting any info on its new ```byte_enable``` signal it is expecting to get.
 
 So, how do we generate valid ```byte_enable``` signals ?
 
-The thing is we **don't know** what the final read address is until **we've reached the ALU**. We could try to figure it out in control by getting info from the regitsers and alu back to the control, but these kind of design choices can lead to severe logic hazards when pipelining a CPU (which is an advanced technique to speed up clock speeds we will cover in another tutorial). The best practice here is simply to wait for the data to be availible and use it there.
+The thing is we **don't know** what the final read address is until **we've reached the ALU**. 
+
+We could try to figure it out in control by getting info from the regitsers and alu back to the control, but these kind of design choices can lead to severe logic hazards when pipelining a CPU (which is an advanced technique to speed up clock speeds we will cover in another tutorial). The best practice here is simply to wait for the data to be availible and use it there.
 
 > Fun fact : Waiting for data to be availible like that leads to a bottleneck in pipined CPU, where branch prediction becomes a thing and we have to wait until the ALU to know if the prediction was right ! We'll have the opportunity to explore these concepts extensively in later tutorials ;)
 
 With that in mind, here is how we'll proceed to know where to write (or not) :
 
-![New datapath with load_store decoder](./todo.png)
+![New datapath with load_store decoder](./WE_Decoder.png)
 
-As you can see, we added a whole "*load_store_decoder*" oe "*byte_enable_decoder*" (you can call it however you want) which will produce the adequate ```byte_enable``` mask depending on the address offset and the instruction being fetched.
+As you can see, we added a whole "*load_store_decoder*" or "*byte_enable_decoder*" *(you can call it however you want)* which will produce the adequate ```byte_enable``` mask depending on the address offset and the instruction being fetched.
 
 **This unit also processes the data we send to the memory**, and the reeason why come from this extract of the [RISC-V Specs](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) :
 
 > The SW, SH, and SB instructions store 32-bit, 16-bit, and 8-bit values from the low bits of register rs2 to memory
 
-That means : we'll have to apply a shift to these lower bits for ```sb``` and ```sh``` to match the mask ! But more on this later. Note that this does not affect the way our memory ```byte_enable```'s interpretation works at all.
+That means : we'll have to apply a shift to these lower bits for ```sb``` and ```sh``` to match the mask ! But more on this later. Note that this does not affect the way our memory ```byte_enable```'s interpretation works at all. (*In our design, the memory simply does not care and will execute whatever masked write we send it.*)
 
-Also rememnber our design choice : "Do nothing if halfword or word alignment is not correct". Well, this will be done by setting the mask to ```4'b000``` if that's the case, which will avoid any altering in memory, even if ```write_enable``` is asserted.
+Also remember our design choice : "Do nothing if halfword or word alignment is not correct". Well, this will be done by setting the mask to ```4'b000```, which will avoid any altering in memory, even if ```write_enable``` is asserted.
 
 ### 12.2.b : HDL Code
 
-So we start by creating a new module, and the tb subfolder config that goes with it, for now we only need to output ```4'b1111``` to make the tests pass, we'll iplement real logic later for ```sb``` and ```sh``` :
+So we start by creating a new module, and the tb subfolder config that goes with it, for now we only need to output ```4'b1111``` to make the tests pass, we'll implement real logic later for ```sb``` and ```sh``` :
 
 ```sv
 // load_store_decoder.sv
@@ -5115,7 +5175,9 @@ For now, we only seek to make the test pass to check if our new memory integrate
 
 ### 12.2.b : Verification
 
-Running all the test does work now. We will also add a test bench for this sub module for good measure to ensure it is bahving as expected :
+Running all the test does work now.
+
+We will also add a test bench for this sub module for good measure to ensure it is bahving as expected :
 
 ```python
 # test_load_store_decoder.py
@@ -5139,13 +5201,13 @@ Okay, now everything is set up ! let's implement ```sb``` ! First, here is what 
 | ------------  | ------------  |------------  | ------ | ------------ | ------- |
 | XXXXXXX  | XXXXX         |XXXXX         | 000    | XXXXX        | 0100011 |
 
-So we need to get that f3 into our decoder, let's do exactly that, first, here is a revised version of our datapath :
+So we need to get that f3 into our decoder, let's do exactly that, first, here is a refresher of the revised version of our datapath :
 
-![enhanced ls_decoder for single single cpu : F3](./todo.png)
+![enhanced ls_decoder for single single cpu : F3](./WE_Decoder.png)
 
 ### Quick word on the datapath
 
-For the datapath on this one, don't forget to discard last two bit of the address you give to the data memory, as our new decoder will handle masking for this matter. And also make the register data go trough or design for the treatment we are about to apply. It should look like something like the code snippet below :
+For the datapath on this one, don't forget to **discard last two bit of the address** you give to the data memory, as **our new decoder will handle offset & masking** for this matter. And also make the register data go trough or design for the treatment we are about to apply. It should look like something like the code snippet below :
 
 ```sv
 // cpu.sv
@@ -5189,9 +5251,9 @@ memory #(
 // ...
 ```
 
-## 12.2.c : HDL Code
+### 12.2.c : HDL Code
 
-**After updating the datapath** to route f3 to our new *ls_decoder* unit, we can enhance this said unit to implement ```sb```.
+**After updating the datapath** to route signals to our new *ls_decoder* unit, we can enhance this said unit to implement ```sb```.
 
 > Don't forget to add existing ```sw``` and make sure it will still be supported !
 
@@ -5248,9 +5310,9 @@ end
 endmodule
 ```
 
-This logic summurizes all the requirements we listed until now for ```sb```.
+This logic summarizes all the requirements we listed until now for ```sb```.
 
-## 12.2.c : Verification
+### 12.2.c : Verification
 
 We can now ditch our old 3 lines long temporary test bench to get a brand new one that tests some actual expected behavior on the signals AND the data being fed to the memory :
 
@@ -5309,14 +5371,14 @@ async def ls_unit_test(dut):
                 assert dut.data.value == (reg_data & 0x000000FF) << 24
 ```
 
-Great ! ```sb``` should be supported now ! Let's check it out !
+Everything works as expected ? Great ! ```sb``` should be supported now ! Let's check it out !
 
 ## 12.2.d : Verifying ```sb``` support
 
 We need to test 2 things here as a "bare minimum" verification:
 
 - make sure misaligned ```sw``` don't alter memory.
-- make sure ```sb``` only wite 1 byte only
+- make sure ```sb``` only wites 1 byte only
 
 Here is a test programm that does just that :
 
@@ -5325,7 +5387,7 @@ Here is a test programm that does just that :
 00800323  //                    sb x8 0x6(x0)       | mem @ 0x4 <= 00EE0000         PC = 0x120
 ```
 
-and here are the associated test bench :
+And here are the associated test bench :
 
 ```python
 # test_cpu.py
@@ -5367,7 +5429,7 @@ And here is how ```sh``` looks like :
 
 So yeah, it's basically the same except *f3* is ```3'b001```.
 
-## 12.2.d : HDL Code
+### 12.2.d : HDL Code
 
 Here is the *f3* case we add to handle ```sh``` in our decoder :
 
@@ -5393,9 +5455,7 @@ Here is the *f3* case we add to handle ```sh``` in our decoder :
 // ...
 ```
 
-So yeah, we are not really checking for odds after all, I prefered making something readable instad of relying on some weird modulos.
-
-## 12.2.d : Verification
+### 12.2.d : Verification
 
 And here are the assotiated assertions :
 
@@ -5440,7 +5500,7 @@ Here is a simple test program that tests for bahavior when mis-aligned and then 
 00801323  //                    sh x8 6(x0)         | mem @ 0x4 <= FFEE0000  
 ```
 
-and the assertions :
+And the assertions :
 
 ```python
 # test_cpu.py
