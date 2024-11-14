@@ -4206,7 +4206,7 @@ The *ALU* is already up-to-date. (damn that was hard ! we desrve a pause !)
 
 ### 9.1.b : HDL Code
 
-For the control's HDL Logic, we need to keep something in mind : 
+For the control's HDL Logic, we need to keep something in mind :
 
 As stated earlier, the logic will be kind of the same than for shifts. **Why ?** Well because ```add``` and ```sub``` **both share the same *f3***
 
@@ -5005,7 +5005,7 @@ And it works just fine so let's revert this temporary change and move on !
 
 ### 12.2.a : Verification
 
-Time to enhance our old memory tests : we keep the old one by asserting ```byte_enable = 0b1111``` (*because we were only dealing with word memory operations*) 
+Time to enhance our old memory tests : we keep the old one by asserting ```byte_enable = 0b1111``` (*because we were only dealing with word memory operations*)
 
 And then do some new tests with different ```byte_enable``` value using a simple for loop.
 
@@ -5098,7 +5098,7 @@ Now if we run all the tests from the test runner, **we obviously get failures ev
 
 So, how do we generate valid ```byte_enable``` signals ?
 
-The thing is we **don't know** what the final read address is until **we've reached the ALU**. 
+The thing is we **don't know** what the final read address is until **we've reached the ALU**.
 
 We could try to figure it out in control by getting info from the regitsers and alu back to the control, but these kind of design choices can lead to severe logic hazards when pipelining a CPU (which is an advanced technique to speed up clock speeds we will cover in another tutorial). The best practice here is simply to wait for the data to be availible and use it there.
 
