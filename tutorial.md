@@ -1,16 +1,16 @@
-# The HOLY CORE project : A full RISC-V Tutorial, for everyone
+# The HOLY CORE project : A full RISC-V RV32I Core Tutorial, for everyone
 
-This tutorial will teach you how to build and test a RISC-V Single cycle core at the RTL Level.
+This tutorial will teach **you** how to build and test a fully working RISC-V Single cycle core at the RTL Level using System Verilog HDL.
 
 We'll use a set of open-source tools to allow everyone to complete this project at home using little to no specific resources. If you need more info on the tools or the setup process, check out the [project setup](./setup.md) file. **The setup file also contains important informations on what you need to know, have and learn before starting this tutorial**.
 
 This tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) and on the *Digital Design and Computer Architecture, RISC-V Edition* Book from Sarah & David Harris. (*I'll let you do your own research to get your hands on the PDF*).
 
-> Why **Holy** core ? Because I like this name and wanted to a little credit to god. It is also a reference to Terry A. Davis. But the naming does not really impact this project, *at all*.
+> Why **Holy** core ? Because I like this name and wanted to a little credit to god. It is also a reference to Terry A. Davis (RIP). But the naming does not really impact this project, ***at all***. My goal with this project was to learn, and make **you** learn along the way. I plan on improving the design later on. Contributions are **welcome**
 
 In this tutorial, we will build the following core :
 
-![finished single cycle](./images/todo.png)
+![finished single cycle](./images/Holy_core.jpg)
 
 Which aims at implementing all of the RV32I base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each intruction we'll implement (only **RV32I** here).
 
