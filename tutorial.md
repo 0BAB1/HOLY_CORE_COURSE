@@ -5540,6 +5540,8 @@ Here is how this new data path would look like :
 
 You can see the new ```reader``` module which also gets info on what instruction is being fetched from *f3*. We need this information to know whether or not we should sign extend the data but also how to behave in all aspects of the data processing (data processing will be necessary to make the data ready to be written in a register).
 
+The reader modul also passes a ```valid``` flag to confirm the validity of the write. But more on that later.
+
 Here are how each of these instructions look like :
 
 |        | IMM [11:0]   | rs1          | f3     | rd           | op      |
@@ -5570,7 +5572,8 @@ module reader (
     input logic [3:0] be_mask,
     input logic [2:0] f3,
 
-    output logic [31:0] wb_data 
+    output logic [31:0] wb_data,
+    output logic valid
 );
 
 logic sign_extend;
@@ -5623,12 +5626,19 @@ always_comb begin : sign_extend_logic
         // LH, LHU
         3'b001, 3'b101: wb_data = sign_extend ? {{16{raw_data[15]}},raw_data[15:0]} : raw_data;
     endcase
+
+    valid = |be_mask;
+end
 end
     
 endmodule
 ```
 
-As you can see, I went for a... very descriptive file ! (*wait until you see the test bench haha*)
+As you can see, I went for a... very descriptive file ! (*wait until you see the test bench haha*).
+
+You also saw that there is a ```valid``` flag that depends on the mask value. This avoids writing **0** to ```rd``` when the ask is 0. This valid is then carried all the way to our reg_file to validate the write.
+
+> Adding valid signals is a technique used extensively in larger cores, especially in pipelined CPUs, under the form of a custom type. Unfortunatly, our simulator "*icarus verilog*" does not support custom types, meaning we'll have to switch to something like "*verilator*" for later tutorials.
 
 I guess there are more efficient ways to implement this logic using syntax tricks but I went for something that works and kept it very descriptive by addressing each case one by one.
 
@@ -5666,10 +5676,7 @@ import random
 
 @cocotb.test()
 async def reader_lw_test(dut):
-    """In this test, the input data is the same as the output, simple !"""
-    
     # LW TEST CASE
-
     dut.f3.value = 0b010
     await Timer(1, units="ns")
     dut.be_mask.value = 0b1111
@@ -5682,20 +5689,33 @@ async def reader_lw_test(dut):
 
 
 @cocotb.test()
+async def reader_invalid_test(dut):
+    dut.f3.value = 0b001
+    dut.mem_data.value = random.randint(0,0xFFFFFFFF)
+    for i in range(16):
+        dut.be_mask.value = i
+        await Timer(1, units="ns")
+        if i == 0 :
+            assert dut.valid.value == 0
+        else :
+            assert dut.valid.value == 1
+
+@cocotb.test()
 async def reader_lh_test(dut):
     # LH TEST CASE
     dut.f3.value = 0b001
 
     await Timer(1, units="ns")
 
-    dut.be_mask.value = 0b1100 # ! start the test with this mask
+    dut.be_mask.value = 0b1100
     await Timer(1, units="ns")
     for _ in range(100):
         # UNSIGNED
-        mem_data = random.randint(0,0x7FFFFFFF) # ! we first assert for unsigned as the behavior is not the same with sign extended numbers !
+        mem_data = random.randint(0,0x7FFFFFFF)
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFFFF0000) >> 16
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x80000000,0xFFFFFFFF)
@@ -5703,8 +5723,9 @@ async def reader_lh_test(dut):
         expected = ((mem_data & 0xFFFF0000) >> 16) - (1 << 16)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
-    dut.be_mask.value = 0b0011 # ! try the other mask, this changes the bitwise arithmetic for the test
+    dut.be_mask.value = 0b0011
     await Timer(1, units="ns")
     for _ in range(100):
         # UNSIGNED
@@ -5712,6 +5733,7 @@ async def reader_lh_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FFFF)
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00008000,0x0000FFFF) | 0xAEAE0000
@@ -5719,11 +5741,9 @@ async def reader_lh_test(dut):
         expected = (mem_data & 0x0000FFFF) - (1 << 16)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     # LHU TEST CASE
-
-    # LHU is way simpler, as we only do 1 test per mask. Because it bahaves the same for all nubers (no sign extension)
-
     dut.f3.value = 0b101
 
     await Timer(1, units="ns")
@@ -5735,6 +5755,7 @@ async def reader_lh_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFFFF0000) >> 16
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0011
     await Timer(1, units="ns")
@@ -5743,10 +5764,10 @@ async def reader_lh_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FFFF)
+        assert dut.valid.value == 1
 
 @cocotb.test()
 async def reader_lb_test(dut):
-    """These are EXACTLY the same as LH, except there are more masks to test..."""
     # LB TEST CASE
     dut.f3.value = 0b000
 
@@ -5760,6 +5781,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFF000000) >> 24
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x80000000,0xFFFFFFFF)
@@ -5767,6 +5789,7 @@ async def reader_lb_test(dut):
         expected = ((mem_data & 0xFF000000) >> 24) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0100
     await Timer(1, units="ns")
@@ -5776,6 +5799,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x00FF0000) >> 16
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00800000,0x00FFFFFF) | 0xAE000000
@@ -5783,6 +5807,7 @@ async def reader_lb_test(dut):
         expected = ((mem_data & 0x00FF0000) >> 16) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0010
     await Timer(1, units="ns")
@@ -5792,6 +5817,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FF00) >> 8
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00008000,0x0000FFFF) | 0xAEAE0000
@@ -5799,6 +5825,7 @@ async def reader_lb_test(dut):
         expected = ((mem_data & 0x0000FF00) >> 8) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0001
     await Timer(1, units="ns")
@@ -5808,6 +5835,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x000000FF)
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00000080,0x000000FF) | 0xAEAEAE00
@@ -5815,6 +5843,7 @@ async def reader_lb_test(dut):
         expected = (mem_data & 0x000000FF) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     # LBU TEST CASE
     dut.f3.value = 0b100
@@ -5828,6 +5857,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFF000000) >> 24
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0100
     await Timer(1, units="ns")
@@ -5836,6 +5866,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x00FF0000) >> 16
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0010
     await Timer(1, units="ns")
@@ -5844,6 +5875,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FF00) >> 8
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0001
     await Timer(1, units="ns")
@@ -5852,6 +5884,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x000000FF)
+        assert dut.valid.value == 1
 ```
 
 And there we go ! Note that you can get in touch with me if needed if you have trouble with this kind of etricate testbenches. **But** if you made it this far, I'm sure you'll be fine ;)
@@ -5898,33 +5931,85 @@ Here's the idea behind this implementation, (some details are truncated, don't f
 // ...
 
 /**
+* REGFILE
+*/
+
+// ...
+logic wb_valid;
+
+logic [31:0] write_back_data;
+always_comb begin : write_back_source_select
+    case (write_back_source)
+        2'b00: begin
+            write_back_data = alu_result;
+            wb_valid = 1'b1;
+        end
+        2'b01: begin
+            write_back_data = mem_read_write_back_data;
+            wb_valid = mem_read_write_back_valid;
+        end
+        2'b10: begin
+            write_back_data = pc_plus_four;
+            wb_valid = 1'b1;
+        end
+        2'b11: begin
+            write_back_data = pc_plus_second_add;
+            wb_valid = 1'b1;
+        end
+    endcase
+end
+
+regfile regfile(
+    // ...
+    .write_enable(reg_write & wb_valid), // AND GATE ADDED
+    // ...
+);
+
+
+// ...
+
+/**
 * DATA MEMORY
 */
-wire [31:0] mem_read; // New intermediate wire
+wire [31:0] mem_read;
 
 memory #(
     .mem_init("./test_dmemory.hex")
 ) data_memory (
-    // ...
+    // Memory inputs
+    .clk(clk),
+    .address({alu_result[31:2], 2'b00}),
+    .write_data(mem_write_data),
     .write_enable(mem_write),
     .byte_enable(mem_byte_enable),
-    // ...
+    .rst_n(1'b1),
+
+    // Memory outputs
+    .read_data(mem_read)
 );
 
 /**
 * READER
 */
 
-wire [31:0] mem_read_write_back; // New write back wore for memory write backs !
+wire [31:0] mem_read_write_back_data;
+wire mem_read_write_back_valid;
 
 reader reader_inst(
     .mem_data(mem_read),
     .be_mask(mem_byte_enable),
     .f3(f3),
-    .wb_data(mem_read_write_back) // Dont forget to update it in the write_back MUX !
-
+    .wb_data(mem_read_write_back_data),
+    .valid(mem_read_write_back_valid)
+);
 // ...
 ```
+
+As you can see, the ```valid``` flag for other logic block are always asserted because there is no reason not to sa far (we always made it so non-valid instructions do not infer with CPU state).
+
+> A potential improvement for later would be to de-assert the ```valid``` if the fetched instruction is not supported. Or even better, add another ```non-supported``` flag but given we can not do custom type, this is something we'll keep for future tutorials.
+
+*Note that this ```valid``` flag for memory is temporary and this will get thought out a bit better we implementing real memory interfaces.*
 
 ## 12.3.d : Verification program for ```lb```, ```lh```, ```lbu``` & ```lhu```
 
@@ -5932,9 +6017,74 @@ Now, the support for partial loads should be complete ! Whenever a load instruct
 
 - ```reg_write``` should be 1 and ```write_back_source``` is set on what's coming from our reader.
 - And our reader, getting its mask from the ```load_store_decoder```, should do the necessary to process the data coming from memory to be compliant with what's expected.
+- If the mask is invalid, the write does not happen !
 
-All that reamins to do, as usual, is to come up with a test program and a bunch of assertions :
+All that remains to do, as usual, is to come up with a test program :
 
 ```txt
-
+01000393  //LB TEST START :     addi x7 x0 0x10     | x7 <= 00000010 (base address for this test) // UNTESTES !!!
+FFF3A903  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER ! (x18 last value : FFF8FF00)
+FFF38903  //                    lb x18 -1(x7)       | x18 <= FFFFFFDE (0xC is DEADBEEF bc sw test)
+FFD3C983  //LBU TEST START :    lbu x19 -3(x7)      | x19 <= 000000BE
+FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x20 last value : 0FFFFEEF)
+FFA39A03  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
+FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
+FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
 ```
+
+And a bunch of assertions :
+
+```python
+# test_cpu.py
+
+# ...
+
+    #################
+    # PARTIAL LOADS
+    # 01000393  //LB TEST START :     addi x7 x0 0x10     | x7 <= 00000010 (base address for this test) // UNTESTES !!!
+    # FFF3A903  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER ! (x18 last value : FFF8FF00)
+    # FFF38903  //                    lb x18 -1(x7)       | x18 <= FFFFFFDE (0xC is DEADBEEF bc sw test)
+    # FFD3C983  //LBU TEST START :    lbu x19 -3(x7)      | x19 <= 000000BE
+    # FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x20 last value : 0FFFFEEF)
+    # FFA39A03  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
+    # FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
+    # FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
+    ##################
+    print("\n\nTESTING LB\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "01000393"
+
+    await RisingEdge(dut.clk) # addi x7 x0 0x10 
+    assert binary_to_hex(dut.regfile.registers[7].value) == "00000010"
+
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFF8FF00"
+    await RisingEdge(dut.clk) # lw x18 -1(x7)
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFF8FF00"
+
+    await RisingEdge(dut.clk) # lb x18 -1(x7) 
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFFFFFDE"
+
+    await RisingEdge(dut.clk) # lbu x19 -3(x7)
+    assert binary_to_hex(dut.regfile.registers[19].value) == "000000BE"
+
+    await RisingEdge(dut.clk) # lh x20 -3(x7) 
+    assert binary_to_hex(dut.regfile.registers[20].value) == "0FFFFEEF"
+
+    await RisingEdge(dut.clk) # lh x20 -6(x7)
+    assert binary_to_hex(dut.regfile.registers[20].value) == "FFFFDEAD"
+
+    await RisingEdge(dut.clk) # lhu x21 -3(x7) 
+    assert binary_to_hex(dut.regfile.registers[21].value) == "FFFFFFEE"
+
+    await RisingEdge(dut.clk) # lhu x21 -6(x7)
+    assert binary_to_hex(dut.regfile.registers[21].value) == "0000DEAD"
+```
+
+This time, we test them all at once as tthe principle is the same as what we did until now.
+
+## THE END (?)
+
+Well... Looks like we implemented all of the RV32I instruction set !
+
+<!-- Faire une outro -->

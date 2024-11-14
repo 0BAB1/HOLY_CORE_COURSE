@@ -591,3 +591,44 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # sh x8 6(x0) 
     # address is 1 because 0x6 is word @ address 4 and the test bench gets data by word
     assert binary_to_hex(dut.data_memory.mem[1].value) == "FFEE0000"
+
+    #################
+    # PARTIAL LOADS
+    # 01000393  //LB TEST START :     addi x7 x0 0x10     | x7 <= 00000010 (base address for this test) // UNTESTES !!!
+    # FFF3A903  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER ! (x18 last value : FFF8FF00)
+    # FFF38903  //                    lb x18 -1(x7)       | x18 <= FFFFFFDE (0xC is DEADBEEF bc sw test)
+    # FFD3C983  //LBU TEST START :    lbu x19 -3(x7)      | x19 <= 000000BE
+    # FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x20 last value : 0FFFFEEF)
+    # FFA39A03  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
+    # FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
+    # FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
+    ##################
+    print("\n\nTESTING LB\n\n")
+
+    # Check test's init state
+    assert binary_to_hex(dut.instruction.value) == "01000393"
+
+    await RisingEdge(dut.clk) # addi x7 x0 0x10 
+    assert binary_to_hex(dut.regfile.registers[7].value) == "00000010"
+
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFF8FF00"
+    await RisingEdge(dut.clk) # lw x18 -1(x7)
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFF8FF00"
+
+    await RisingEdge(dut.clk) # lb x18 -1(x7) 
+    assert binary_to_hex(dut.regfile.registers[18].value) == "FFFFFFDE"
+
+    await RisingEdge(dut.clk) # lbu x19 -3(x7)
+    assert binary_to_hex(dut.regfile.registers[19].value) == "000000BE"
+
+    await RisingEdge(dut.clk) # lh x20 -3(x7) 
+    assert binary_to_hex(dut.regfile.registers[20].value) == "0FFFFEEF"
+
+    await RisingEdge(dut.clk) # lh x20 -6(x7)
+    assert binary_to_hex(dut.regfile.registers[20].value) == "FFFFDEAD"
+
+    await RisingEdge(dut.clk) # lhu x21 -3(x7) 
+    assert binary_to_hex(dut.regfile.registers[21].value) == "FFFFFFEE"
+
+    await RisingEdge(dut.clk) # lhu x21 -6(x7)
+    assert binary_to_hex(dut.regfile.registers[21].value) == "0000DEAD"
