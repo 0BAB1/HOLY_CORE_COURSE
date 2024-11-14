@@ -3,22 +3,13 @@ adding new instructions quote : https://youtu.be/z6qxMFgNEM4?feature=shared&t=35
 testing 1 main program is cool and all but should make some more rovusts test benches fr the cpu, 
 or at least save the state (CPU & MEMORY) before each clock cycle and compare against to really isolate our changes.
 
-i'd like to do so much with this afterwards ! like actually use it for so many project i have in mind ! I feel like a 60-70's researcher trying to unlock the "computing power" thing in the tech tree haha.
-
-
-UPDATE THE CONTROL TESTS IN THE TUTORIAL : THEY LACK NEW INPUT RESET !
-
-Also apply new input reset method for ALU testbenches !
-
-create a test setup explanatory md file.
-
+UPDATE THE CONTROL TESTS IN THE TUTORIAL : THEY LACK NEW INPUT RESET !(done) 
+Also apply new input reset method for ALU testbenches ! (not done)
 
 9.1.b : add a default case to hadle unsupported f7
 
-REVIEW OF THE DOCUMENT STARTED :
+Make the setup file including all the simulation details, (normal & CPU ROM files).
 
--> Stopped at the biggin or RTYPE (just made the figure)
+And than startworking on the PDF for supporters (do the same for the AI tutorials)
 
-then make the setup file including all the simulation details, (normal & CPU ROM files).
-
-And than startworking on the PDF, do the same for the AI tutorials.
+onc RV32I is finished, freeze the last design schemes and do cover.

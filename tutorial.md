@@ -5856,10 +5856,85 @@ async def reader_lb_test(dut):
 
 And there we go ! Note that you can get in touch with me if needed if you have trouble with this kind of etricate testbenches. **But** if you made it this far, I'm sure you'll be fine ;)
 
-## 12.3.b : Update the ```be_decoder``` / ```load_store_decoder```
+## 12.3.b : Update the ```load_store_decoder``` / ```BE_decoder```
+
+I told you *f3* was consistent accross partial memory operations, but remember our ```load_store_decoder``` has no idea the unsigned ```lbu``` and ```lhu``` exists yet !
+
+So let's update the HDL slightly to take the new *f3* into account when decoding the mask :
+
+```sv
+// load_store_decoder.sv
+
+//...
+
+case (f3)
+    3'b000, 3'b100 : begin // SB, LB, LBU
+        case (offset)
+            // ...
+        endcase
+    end
+    
+    // ...
+
+    3'b001, 3'b101 : begin // SH, LH, LHU
+        // ...
+    end
+
+    // ...
+endcase
+
+// ...
+```
 
 ## 12.3.c : Update the *CPU* data path
 
-*also run the old tests to see if they're still okay !
+Okay, now that we have our *reader* behaving as expected, what we'll do is simply add it to our datapath.
 
-## 12.3.d : Verification program for ```lb```, ```lh```, ```lbu``` & ```lhu``` 
+Here's the idea behind this implementation, (some details are truncated, don't forget to update everything !)
+
+```sv
+// cpu.sv
+
+// ...
+
+/**
+* DATA MEMORY
+*/
+wire [31:0] mem_read; // New intermediate wire
+
+memory #(
+    .mem_init("./test_dmemory.hex")
+) data_memory (
+    // ...
+    .write_enable(mem_write),
+    .byte_enable(mem_byte_enable),
+    // ...
+);
+
+/**
+* READER
+*/
+
+wire [31:0] mem_read_write_back; // New write back wore for memory write backs !
+
+reader reader_inst(
+    .mem_data(mem_read),
+    .be_mask(mem_byte_enable),
+    .f3(f3),
+    .wb_data(mem_read_write_back) // Dont forget to update it in the write_back MUX !
+
+// ...
+```
+
+## 12.3.d : Verification program for ```lb```, ```lh```, ```lbu``` & ```lhu```
+
+Now, the support for partial loads should be complete ! Whenever a load instruction is fetched :
+
+- ```reg_write``` should be 1 and ```write_back_source``` is set on what's coming from our reader.
+- And our reader, getting its mask from the ```load_store_decoder```, should do the necessary to process the data coming from memory to be compliant with what's expected.
+
+All that reamins to do, as usual, is to come up with a test program and a bunch of assertions :
+
+```txt
+
+```

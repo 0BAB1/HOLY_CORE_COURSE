@@ -14,7 +14,7 @@ assign offset = alu_result_address[1:0];
 
 always_comb begin
     case (f3)
-        3'b000: begin // SB
+        3'b000, 3'b100 : begin // SB, LB, LBU
             case (offset)
                 2'b00: begin
                     byte_enable = 4'b0001;
@@ -41,7 +41,7 @@ always_comb begin
             data = reg_read;
         end
 
-        3'b001: begin // SH
+        3'b001, 3'b101 : begin // SH, LH, LHU
             case (offset)
                 2'b00: begin 
                     byte_enable = 4'b0011;
