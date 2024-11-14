@@ -12,9 +12,9 @@ In this tutorial, we will build the following core :
 
 ![finished single cycle](./images/Holy_core.jpg)
 
-Which aims at implementing all of the RV32I base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each intruction we'll implement (only **RV32I** here).
+Which aims at implementing all of the **RV32I** base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each intruction we'll implement.
 
-We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than basics (e.g. full aders and gate-level design).
+We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than low-level basics (e.g. full aders, shifts, ... and gate-level design in general).
 
 You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
