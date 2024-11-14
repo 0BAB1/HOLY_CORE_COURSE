@@ -74,14 +74,14 @@ FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000118, go @PC 0x1
 008010A3  //SH TEST START :     sh x8 1(x0)         | NO WRITE ! (mis-aligned !)
 008011A3  //                    sh x8 3(x0)         | NO WRITE ! (mis-aligned !)
 00801323  //                    sh x8 6(x0)         | mem @ 0x4 <= FFEE0000      
-00000013  //LB TEST START :     addi x7 x0 0x10     | x7 <= 00000010 (base address for this test) // UNTESTES !!!
-00000013  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER !
-00000013  //                    lb x18 -1(x7)       | x7 <= FFFFFFF2
-00000013  //LBU TEST START :    lbu x19 -3(x7)      | x7 <= 000000F2
-00000013  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x20 last value : 0FFFFEEF)
-00000013  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
-00000013  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
-00000013  //                    lhu x21 -6(x7)      | x20 <= 0000DEAD
+01000393  //LB TEST START :     addi x7 x0 0x10     | x7 <= 00000010 (base address for this test) // UNTESTES !!!
+FFF3A903  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER ! (x18 last value : FFF8FF00)
+FFF38903  //                    lb x18 -1(x7)       | x18 <= FFFFFFDE (0xC is DEADBEEF bc sw test)
+FFD3C983  //LBU TEST START :    lbu x19 -3(x7)      | x19 <= 000000BE
+FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x20 last value : 0FFFFEEF)
+FFA39A03  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
+FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
+FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

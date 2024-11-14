@@ -115,14 +115,27 @@ logic [4:0] dest_reg;
 assign dest_reg = instruction[11:7];
 wire [31:0] read_reg1;
 wire [31:0] read_reg2;
+logic wb_valid;
 
 logic [31:0] write_back_data;
 always_comb begin : write_back_source_select
     case (write_back_source)
-        2'b00: write_back_data = alu_result;
-        2'b01: write_back_data = mem_read_write_back;
-        2'b10: write_back_data = pc_plus_four;
-        2'b11: write_back_data = pc_plus_second_add;
+        2'b00: begin
+            write_back_data = alu_result;
+            wb_valid = 1'b1;
+        end
+        2'b01: begin
+            write_back_data = mem_read_write_back_data;
+            wb_valid = mem_read_write_back_valid;
+        end
+        2'b10: begin
+            write_back_data = pc_plus_four;
+            wb_valid = 1'b1;
+        end
+        2'b11: begin
+            write_back_data = pc_plus_second_add;
+            wb_valid = 1'b1;
+        end
     endcase
 end
 
@@ -139,7 +152,7 @@ regfile regfile(
     .read_data2(read_reg2),
 
     // Write In
-    .write_enable(reg_write),
+    .write_enable(reg_write & wb_valid),
     .write_data(write_back_data),
     .address3(dest_reg)
 );
@@ -219,13 +232,15 @@ memory #(
 * READER
 */
 
-wire [31:0] mem_read_write_back;
+wire [31:0] mem_read_write_back_data;
+wire mem_read_write_back_valid;
 
 reader reader_inst(
     .mem_data(mem_read),
     .be_mask(mem_byte_enable),
     .f3(f3),
-    .wb_data(mem_read_write_back)
+    .wb_data(mem_read_write_back_data),
+    .valid(mem_read_write_back_valid)
 );
     
 endmodule

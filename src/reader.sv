@@ -5,8 +5,9 @@ module reader (
     input logic [3:0] be_mask,
     input logic [2:0] f3,
 
-    output logic [31:0] wb_data 
-);
+    output logic [31:0] wb_data,
+    output logic valid
+); 
 
 logic sign_extend;
 assign sign_extend = ~f3[2];
@@ -58,6 +59,8 @@ always_comb begin : sign_extend_logic
         // LH, LHU
         3'b001, 3'b101: wb_data = sign_extend ? {{16{raw_data[15]}},raw_data[15:0]} : raw_data;
     endcase
+
+    valid = |be_mask;
 end
     
 endmodule

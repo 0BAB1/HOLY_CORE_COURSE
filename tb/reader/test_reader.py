@@ -19,6 +19,18 @@ async def reader_lw_test(dut):
 
 
 @cocotb.test()
+async def reader_invalid_test(dut):
+    dut.f3.value = 0b001
+    dut.mem_data.value = random.randint(0,0xFFFFFFFF)
+    for i in range(16):
+        dut.be_mask.value = i
+        await Timer(1, units="ns")
+        if i == 0 :
+            assert dut.valid.value == 0
+        else :
+            assert dut.valid.value == 1
+
+@cocotb.test()
 async def reader_lh_test(dut):
     # LH TEST CASE
     dut.f3.value = 0b001
@@ -33,6 +45,7 @@ async def reader_lh_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFFFF0000) >> 16
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x80000000,0xFFFFFFFF)
@@ -40,6 +53,7 @@ async def reader_lh_test(dut):
         expected = ((mem_data & 0xFFFF0000) >> 16) - (1 << 16)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0011
     await Timer(1, units="ns")
@@ -49,6 +63,7 @@ async def reader_lh_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FFFF)
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00008000,0x0000FFFF) | 0xAEAE0000
@@ -56,6 +71,7 @@ async def reader_lh_test(dut):
         expected = (mem_data & 0x0000FFFF) - (1 << 16)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     # LHU TEST CASE
     dut.f3.value = 0b101
@@ -69,6 +85,7 @@ async def reader_lh_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFFFF0000) >> 16
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0011
     await Timer(1, units="ns")
@@ -77,6 +94,7 @@ async def reader_lh_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FFFF)
+        assert dut.valid.value == 1
 
 @cocotb.test()
 async def reader_lb_test(dut):
@@ -93,6 +111,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFF000000) >> 24
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x80000000,0xFFFFFFFF)
@@ -100,6 +119,7 @@ async def reader_lb_test(dut):
         expected = ((mem_data & 0xFF000000) >> 24) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0100
     await Timer(1, units="ns")
@@ -109,6 +129,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x00FF0000) >> 16
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00800000,0x00FFFFFF) | 0xAE000000
@@ -116,6 +137,7 @@ async def reader_lb_test(dut):
         expected = ((mem_data & 0x00FF0000) >> 16) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0010
     await Timer(1, units="ns")
@@ -125,6 +147,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FF00) >> 8
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00008000,0x0000FFFF) | 0xAEAE0000
@@ -132,6 +155,7 @@ async def reader_lb_test(dut):
         expected = ((mem_data & 0x0000FF00) >> 8) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0001
     await Timer(1, units="ns")
@@ -141,6 +165,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x000000FF)
+        assert dut.valid.value == 1
 
         # SIGNED
         mem_data = random.randint(0x00000080,0x000000FF) | 0xAEAEAE00
@@ -148,6 +173,7 @@ async def reader_lb_test(dut):
         expected = (mem_data & 0x000000FF) - (1 << 8)
         await Timer(1, units="ns")
         assert int(dut.wb_data.value) - (1 << 32) == expected
+        assert dut.valid.value == 1
 
     # LBU TEST CASE
     dut.f3.value = 0b100
@@ -161,6 +187,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0xFF000000) >> 24
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0100
     await Timer(1, units="ns")
@@ -169,6 +196,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x00FF0000) >> 16
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0010
     await Timer(1, units="ns")
@@ -177,6 +205,7 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x0000FF00) >> 8
+        assert dut.valid.value == 1
 
     dut.be_mask.value = 0b0001
     await Timer(1, units="ns")
@@ -185,3 +214,4 @@ async def reader_lb_test(dut):
         dut.mem_data.value = mem_data
         await Timer(1, units="ns")
         assert dut.wb_data.value == (mem_data & 0x000000FF)
+        assert dut.valid.value == 1
