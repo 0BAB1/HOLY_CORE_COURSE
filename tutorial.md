@@ -18,6 +18,10 @@ We will implement these using SystemVerilog at the Register-Transfer Level (RTL)
 
 You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
+## Disclaimers before starting
+
+Definitive source code may differ a bit as I changed simulator along the way and also fixed a few minor bugs. This should not stop you from completing it on your own ! Hope you enjoy !
+
 ## 0 : Where do we start
 
 In order to build this core, we'll start by following the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube). You can also use their book cited in the intro. This will allow you to have another reference to start this project, which can be extremely useful if there is something you struggle to understand.
