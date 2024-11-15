@@ -4,3 +4,6 @@ __pycache__
 results.xml
 *.None
 *.odg#
+new.hex
+temp.py
+*.vcd

@@ -191,8 +191,10 @@ always_comb begin
                 3'b100, 3'b101 : alu_control = 4'b0101;
                 // BLTU, BGEU
                 3'b110, 3'b111 : alu_control = 4'b0111;
+                default : alu_control = 4'b1111;
             endcase
         end
+        default : alu_control = 4'b1111;
     endcase
 end
 

@@ -27,6 +27,7 @@ always_comb begin : second_add_select
         2'b00 : pc_plus_second_add = pc + immediate;
         2'b01 : pc_plus_second_add = immediate;
         2'b10 : pc_plus_second_add = read_reg1 + immediate;
+        default : pc_plus_second_add = 32'd0;
     endcase
 end
 
@@ -54,6 +55,7 @@ memory #(
     .write_data(32'b0),
     .write_enable(1'b0),
     .rst_n(1'b1),
+    .byte_enable(4'b0000),
 
     // Memory outputs
     .read_data(instruction)

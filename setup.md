@@ -24,13 +24,9 @@ You also need to install the stack described below.
 
 SystemVerilog
 
-### Simulator :  Icarus verilog
+### Simulator :  Verilator
 
-[Nerdy build](https://circuitcove.com/tools-iverilog-installation/)
-
-you can also use ```apt install iverilog```
-
-### TenstBenches : cocotb
+### TestBenches : cocotb
 
 [WebSite](https://www.cocotb.org/)
 

@@ -21,7 +21,8 @@ always_comb begin
         3'b011 : immediate = {{12{raw_src[24]}}, raw_src[12:5], raw_src[13], raw_src[23:14], 1'b0};
         // For U-Types
         3'b100 : immediate = {raw_src[24:5],12'b000000000000};
-        default: immediate = 12'b0;
+
+        default: immediate = 32'd0;
     endcase
 end
     

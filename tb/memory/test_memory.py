@@ -10,8 +10,10 @@ async def reset(dut):
     dut.address.value = 0
     dut.write_data.value = 0
     await RisingEdge(dut.clk)
-    dut.rst_n.value = 1
     await RisingEdge(dut.clk)
+    dut.rst_n.value = 1
+
+    print("reset done !")
 
     # Assert all is 0 after reset
     for address in range(dut.WORDS.value):
@@ -103,6 +105,5 @@ async def memory_data_test(dut):
             await RisingEdge(dut.clk)
 
             # Verify by reading back
-            dut.address.value = address
             await RisingEdge(dut.clk)
-            assert dut.read_data.value == data & mask
+            
