@@ -27,16 +27,23 @@ end
 always @(posedge clk) begin
     if (rst_n == 1'b0) begin
         for (int i = 0; i < WORDS; i++) begin
-            mem[i] <= 32'b0;
+            mem[i] = 32'd0;
         end
-    end else if (write_enable) begin
-        if (address[1:0] != 2'b00) begin
-            $display("Misaligned write at address %h", address);
-        end else begin
-            // use byte-enable to selectively write bytes
-            for (int i = 0; i < 4; i++) begin
-                if (byte_enable[i]) begin
-                    mem[address[31:2]][(i*8)+:8] <= write_data[(i*8)+:8];
+        for (int i = 0; i < WORDS; i++) begin
+            mem[i] <= 32'd0;
+        end
+    end else begin
+        if(write_enable) begin
+            if (address[1:0] != 2'b00) begin
+                $display("Misaligned write at address %h", address);
+            end else begin
+                // use byte-enable to selectively write bytes
+                for (int i = 0; i < 4; i++) begin
+                    if (byte_enable[i]) begin
+                        /* verilator lint_off WIDTHTRUNC */
+                        mem[address[31:2]][(i*8)+:8] <= write_data[(i*8)+:8];
+                        /* verilator lint_on WIDTHTRUNC */
+                    end
                 end
             end
         end
@@ -44,7 +51,9 @@ always @(posedge clk) begin
 end
 
 always_comb begin
+    /* verilator lint_off WIDTHTRUNC */
     read_data = mem[address[31:2]];
+    /* verilator lint_on WIDTHTRUNC */
 end
 
 endmodule

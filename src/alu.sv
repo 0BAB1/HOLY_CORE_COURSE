@@ -35,6 +35,7 @@ always_comb begin
         4'b0110 : alu_result = src1 >> shamt;
         // SRA STUFF
         4'b1001 : alu_result = $signed(src1) >>> shamt;
+        default : alu_result = 32'd0;
     endcase
 end
 

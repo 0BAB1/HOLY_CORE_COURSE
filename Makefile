@@ -6,3 +6,4 @@ clean:
 	@find ./tb -type f -name "results.xml" -exec rm -f {} +
 	@find ./tb -type f -name "*.None" -exec rm -f {} +
 	@find ./tb -type d -name ".pytest_cache" -exec rm -rf {} +
+	@find ./tb -type f -name "dump.vcd" -exec rm -f {} +

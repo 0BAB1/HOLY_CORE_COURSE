@@ -3719,8 +3719,6 @@ end
 // ...
 ```
 
-> I also got rid of the default case, because it's useless. I'll do the same for the others from now on when necessary.
-
 ### 8.1.b : Verification
 
 Here is the tb. As usual for control : basic assertions
@@ -3836,8 +3834,6 @@ We simply add this statement in the alu logic :
 // ...
 ```
 
-I also deleted the "default" statement, now rendered useless (and it always was tbh).
-
 ### 8.2.a : Verification
 
 And we verify using this testbench, slighlty simpler than the signed version as every number here is treated as positive :
@@ -3862,8 +3858,6 @@ async def sltu_test(dut):
 
         assert dut.alu_result.value == 31*"0" + str(int(dut.alu_result.value))
 ```
-
-I also deleted the "default" test case for the *ALU* as well.
 
 ## 8.2.b : Update the *control* unit for ```sltiu```
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from cocotb.runner import get_runner
 
 def generic_tb_runner(design_name):
-    sim = os.getenv("SIM", "icarus")
+    sim = os.getenv("SIM", "verilator")
     proj_path = Path(__name__).resolve().parent.parent
     sources = list(proj_path.glob("src/*.sv"))
     runner = get_runner(sim)
