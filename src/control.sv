@@ -1,4 +1,5 @@
 `timescale 1ns/1ps
+`include "../../packages/holy_core_pkg.sv"
 
 module control (
     // IN
@@ -19,6 +20,8 @@ module control (
     output logic [1:0] second_add_source
 );
 
+import holy_core__pkg::*;
+
 /**
 * MAIN DECODER
 */
@@ -30,7 +33,7 @@ logic jump;
 always_comb begin
     case (op)
         // I-type
-        7'b0000011 : begin
+        OPCODE_I_TYPE_LOAD : begin
             reg_write = 1'b1;
             imm_source = 3'b000;
             mem_write = 1'b0;
@@ -41,7 +44,7 @@ always_comb begin
             jump = 1'b0;
         end
         // ALU I-type
-        7'b0010011 : begin
+        OPCODE_I_TYPE_ALU : begin
             imm_source = 3'b000;
             alu_source = 1'b1; //imm
             mem_write = 1'b0;
@@ -49,25 +52,25 @@ always_comb begin
             write_back_source = 2'b00; //alu_result
             branch = 1'b0;
             jump = 1'b0;
-            // If we have a shift with a contant to handle, we have to invalidate writes for
+            // If we have a shift with a constant to handle, we have to invalidate writes for
             // instructions that does not have a well-formated immediate with "f7" and a 5bits shamt
             // ie :
             // - 7 upper bits are interpreted as a "f7", ony valid for a restricted slection tested below
             // - 5 lower as shamt (because max shift is 32bits and 2^5 = 32).
-            if(func3 == 3'b001)begin
+            if(func3 == F3_SLL)begin
                 // slli only accept f7 7'b0000000
-                reg_write = (func7 == 7'b0000000) ? 1'b1 : 1'b0;
+                reg_write = (func7 == F7_SLL_SRL) ? 1'b1 : 1'b0;
             end
-            else if(func3 == 3'b101)begin
+            else if(func3 == F3_SRL_SRA)begin
                 // srli only accept f7 7'b0000000
-                // srli only accept f7 7'b0100000
-                reg_write = (func7 == 7'b0000000 | func7 == 7'b0100000) ? 1'b1 : 1'b0;
+                // srai only accept f7 7'b0100000
+                reg_write = (func7 == F7_SLL_SRL | func7 == F7_SRA) ? 1'b1 : 1'b0;
             end else begin
                 reg_write = 1'b1;
             end
         end
         // S-Type
-        7'b0100011 : begin
+        OPCODE_S_TYPE : begin
             reg_write = 1'b0;
             imm_source = 3'b001;
             mem_write = 1'b1;
@@ -77,7 +80,7 @@ always_comb begin
             jump = 1'b0;
         end
         // R-Type
-        7'b0110011 : begin
+        OPCODE_R_TYPE : begin
             reg_write = 1'b1;
             mem_write = 1'b0;
             alu_op = 2'b10;
@@ -87,7 +90,7 @@ always_comb begin
             jump = 1'b0;
         end
         // B-type
-        7'b1100011 : begin
+        OPCODE_B_TYPE : begin
             reg_write = 1'b0;
             imm_source = 3'b010;
             alu_source = 1'b0;
@@ -98,7 +101,7 @@ always_comb begin
             second_add_source = 2'b00;
         end
         // J-type + JALR weird Hybrib
-        7'b1101111, 7'b1100111 : begin
+        OPCODE_J_TYPE, OPCODE_J_TYPE_JALR : begin
             reg_write = 1'b1;
             imm_source = 3'b011;
             mem_write = 1'b0;
@@ -115,7 +118,7 @@ always_comb begin
             end
         end
         // U-type
-        7'b0110111, 7'b0010111 : begin
+        OPCODE_U_TYPE_LUI, OPCODE_U_TYPE_AUIPC : begin
             imm_source = 3'b100;
             mem_write = 1'b0;
             reg_write = 1'b1;
@@ -134,6 +137,7 @@ always_comb begin
             mem_write = 1'b0;
             jump = 1'b0;
             branch = 1'b0;
+            $display("Unknown/Unsupported OP CODE !");
         end
     endcase
 end
@@ -145,52 +149,52 @@ end
 always_comb begin
     case (alu_op)
         // LW, SW
-        2'b00 : alu_control = 4'b0000;
+        ALU_OP_LOAD_STORE : alu_control = ALU_ADD;
         // R-Types, I-types
-        2'b10 : begin
+        ALU_OP_MATH : begin
             case (func3)
                 // ADD (and later SUB with a different F7)
-                3'b000 : begin
+                F3_ADD_SUB : begin
                     // 2 scenarios here :
                     // - R-TYPE : either add or sub and we need to a check for that
                     // - I-Type : aadi -> we use add arithmetic
                     if(op == 7'b0110011) begin // R-type
-                        alu_control = func7[5] ? 4'b0001 : 4'b0000;
+                        alu_control = (func7 == F7_SUB)? ALU_SUB : ALU_ADD;
                     end else begin // I-Type
-                        alu_control = 4'b0000;
+                        alu_control = ALU_ADD;
                     end
                 end
                 // AND
-                3'b111 : alu_control = 4'b0010;
+                F3_AND : alu_control = ALU_AND;
                 // OR
-                3'b110 : alu_control = 4'b0011;
-                // SLTI
-                3'b010 : alu_control = 4'b0101;
-                // SLTIU
-                3'b011 : alu_control = 4'b0111;
+                F3_OR : alu_control = ALU_OR;
+                // SLT, SLTI
+                F3_SLT: alu_control = ALU_SLT;
+                // SLTU, SLTIU
+                F3_SLTU : alu_control = ALU_SLTU;
                 // XOR
-                3'b100 : alu_control = 4'b1000;
+                F3_XOR : alu_control = ALU_XOR;
                 // SLL
-                3'b001 : alu_control = 4'b0100;
+                F3_SLL : alu_control = ALU_SLL;
                 // SRL, SRA
-                3'b101 : begin
-                    if(func7 == 7'b0000000) begin
-                        alu_control = 4'b0110; // srl
-                    end else if (func7 == 7'b0100000) begin
-                        alu_control = 4'b1001; // sra
+                F3_SRL_SRA : begin
+                    if(func7 == F7_SLL_SRL) begin
+                        alu_control = ALU_SRL; // srl
+                    end else if (func7 == F7_SRA) begin
+                        alu_control = ALU_SRA; // sra
                     end
                 end
             endcase
         end
         // BRANCHES
-        2'b01 : begin
+        ALU_OP_BRANCHES : begin
             case (func3)
                 // BEQ, BNE
-                3'b000, 3'b001 : alu_control = 4'b0001;
+                F3_BEQ, F3_BNE : alu_control = 4'b0001;
                 // BLT, BGE
-                3'b100, 3'b101 : alu_control = 4'b0101;
+                F3_BLT, F3_BGE : alu_control = 4'b0101;
                 // BLTU, BGEU
-                3'b110, 3'b111 : alu_control = 4'b0111;
+                F3_BLTU, F3_BGEU : alu_control = 4'b0111;
                 default : alu_control = 4'b1111;
             endcase
         end

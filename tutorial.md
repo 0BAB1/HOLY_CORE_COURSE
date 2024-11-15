@@ -6081,8 +6081,21 @@ And a bunch of assertions :
 
 This time, we test them all at once as tthe principle is the same as what we did until now.
 
-## THE END (?)
+## THE END ? **NO** ! FPGA IMPLEMENTATION
 
-Well... Looks like we implemented all of the RV32I instruction set !
+Well... Looks like we implemented all of the RV32I instruction set ! But is it the end ? Well yes and no.
 
-<!-- Faire une outro -->
+After making this course on my side, I looked into implemeting this core on fpga. The thing is that if I wanted to do so, the core needed to be... well... a bit more profesionnal !
+
+This is beacause using external momery etc raises the need to building interfaces, which is easier to do using system verilog fancy notations.
+
+So the first task is to switch to actual systemverilog ! Until now I used **icarus verilog** as a simulator, eaning I have to switch to **verilator** to have full system verilog support. (*On your side, the setup file told you to use **verilator** so you shouldn't have to switch.*)
+
+Once this is done, we can actually start doing a bit od cleaning to make the core more "pro".
+
+Here is what we'll do :
+
+- Make a config file with
+  - Standardized signals, e.g. we'll use a **op-code** using a variable name instead of hardcoded 7 bits
+  - Standardized write_back signal type (a data with a valid signal)
+  - and more, the goal is to **avoid hardcoded values** and **group signals than can be grouped toghether**
