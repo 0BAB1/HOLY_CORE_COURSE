@@ -1,5 +1,4 @@
 `timescale 1ns/1ps
-`include "../../packages/holy_core_pkg.sv"
 
 module control (
     // IN
@@ -211,13 +210,13 @@ logic assert_branch;
 always_comb begin : branch_logic_decode
     case (func3)
         // BEQ
-        3'b000 : assert_branch = alu_zero & branch;
+        F3_BEQ : assert_branch = alu_zero & branch;
         // BLT, BLTU
-        3'b100, 3'b110 : assert_branch = alu_last_bit & branch;
+        F3_BLT, F3_BLTU : assert_branch = alu_last_bit & branch;
         // BNE
-        3'b001 : assert_branch = ~alu_zero & branch;
+        F3_BNE : assert_branch = ~alu_zero & branch;
         // BGE, BGEU
-        3'b101, 3'b111 : assert_branch = ~alu_last_bit & branch;
+        F3_BGE, F3_BGEU : assert_branch = ~alu_last_bit & branch;
         default : assert_branch = 1'b0;
     endcase
 end
