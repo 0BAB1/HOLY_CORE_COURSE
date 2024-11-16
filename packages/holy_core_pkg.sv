@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 package holy_core__pkg;
   // https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing
 
@@ -42,6 +44,15 @@ package holy_core__pkg;
     F3_BLTU  = 3'b110,
     F3_BGEU  = 3'b111
   } branch_funct3_t;
+
+  // LOAD & STORES F3
+  typedef enum logic [2:0] {
+    F3_WORD = 3'b010,
+    F3_BYTE = 3'b000,
+    F3_BYTE_U = 3'b100,
+    F3_HALFWORD = 3'b001,
+    F3_HALFWORD_U = 3'b101
+  } load_store_funct3_t;
 
   // F7 for shifts
   typedef enum logic [6:0] {

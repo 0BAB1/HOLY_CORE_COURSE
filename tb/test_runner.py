@@ -14,13 +14,14 @@ def generic_tb_runner(design_name):
     proj_path = Path(__name__).resolve().parent.parent
     sources = list(proj_path.glob("src/*.sv"))
     runner = get_runner(sim)
+    print(f"--trace {proj_path}/packages/holy_core_pkg.sv")
     runner.build(
         sources=sources,
         hdl_toplevel=f"{design_name}",
-        build_dir=f"./{design_name}/sim_build"
+        build_dir=f"./{design_name}/sim_build",
+        build_args=[f"--trace", "--trace-structs", "--trace", f"{proj_path}/packages/holy_core_pkg.sv"]
     )
     runner.test(hdl_toplevel=f"{design_name}", test_module=f"test_{design_name}", test_dir=f"./{design_name}")
-
 
 def test_alu():
     generic_tb_runner("alu")
