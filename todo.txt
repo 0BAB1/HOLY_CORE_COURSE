@@ -10,6 +10,8 @@ Also apply new input reset method for ALU testbenches ! (not done)
 
 Make the setup file including all the simulation details, (normal & CPU ROM files).
 
+include also details on dfferents simulations and how to include packages for verilator
+
 And than startworking on the PDF for supporters (do the same for the AI tutorials)
 
 onc RV32I is finished, freeze the last design schemes and do cover.

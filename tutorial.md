@@ -6099,3 +6099,160 @@ Here is what we'll do :
   - Standardized signals, e.g. we'll use a **op-code** using a variable name instead of hardcoded 7 bits
   - Standardized write_back signal type (a data with a valid signal)
   - and more, the goal is to **avoid hardcoded values** and **group signals than can be grouped toghether**
+
+For the hardcoded signals part, I described the main ones in the package :
+
+```sv
+// holy_core_pkg.sv
+`timescale 1ns/1ps
+
+package holy_core__pkg;
+  // https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing
+
+  // INSTRUCTION OP CODES
+  typedef enum logic [6:0] {
+    OPCODE_R_TYPE         = 7'b0110011,
+    OPCODE_I_TYPE_ALU     = 7'b0010011,
+    OPCODE_I_TYPE_LOAD    = 7'b0000011,
+    OPCODE_S_TYPE         = 7'b0100011,
+    OPCODE_B_TYPE         = 7'b1100011,
+    OPCODE_U_TYPE_LUI     = 7'b0110111,
+    OPCODE_U_TYPE_AUIPC   = 7'b0010111,
+    OPCODE_J_TYPE         = 7'b1101111,
+    OPCODE_J_TYPE_JALR    = 7'b1100111
+  } opcode_t;
+
+  // ALU OPs for ALU DECODER
+  typedef enum logic [1:0] {
+    ALU_OP_LOAD_STORE     = 2'b00,
+    ALU_OP_BRANCHES       = 2'b01,
+    ALU_OP_MATH           = 2'b10
+  } alu_op_t ;
+
+  // "MATH" F3 (R&I Types)
+  typedef enum logic [2:0] {
+    F3_ADD_SUB = 3'b000,
+    F3_SLL     = 3'b001,
+    F3_SLT     = 3'b010,
+    F3_SLTU    = 3'b011,
+    F3_XOR     = 3'b100,
+    F3_SRL_SRA = 3'b101,
+    F3_OR      = 3'b110,
+    F3_AND     = 3'b111
+  } funct3_t;
+
+  // BRANCHES F3
+  typedef enum logic [2:0] {
+    F3_BEQ  = 3'b000,
+    F3_BNE  = 3'b001,
+    F3_BLT  = 3'b100,
+    F3_BGE  = 3'b101,
+    F3_BLTU  = 3'b110,
+    F3_BGEU  = 3'b111
+  } branch_funct3_t;
+
+  // LOAD & STORES F3
+  typedef enum logic [2:0] {
+    F3_WORD = 3'b010,
+    F3_BYTE = 3'b000,
+    F3_BYTE_U = 3'b100,
+    F3_HALFWORD = 3'b001,
+    F3_HALFWORD_U = 3'b101
+  } load_store_funct3_t;
+
+  // F7 for shifts
+  typedef enum logic [6:0] {
+    F7_SLL_SRL  = 7'b0000000,
+    F7_SRA  = 7'b0100000
+  } shifts_f7_t;
+
+  // F7 for R-Types
+  typedef enum logic [6:0] {
+    F7_ADD  = 7'b0000000,
+    F7_SUB  = 7'b0100000
+  } rtype_f7_t;
+
+  // ALU control arithmetic
+  typedef enum logic [3:0] {
+    ALU_ADD = 4'b0000,
+    ALU_SUB = 4'b0001,
+    ALU_AND = 4'b0010,
+    ALU_OR = 4'b0011,
+    ALU_SLL = 4'b0100,
+    ALU_SLT = 4'b0101,
+    ALU_SRL = 4'b0110,
+    ALU_SLTU = 4'b0111,
+    ALU_XOR = 4'b1000,
+    ALU_SRA = 4'b1001
+  } alu_control_t;
+
+endpackage
+```
+
+And we them them around the files, check out the [setup](./setup.md) file for directions on howw to include the package and make it work with verilator on cocotb.
+
+Here is a usage example :
+
+```sv
+// control.sv
+
+// ...
+
+    case (alu_op)
+        // LW, SW
+        ALU_OP_LOAD_STORE : alu_control = ALU_ADD;
+        // R-Types, I-types
+        ALU_OP_MATH : begin
+            case (func3)
+                // ADD (and later SUB with a different F7)
+                F3_ADD_SUB : begin
+                    // 2 scenarios here :
+                    // - R-TYPE : either add or sub and we need to a check for that
+                    // - I-Type : aadi -> we use add arithmetic
+                    if(op == 7'b0110011) begin // R-type
+                        alu_control = (func7 == F7_SUB)? ALU_SUB : ALU_ADD;
+                    end else begin // I-Type
+                        alu_control = ALU_ADD;
+                    end
+                end
+                // AND
+                F3_AND : alu_control = ALU_AND;
+                // OR
+                F3_OR : alu_control = ALU_OR;
+                // SLT, SLTI
+                F3_SLT: alu_control = ALU_SLT;
+                // SLTU, SLTIU
+                F3_SLTU : alu_control = ALU_SLTU;
+                // XOR
+                F3_XOR : alu_control = ALU_XOR;
+                // SLL
+                F3_SLL : alu_control = ALU_SLL;
+                // SRL, SRA
+                F3_SRL_SRA : begin
+                    if(func7 == F7_SLL_SRL) begin
+                        alu_control = ALU_SRL; // srl
+                    end else if (func7 == F7_SRA) begin
+                        alu_control = ALU_SRA; // sra
+                    end
+                end
+            endcase
+
+// ...
+```
+
+Now we'll aslo define what we wanted to do earlier with the write back : a **packed struct** that carries a valid signal to confirm (or not) the write in registers :
+
+```sv
+// holy_core_pkg.sv
+
+// ...
+
+// Write_back signal
+typedef struct packed {
+    logic [31:0] data;
+    logic valid;
+} write_back_t;
+
+// ...
+
+```

@@ -9,6 +9,8 @@ module reader (
     output logic valid
 ); 
 
+import holy_core__pkg::*;
+
 logic sign_extend;
 assign sign_extend = ~f3[2];
 
@@ -28,9 +30,9 @@ end
 
 always_comb begin : shift_data
     case (f3)
-        3'b010 : raw_data = masked_data; // masked data is full word in that case
+        F3_WORD : raw_data = masked_data; // masked data is full word in that case
 
-        3'b000, 3'b100: begin // LB, LBU
+        F3_BYTE, F3_BYTE_U: begin // LB, LBU
             case (be_mask)
                 4'b0001: raw_data = masked_data;
                 4'b0010: raw_data = masked_data >> 8;
@@ -40,7 +42,7 @@ always_comb begin : shift_data
             endcase
         end
 
-        3'b001, 3'b101: begin // LH, LHU
+        F3_HALFWORD, F3_HALFWORD_U: begin // LH, LHU
             case (be_mask)
                 4'b0011: raw_data = masked_data;
                 4'b1100: raw_data = masked_data >> 16;
@@ -55,13 +57,13 @@ end
 always_comb begin : sign_extend_logic
     case (f3)
         // LW
-        3'b010 : wb_data = raw_data;
+        F3_WORD : wb_data = raw_data;
 
         // LB, LBU
-        3'b000, 3'b100: wb_data = sign_extend ? {{24{raw_data[7]}},raw_data[7:0]} : raw_data;
+        F3_BYTE, F3_BYTE_U: wb_data = sign_extend ? {{24{raw_data[7]}},raw_data[7:0]} : raw_data;
 
         // LH, LHU
-        3'b001, 3'b101: wb_data = sign_extend ? {{16{raw_data[15]}},raw_data[15:0]} : raw_data;
+        F3_HALFWORD, F3_HALFWORD_U: wb_data = sign_extend ? {{16{raw_data[15]}},raw_data[15:0]} : raw_data;
 
         default: wb_data = 32'd0;
     endcase

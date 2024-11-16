@@ -8,13 +8,15 @@ module load_store_decoder (
     output logic [31:0] data
 );
 
+import holy_core__pkg::*;
+
 logic [1:0] offset;
 
 assign offset = alu_result_address[1:0];
 
 always_comb begin
     case (f3)
-        3'b000, 3'b100 : begin // SB, LB, LBU
+        F3_BYTE, F3_BYTE_U : begin // SB, LB, LBU
             case (offset)
                 2'b00: begin
                     byte_enable = 4'b0001;
@@ -36,12 +38,12 @@ always_comb begin
             endcase
         end
         
-        3'b010: begin // SW
+        F3_WORD: begin // SW
             byte_enable = (offset == 2'b00) ? 4'b1111 : 4'b0000;
             data = reg_read;
         end
 
-        3'b001, 3'b101 : begin // SH, LH, LHU
+        F3_HALFWORD, F3_HALFWORD_U : begin // SH, LH, LHU
             case (offset)
                 2'b00: begin 
                     byte_enable = 4'b0011;
