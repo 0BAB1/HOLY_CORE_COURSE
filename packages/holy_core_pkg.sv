@@ -80,4 +80,10 @@ package holy_core__pkg;
     ALU_SRA = 4'b1001
   } alu_control_t;
 
+  // Write_back signal
+  typedef struct packed {
+    logic [31:0] data;
+    logic valid;
+  } write_back_t;
+
 endpackage

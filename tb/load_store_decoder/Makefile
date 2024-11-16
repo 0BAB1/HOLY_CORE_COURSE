@@ -7,6 +7,7 @@ EXTRA_ARGS += --trace --trace-structs
 WAVES = 1
 
 VERILOG_SOURCES += $(PWD)/../../src/load_store_decoder.sv
+EXTRA_ARGS += --trace $(PWD)/../../packages/holy_core_pkg.sv
 # use VHDL_SOURCES for VHDL files
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
