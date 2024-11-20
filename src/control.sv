@@ -19,7 +19,7 @@ module control (
     output logic [1:0] second_add_source
 );
 
-import holy_core__pkg::*;
+import holy_core_pkg::*;
 
 /**
 * MAIN DECODER

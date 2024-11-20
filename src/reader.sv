@@ -9,7 +9,7 @@ module reader (
     output logic valid
 ); 
 
-import holy_core__pkg::*;
+import holy_core_pkg::*;
 
 logic sign_extend;
 assign sign_extend = ~f3[2];
