@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-package holy_core__pkg;
+package holy_core_pkg;
   // https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing
 
   // INSTRUCTION OP CODES
