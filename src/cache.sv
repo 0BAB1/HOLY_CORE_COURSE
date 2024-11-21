@@ -52,7 +52,8 @@ module holy_cache #(
     // CACHE TABLE DECLARATION (hardcoded for now, TODO : fix that)
     logic [31:0]                    cache_data          [0:CACHE_SIZE-1];
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
-    logic                           cache_valid; // is the current block valid ?
+    logic                           cache_valid;  // is the current block valid ?
+    logic                           next_cache_valid;
     logic                           cache_dirty;
 
     // INCOMING CACHE REQUEST SIGNALS
@@ -83,6 +84,7 @@ module holy_cache #(
             cache_block_tag <= 23'b0;
         end else begin
             state <= next_state;
+            cache_valid <= next_cache_valid;
 
             // SEQUENTIAL LOGIC
             //-------------------
@@ -96,7 +98,6 @@ module holy_cache #(
 
             case (state)
                 SENDING_WRITE_DATA : begin
-                    axi.wdata <= cache_data[write_set];
                     if(axi.wready) write_set <= write_set + 1;
                 end
 
@@ -105,7 +106,7 @@ module holy_cache #(
                         cache_data[write_set] <= axi.rdata;
                         cache_block_tag <= req_block_tag;
                     end
-                    if(axi.wready) write_set <= write_set + 1;
+                    if(axi.rvalid) write_set <= write_set + 1;
                 end
                 default : begin end
             endcase
@@ -115,6 +116,10 @@ module holy_cache #(
     // Async Read logic & AXI SIGNALS declaration !
     always_comb begin
         next_state = state; // Default
+        next_cache_valid = cache_valid;
+        axi.wlast = 1'b0;
+        // the data being send is always set, "ready to go"
+        axi.wdata = cache_data[write_set];
 
         case (state)
             IDLE: begin
@@ -146,7 +151,8 @@ module holy_cache #(
             end
             SENDING_WRITE_REQ: begin
                 // HANDLE MISS WITH DIRTY CACHE : Update main memory first
-                axi.awaddr = {req_block_tag, 7'b0000000, 2'b00}; // tag, set, offset
+                // when we send a write-back request, we write the CURRENT cache data !
+                axi.awaddr = {cache_block_tag, 7'b0000000, 2'b00}; // tag, set, offset
                 
                 if(axi.awready) next_state = SENDING_WRITE_DATA;
 
@@ -163,6 +169,7 @@ module holy_cache #(
             SENDING_WRITE_DATA : begin
                 if(write_set == 7'd127) begin
                     next_state = WAITING_WRITE_RES;
+                    axi.wlast = 1'b1;
                 end
 
                 // SENDING_WRITE_DATA AXI SIGNALS : sending data
@@ -213,6 +220,7 @@ module holy_cache #(
             RECEIVING_READ_DATA : begin
                 if(axi.rvalid && axi.rlast) begin// if response is OKAY
                     next_state = IDLE;
+                    next_cache_valid = 1'b1;
                 end
                 
                 // RECEIVING_READ_DATA AXI SIGNALS : We get the data incomming
@@ -243,11 +251,11 @@ module holy_cache #(
     // -----------------
     // WRITE Burst sizes are fixed type & len
     assign axi.awlen = CACHE_SIZE-1; // full cache reloaded each time
-    assign axi.awsize = 3'd4; // 4 Bytes
+    assign axi.awsize = 3'b010; // 2^<awsize> = 2^2 = 4 Bytes
     assign axi.awburst = 2'b01; // INCREMENT
     // READ Burst sizes are fixed type & len
     assign axi.arlen = CACHE_SIZE-1; // full cache reloaded each time
-    assign axi.arsize = 3'd4; // 4 Bytes
+    assign axi.arsize = 3'b010; // 2^<arsize> = 2^2 = 4 Bytes
     assign axi.arburst = 2'b01; // INCREMENT
     // W/R ids are always 0 (TODO maybe not)
     assign axi.awid = 4'b0000;
