@@ -67,7 +67,7 @@ module holy_cache #(
     assign hit = (req_block_tag == cache_block_tag) && cache_valid;
 
     // STALL LOGIC
-    assign cache_stall = (next_state != IDLE); // TODO as long as data is not in cache, we stall
+    assign cache_stall = (next_state != IDLE) | ~hit; // TODO as long as data is not in cache, we stall
 
     // =======================
     // CACHE LOGIC
@@ -98,13 +98,18 @@ module holy_cache #(
 
             case (state)
                 SENDING_WRITE_DATA : begin
-                    if(axi.wready) write_set <= write_set + 1;
+                    if(axi.wready) begin
+                        write_set <= write_set + 1; // overflow will automatically set it back to 0 #dealwithit
+                    end
                 end
 
                 RECEIVING_READ_DATA: begin
                     if(axi.rvalid) begin
                         cache_data[write_set] <= axi.rdata;
-                        cache_block_tag <= req_block_tag;
+                        if(axi.rready & axi.rlast) begin
+                            cache_block_tag <= req_block_tag;
+                            cache_dirty <= 1'b0;
+                        end
                     end
                     if(axi.rvalid) write_set <= write_set + 1;
                 end
