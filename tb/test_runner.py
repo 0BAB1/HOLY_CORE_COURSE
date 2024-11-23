@@ -9,19 +9,19 @@ from pathlib import Path
 
 from cocotb.runner import get_runner
 
-def generic_tb_runner(design_name):
+def generic_tb_runner(design_name, specific_top_level=None, additional_sources=[""]):
     sim = os.getenv("SIM", "verilator")
     proj_path = Path(__name__).resolve().parent.parent
     sources = list(proj_path.glob("src/*.sv"))
     runner = get_runner(sim)
-    print(f"--trace {proj_path}/packages/holy_core_pkg.sv")
+    toplevel = specific_top_level if specific_top_level else design_name
     runner.build(
         sources=sources,
-        hdl_toplevel=f"{design_name}",
+        hdl_toplevel=f"{toplevel}",
         build_dir=f"./{design_name}/sim_build",
-        build_args=[f"--trace", "--trace-structs", "--trace", f"{proj_path}/packages/holy_core_pkg.sv"]
+        build_args=[f"--trace", "--trace-structs", f"{proj_path}/packages/holy_core_pkg.sv", f"{proj_path}/packages/axi_if.sv"] + additional_sources
     )
-    runner.test(hdl_toplevel=f"{design_name}", test_module=f"test_{design_name}", test_dir=f"./{design_name}")
+    runner.test(hdl_toplevel=f"{toplevel}", test_module=f"test_{design_name}", test_dir=f"./{design_name}")
 
 def test_alu():
     generic_tb_runner("alu")
@@ -29,8 +29,8 @@ def test_alu():
 def test_control():
     generic_tb_runner("control")
 
-def test_cpu():
-    generic_tb_runner("cpu")
+def test_holy_core():
+    generic_tb_runner("holy_core")
 
 def test_memory():
     generic_tb_runner("memory")
@@ -47,12 +47,17 @@ def test_load_store_decoder():
 def test_reader():
     generic_tb_runner("reader")
 
+def test_holy_cache():
+    proj_path = Path(__name__).resolve().parent.parent
+    generic_tb_runner("holy_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_cache/axi_translator.sv"])
+
 if __name__ == "__main__":
     test_alu()
     test_control()
-    test_cpu()
+    test_holy_core()
     test_memory()
     test_regfile()
     test_signext()
     test_load_store_decoder()
     test_reader()
+    test_holy_cache()
