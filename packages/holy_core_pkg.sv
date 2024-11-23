@@ -3,6 +3,15 @@
 package holy_core_pkg;
   // https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing
 
+  typedef enum logic [2:0] { 
+      IDLE, // Acts as simple BRAM array
+      SENDING_WRITE_REQ,
+      SENDING_WRITE_DATA,
+      WAITING_WRITE_RES,
+      SENDING_READ_REQ, // Data miss ! We have to fetch from memory ! State for as long as the req has not been acknowleged by memory slave
+      RECEIVING_READ_DATA  // Once REQ is acknowleged, we wait for full response. (tlast)
+  } cache_state_t;
+
   // INSTRUCTION OP CODES
   typedef enum logic [6:0] {
     OPCODE_R_TYPE         = 7'b0110011,

@@ -9,15 +9,6 @@
 
 import holy_core_pkg::*;
 
-typedef enum logic [2:0] { 
-    IDLE, // Acts as simple BRAM array
-    SENDING_WRITE_REQ,
-    SENDING_WRITE_DATA,
-    WAITING_WRITE_RES,
-    SENDING_READ_REQ, // Data miss ! We have to fetch from memory ! State for as long as the req has not been acknowleged by memory slave
-    RECEIVING_READ_DATA  // Once REQ is acknowleged, we wait for full response. (tlast)
-} cache_state_t;
-
 module holy_cache #(
     parameter CACHE_SIZE = 128 // Number of sets / words in cache
 )(
@@ -34,7 +25,10 @@ module holy_cache #(
     output logic cache_stall,
 
     // AXI Interface for external requests
-    axi_if.master axi
+    axi_if.master axi,
+
+    // State informations for arbitrer
+    output cache_state_t cache_state
 );
     localparam INDEX_WIDTH = $clog2(CACHE_SIZE);
 
@@ -265,7 +259,5 @@ module holy_cache #(
     // -----------------
     // Write data
     assign axi.wstrb = 4'b1111; // We handle data masking in cache itself
-
-
 
 endmodule
