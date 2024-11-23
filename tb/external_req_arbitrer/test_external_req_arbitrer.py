@@ -59,10 +59,37 @@ async def main_test(dut):
     # SCENARIO 3 : ONLY THE DCACHE READS
     # ========================================
 
-    pass
+    dut.data_cache_state.value = SENDING_READ_REQ
+    await Timer(1, units="ns")
+    data = await d_cache_master.read(0x000, 4)
+    dut.data_cache_state.value = IDLE
+    await Timer(1, units="ns")
+
+    assert data.data == b'test'
 
     # ========================================
     # SCENARIO 4 : BOTH DCACHE & ICACHE READS
     # ========================================
 
-    pass
+    dut.data_cache_state.value = SENDING_READ_REQ
+    dut.instr_cache_state.value = SENDING_READ_REQ
+    await Timer(1, units="ns")
+    data_i = await i_cache_master.read(0x000, 4)
+    await Timer(1, units="ns")
+    dut.instr_cache_state.value = IDLE
+    await Timer(1, units="ns")
+
+    assert data_i.data == b'test'
+
+    data_d = await d_cache_master.read(0x000, 4)
+    await Timer(1, units="ns")
+    dut.data_cache_state.value = IDLE
+    await Timer(1, units="ns")
+
+    assert data_d.data == b'test'
+
+    # ========================================
+    # SCENARIO 5 : BOTH DCACHE & ICACHE WRITE
+    # ========================================
+
+    
