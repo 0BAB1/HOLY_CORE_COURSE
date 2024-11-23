@@ -1,2 +1,33 @@
+===================
+DONE
+===================
+
 Add new cache components & tb base
-and then make it work (lol)
+and then make it "work" (lol)
+
+make lots of tb for cache, use an axi ext cocotb + axi translator
+
+make an axi arbitrer, less etricate tb but still some bs axi translator
+
+===================
+DOING
+===================
+
+add mem_read that we didn't had before (adapt & retest control unit)
+
+===================
+NOT DONE
+===================
+
+integrate new logic block (mem deprecated, replace by) + add signals + arbitrer
+
+TB:
+find a way to init an external memory
+figure our this tlast bug once and for all, use new arbitrer tb to check vanilla interactions
+adapt tb to wait on stalls
+
+
+make things lot cleaner
+
+
+prepare tutorials and pdfs

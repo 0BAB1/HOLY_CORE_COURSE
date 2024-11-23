@@ -1,5 +1,9 @@
 `timescale 1ns/1ps
 
+/*
+* THE MEMORY MODULE IS UNUSED IN THE FPGA EDITION !
+*/
+
 module memory #(
     parameter WORDS = 128,
     parameter mem_init = ""

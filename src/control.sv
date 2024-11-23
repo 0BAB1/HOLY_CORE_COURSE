@@ -12,6 +12,7 @@ module control (
     output logic [3:0] alu_control,
     output logic [2:0] imm_source,
     output logic mem_write,
+    output logic mem_read,
     output logic reg_write,
     output logic alu_source,
     output logic [1:0] write_back_source,
@@ -36,6 +37,7 @@ always_comb begin
             reg_write = 1'b1;
             imm_source = 3'b000;
             mem_write = 1'b0;
+            mem_read = 1'b1;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
             write_back_source =2'b01; //memory_read
@@ -49,6 +51,7 @@ always_comb begin
             mem_write = 1'b0;
             alu_op = 2'b10;
             write_back_source = 2'b00; //alu_result
+            mem_read = 1'b0;
             branch = 1'b0;
             jump = 1'b0;
             // If we have a shift with a constant to handle, we have to invalidate writes for
@@ -72,6 +75,7 @@ always_comb begin
         OPCODE_S_TYPE : begin
             reg_write = 1'b0;
             imm_source = 3'b001;
+            mem_read = 1'b0;
             mem_write = 1'b1;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
@@ -82,6 +86,7 @@ always_comb begin
         OPCODE_R_TYPE : begin
             reg_write = 1'b1;
             mem_write = 1'b0;
+            mem_read = 1'b0;
             alu_op = 2'b10;
             alu_source = 1'b0; //reg2
             write_back_source = 2'b00; //alu_result
@@ -92,6 +97,7 @@ always_comb begin
         OPCODE_B_TYPE : begin
             reg_write = 1'b0;
             imm_source = 3'b010;
+            mem_read = 1'b0;
             alu_source = 1'b0;
             mem_write = 1'b0;
             alu_op = 2'b01;
@@ -103,6 +109,7 @@ always_comb begin
         OPCODE_J_TYPE, OPCODE_J_TYPE_JALR : begin
             reg_write = 1'b1;
             imm_source = 3'b011;
+            mem_read = 1'b0;
             mem_write = 1'b0;
             write_back_source = 2'b10; //pc_+4
             branch = 1'b0;
@@ -120,6 +127,7 @@ always_comb begin
         OPCODE_U_TYPE_LUI, OPCODE_U_TYPE_AUIPC : begin
             imm_source = 3'b100;
             mem_write = 1'b0;
+            mem_read = 1'b0;
             reg_write = 1'b1;
             write_back_source = 2'b11;
             branch = 1'b0;
@@ -134,6 +142,7 @@ always_comb begin
             // Don't touch the CPU nor MEMORY state
             reg_write = 1'b0;
             mem_write = 1'b0;
+            mem_read = 1'b0;
             jump = 1'b0;
             branch = 1'b0;
             $display("Unknown/Unsupported OP CODE !");

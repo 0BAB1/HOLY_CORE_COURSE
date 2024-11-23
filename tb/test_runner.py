@@ -32,8 +32,8 @@ def test_control():
 def test_holy_core():
     generic_tb_runner("holy_core")
 
-def test_memory():
-    generic_tb_runner("memory")
+"""def test_memory():
+    generic_tb_runner("memory")"""
 
 def test_regfile():
     generic_tb_runner("regfile")
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     test_alu()
     test_control()
     test_holy_core()
-    test_memory()
+    """test_memory()"""
     test_regfile()
     test_signext()
     test_load_store_decoder()
