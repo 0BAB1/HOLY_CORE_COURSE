@@ -2,7 +2,26 @@
 
 module holy_core (
     input logic clk,
-    input logic rst_n
+    input logic rst_n,
+    // AXI Interface for external requests
+    axi_if.master m_axi
+);
+
+import holy_core_pkg::*;
+
+/**
+* M_AXI_ARBITRER, aka "mr l'arbitre"
+*/
+
+axi_if m_axi_data();
+axi_if m_axi_instr();
+
+external_req_arbitrer mr_l_arbitre(
+    .m_axi(m_axi),
+    .s_axi_instr(m_axi_instr),
+    .i_cache_state(i_cache_state),
+    .s_axi_data(m_axi_data),
+    .d_cache_state(d_cache_state)
 );
 
 /**
@@ -14,6 +33,12 @@ logic [31:0] pc_next;
 logic [31:0] pc_plus_second_add;
 logic [31:0] pc_plus_four;
 assign pc_plus_four = pc + 4;
+
+// Stall from caches
+logic stall;
+logic d_cache_stall;
+logic i_cache_stall;
+assign stall = d_cache_stall | i_cache_stall;
 
 always_comb begin : pc_select
     case (pc_source)
@@ -45,20 +70,24 @@ end
 
 // Acts as a ROM.
 wire [31:0] instruction;
+cache_state_t i_cache_state;
 
-memory #(
-    .mem_init("./test_imemory.hex")
-) instruction_memory (
-    // Memory inputs
+holy_cache instr_cache (
     .clk(clk),
-    .address(pc),
-    .write_data(32'b0),
-    .write_enable(1'b0),
-    .rst_n(1'b1),
-    .byte_enable(4'b0000),
+    .rst_n(rst_n),
 
-    // Memory outputs
-    .read_data(instruction)
+    // CPU IF
+    .address(pc),
+    .write_data(32'd0),
+    .read_enable(1'b1),
+    .write_enable(1'b0),
+    .byte_enable(4'd0),
+    .read_data(instruction),
+    .cache_stall(i_cache_stall),
+
+    // M_AXI EXERNAL REQ IF
+    .axi(m_axi_instr),
+    .cache_state(i_cache_state)
 );
 
 /**
@@ -78,7 +107,8 @@ wire alu_last_bit;
 // out of control unit
 wire [3:0] alu_control;
 wire [2:0] imm_source;
-wire mem_write;
+wire mem_write_enable;
+wire mem_read_enable;
 wire reg_write;
 // out muxes wires
 wire alu_source;
@@ -96,7 +126,8 @@ control control_unit(
     // OUT
     .alu_control(alu_control),
     .imm_source(imm_source),
-    .mem_write(mem_write),
+    .mem_write(mem_write_enable),
+    .mem_read(mem_read_enable),
     .reg_write(reg_write),
     // muxes out
     .alu_source(alu_source),
@@ -211,23 +242,28 @@ load_store_decoder ls_decode(
 
 
 /**
-* DATA MEMORY
+* DATA CACHE
 */
+
 wire [31:0] mem_read;
+cache_state_t d_cache_state;
 
-memory #(
-    .mem_init("./test_dmemory.hex")
-) data_memory (
-    // Memory inputs
+holy_cache data_cache (
     .clk(clk),
-    .address({alu_result[31:2], 2'b00}),
-    .write_data(mem_write_data),
-    .write_enable(mem_write),
-    .byte_enable(mem_byte_enable),
-    .rst_n(1'b1),
+    .rst_n(rst_n),
 
-    // Memory outputs
-    .read_data(mem_read)
+    // CPU IF
+    .address(pc),
+    .write_data(mem_write_data),
+    .read_enable(mem_read_enable),
+    .write_enable(mem_write_enable),
+    .byte_enable(mem_byte_enable),
+    .read_data(mem_read),
+    .cache_stall(d_cache_stall),
+
+    // M_AXI EXERNAL REQ IF
+    .axi(m_axi_data),
+    .cache_state(d_cache_state)
 );
 
 /**

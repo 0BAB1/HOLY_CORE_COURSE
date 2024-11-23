@@ -8,10 +8,11 @@ WAVES = 1
 
 VERILOG_SOURCES += $(wildcard $(PWD)/../../src/*.sv)
 EXTRA_ARGS += $(PWD)/../../packages/holy_core_pkg.sv
-# use VHDL_SOURCES for VHDL files
+EXTRA_ARGS += $(PWD)/../../packages/axi_if.sv
+EXTRA_ARGS += $(PWD)/holy_test_harness.sv
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
-TOPLEVEL = holy_core
+TOPLEVEL = holy_test_harness
 
 # MODULE is the basename of the Python test file
 MODULE = test_holy_core

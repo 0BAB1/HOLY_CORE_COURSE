@@ -1,3 +1,10 @@
+
+"""
+/*
+* THE MEMORY MODULE IS UNUSED IN THE FPGA EDITION !
+*/
+"""
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
