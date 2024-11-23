@@ -1,12 +1,12 @@
 `timescale 1ns/1ps
 
-module cpu (
+module holy_core (
     input logic clk,
     input logic rst_n
 );
 
 /**
-* PROGRAM COUNTER
+* PROGRAM COUNTER 
 */
 
 reg [31:0] pc;

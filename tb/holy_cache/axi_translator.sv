@@ -15,7 +15,7 @@ module axi_translator (
     input  logic                     axi_awready,
 
     // Write Data Channel
-    output logic [31:0]              axi_wdata,
+    output logic [31:0]              axi_wdata, 
     output logic [3:0]               axi_wstrb,
     output logic                     axi_wlast,
     output logic                     axi_wvalid,

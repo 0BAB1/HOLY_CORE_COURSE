@@ -7,13 +7,6 @@
 *   The goal is to allow the user to connect its own memory on FPGA.
 */
 
-// Notes on expected behavior :
-
-// The cache responds in 1 clock cycle, given that the data is in the said cache (cache hit).
-// If the data is not in the cache (cache miss), we have to retrieve the said data
-// The cache is direct mapped, when we retrieve data, we retrive the whole block which make the implementation a bit easier.
-// Naming is as explicit as possible
-
 import holy_core_pkg::*;
 
 typedef enum logic [2:0] { 
@@ -79,14 +72,15 @@ module holy_cache #(
         if (~rst_n) begin
             state <= IDLE;
             cache_valid <= 1'b0;
-            write_set <= 7'd0;
+            set_ptr <= 7'd0;
             cache_dirty <= 1'b0;
             cache_block_tag <= 23'b0;
         end else begin
             state <= next_state;
             cache_valid <= next_cache_valid;
+            set_ptr <= next_set_ptr;
 
-            // SEQUENTIAL LOGIC
+            // SEQUENTIAL LOGIC for write (read is comb)
             //-------------------
 
             // Write to cache
@@ -97,21 +91,14 @@ module holy_cache #(
             end
 
             case (state)
-                SENDING_WRITE_DATA : begin
-                    if(axi.wready) begin
-                        write_set <= write_set + 1; // overflow will automatically set it back to 0 #dealwithit
-                    end
-                end
-
                 RECEIVING_READ_DATA: begin
                     if(axi.rvalid) begin
-                        cache_data[write_set] <= axi.rdata;
+                        cache_data[set_ptr] <= axi.rdata;
                         if(axi.rready & axi.rlast) begin
                             cache_block_tag <= req_block_tag;
                             cache_dirty <= 1'b0;
                         end
                     end
-                    if(axi.rvalid) write_set <= write_set + 1;
                 end
                 default : begin end
             endcase
@@ -124,7 +111,7 @@ module holy_cache #(
         next_cache_valid = cache_valid;
         axi.wlast = 1'b0;
         // the data being send is always set, "ready to go"
-        axi.wdata = cache_data[write_set];
+        axi.wdata = cache_data[set_ptr];
 
         case (state)
             IDLE: begin
@@ -172,9 +159,13 @@ module holy_cache #(
             end
 
             SENDING_WRITE_DATA : begin
-                if(write_set == 7'd127) begin
+                if(set_ptr == 7'd127) begin
                     next_state = WAITING_WRITE_RES;
                     axi.wlast = 1'b1;
+                end
+
+                if(axi.wready) begin
+                    next_set_ptr = set_ptr + 1;
                 end
 
                 // SENDING_WRITE_DATA AXI SIGNALS : sending data
@@ -223,9 +214,12 @@ module holy_cache #(
             end
 
             RECEIVING_READ_DATA : begin
-                if(axi.rvalid && axi.rlast) begin// if response is OKAY
-                    next_state = IDLE;
-                    next_cache_valid = 1'b1;
+                if(axi.rvalid) begin// if response is OKAY
+                    next_set_ptr = set_ptr + 1;
+                    if (axi.rlast) begin
+                        next_state = IDLE;
+                        next_cache_valid = 1'b1;
+                    end
                 end
                 
                 // RECEIVING_READ_DATA AXI SIGNALS : We get the data incomming
@@ -241,7 +235,8 @@ module holy_cache #(
         endcase
     end
 
-    logic [6:0] write_set;
+    logic [6:0] set_ptr;
+    logic [6:0] next_set_ptr;
     wire [31:0] byte_enable_mask;
     assign byte_enable_mask = {
         {8{byte_enable[3]}},

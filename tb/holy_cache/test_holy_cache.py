@@ -132,7 +132,7 @@ async def initial_read_test(dut):
         # Check if the handshake is okay
         if((dut.axi_rvalid.value == 1) and (dut.axi_rready.value == 1)) :
             # a word is sent to cache and is store in the cache block
-            assert dut.cache_system.write_set.value == i
+            assert dut.cache_system.set_ptr.value == i
             i += 1
 
         # goto next clock cycle, last flag is never high
@@ -168,7 +168,7 @@ async def initial_read_test(dut):
         await Timer(1, units="ps") # let the new address propagate ...
         assert dut.cache_system.cache_stall == 0b0
         assert dut.cache_system.read_data.value == int.from_bytes(mem_golden_ref[int(address_test_read/4)], byteorder='little')
-        assert dut.cache_system.write_set.value == 0
+        assert dut.cache_system.set_ptr.value == 0
 
         address_test_read += 0x4
         await RisingEdge(dut.clk)
@@ -263,7 +263,7 @@ async def initial_read_test(dut):
         if((dut.axi_wvalid.value == 1) and (dut.axi_wready.value == 1)) :
             # a word is sent to cache and is store in the cache block
             
-            assert dut.cache_system.write_set.value == i
+            assert dut.cache_system.set_ptr.value == i
             i += 1
             # Update golden ref memory !
             mem_golden_ref[int(base_addr/4)] = int(dut.axi_wdata.value).to_bytes(4, 'little')
@@ -332,7 +332,7 @@ async def initial_read_test(dut):
     while( i < CACHE_SIZE - 1) :
         # Check if the handshake is okay
         if((dut.axi_rvalid.value == 1) and (dut.axi_rready.value == 1)) :
-            assert dut.cache_system.write_set.value == i
+            assert dut.cache_system.set_ptr.value == i
             i += 1
 
         assert dut.axi_rlast.value == 0b0
@@ -387,7 +387,7 @@ async def initial_read_test(dut):
     i = 0
     while( i < CACHE_SIZE - 1) :
         if((dut.axi_rvalid.value == 1) and (dut.axi_rready.value == 1)) :
-            assert dut.cache_system.write_set.value == i
+            assert dut.cache_system.set_ptr.value == i
             i += 1
 
         assert dut.axi_rlast.value == 0b0
@@ -420,7 +420,7 @@ async def initial_read_test(dut):
     # and then the data gets written...
 
     await RisingEdge(dut.clk) # write 0xFFFFFFFF @ 0x4
-    await Timer(1, units="ns")
+    await Timer(3, units="ns")
 
     dut.cpu_write_enable.value = 0b0
     await Timer(1, units="ns")
