@@ -92,4 +92,22 @@ async def main_test(dut):
     # SCENARIO 5 : BOTH DCACHE & ICACHE WRITE
     # ========================================
 
-    
+    dut.data_cache_state.value = SENDING_WRITE_REQ
+    dut.instr_cache_state.value = SENDING_WRITE_REQ
+    await Timer(1, units="ns")
+    await i_cache_master.write(0x00C, b'beef')
+    await Timer(1, units="ns")
+    dut.instr_cache_state.value = IDLE
+    await Timer(1, units="ns")
+
+    await d_cache_master.write(0x010, b'1234')
+    await Timer(1, units="ns")
+    dut.data_cache_state.value = IDLE
+    await Timer(1, units="ns")
+
+    assert data_d.data == b'test'
+
+    # we verify data was well written
+
+    assert axi_ram_slave.read(0x00C,4) == b'beef'
+    assert axi_ram_slave.read(0x010,4) == b'1234'
