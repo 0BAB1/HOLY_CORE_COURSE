@@ -259,7 +259,7 @@ holy_cache data_cache (
     .aclk(m_axi.aclk),
 
     // CPU IF
-    .address(pc),
+    .address(alu_result),
     .write_data(mem_write_data),
     .read_enable(mem_read_enable),
     .write_enable(mem_write_enable),
