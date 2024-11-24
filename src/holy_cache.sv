@@ -60,7 +60,7 @@ module holy_cache #(
     assign hit = (req_block_tag == cache_block_tag) && cache_valid;
 
     // STALL LOGIC
-    assign cache_stall = (next_state != IDLE) | ~hit; // TODO as long as data is not in cache, we stall
+    assign cache_stall = (next_state != IDLE) | (~hit & (read_enable | write_enable));
 
     // =======================
     // CACHE LOGIC
@@ -78,7 +78,7 @@ module holy_cache #(
     end
 
     // AXI State machine logic
-    always_ff @(posedge aclk or negedge rst_n) begin
+    always_ff @(posedge aclk or negedge rst_n or negedge axi.aresetn) begin
         if (~rst_n) begin
             state <= IDLE;
             cache_valid <= 1'b0;
@@ -114,6 +114,7 @@ module holy_cache #(
         axi.wlast = 1'b0;
         // the data being send is always set, "ready to go"
         axi.wdata = cache_data[set_ptr];
+        cache_state = state;
 
         case (state)
             IDLE: begin

@@ -23,7 +23,7 @@ adapt tb to wait on stalls
 ===================
 NOT DONE
 ===================
-
+make the interfaces clock less ?
 
 make things lot cleaner
 

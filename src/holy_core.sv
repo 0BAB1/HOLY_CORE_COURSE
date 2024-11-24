@@ -32,7 +32,6 @@ reg [31:0] pc;
 logic [31:0] pc_next;
 logic [31:0] pc_plus_second_add;
 logic [31:0] pc_plus_four;
-assign pc_plus_four = pc + 4;
 
 // Stall from caches
 logic stall;
@@ -41,7 +40,11 @@ logic i_cache_stall;
 assign stall = d_cache_stall | i_cache_stall;
 
 always_comb begin : pc_select
-    case (pc_source)
+    case(stall)
+        1'b0 : pc_plus_four = pc + 32'd4;
+        1'b1 : pc_plus_four = pc + 32'd0;
+    endcase
+    case (pc_source & ~stall)
         1'b0 : pc_next = pc_plus_four; // pc + 4
         1'b1 : pc_next = pc_plus_second_add;
     endcase
@@ -75,6 +78,7 @@ cache_state_t i_cache_state;
 holy_cache instr_cache (
     .clk(clk),
     .rst_n(rst_n),
+    .aclk(m_axi.aclk),
 
     // CPU IF
     .address(pc),
@@ -251,6 +255,8 @@ cache_state_t d_cache_state;
 holy_cache data_cache (
     .clk(clk),
     .rst_n(rst_n),
+
+    .aclk(m_axi.aclk),
 
     // CPU IF
     .address(pc),
