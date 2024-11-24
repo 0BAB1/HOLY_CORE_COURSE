@@ -16,9 +16,8 @@ module holy_test_harness (
     // Detailled AXI IF for tb purpose
     // ================================
 
-    // axi clock and active low reset
-    input logic m_axi_aclk,
-    input logic m_axi_aresetn,
+    // axi clock
+    input logic aclk,
     
     // Write Address Channel
     output logic [3:0]               m_axi_awid,
@@ -71,8 +70,8 @@ holy_core core(
 );
 
 // Connect the discrete AXI signals to the m_axi
-assign m_axi.aclk      = m_axi_aclk;
-assign m_axi.aresetn   = m_axi_aresetn;
+assign m_axi.aclk      = aclk;
+assign m_axi.aresetn      = rst_n;
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;

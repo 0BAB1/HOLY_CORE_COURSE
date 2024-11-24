@@ -91,14 +91,31 @@ async def initial_read_test(dut):
     assert dut.cache_system.next_state.value == IDLE
 
     # ==================================
+    # BASIC STALL LOGIC 
+    # ==================================
+
+    dut.cpu_read_enable.value = 0b0
+    dut.cpu_write_enable.value = 0b0
+    await Timer(1, units="ps") # let the signals "propagate"
+
+    dut.cpu_address.value = 0x000
+    dut.cpu_read_enable.value = 0b0
+    dut.cpu_write_enable.value = 0b0
+    await Timer(1, units="ps") # let the signals "propagate"
+
+    assert dut.cache_system.cache_stall.value == 0b0
+    assert dut.cache_system.next_state.value == IDLE
+
+    # ==================================
     # READ & MISS TEST
     # ==================================
 
     dut.cpu_address.value = 0x000
     dut.cpu_read_enable.value = 0b1
-    await Timer(1, units="ns") # let the signals "propagate"
+    await Timer(1, units="ns")
 
     assert dut.cpu_cache_stall.value == 0b1 # async cache miss
+    assert dut.cache_system.state.value == IDLE
     assert dut.cache_system.next_state.value == SENDING_READ_REQ
 
     await RisingEdge(dut.aclk) # STATE SWITCH

@@ -1,6 +1,12 @@
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, Timer
+import random
+from cocotbext.axi import AxiBus, AxiRam
+import numpy as np
+
+AXI_PERIOD = 16 # some weird number to test multiple freq compat
+CPU_PERIOD = 10
 
 def binary_to_hex(bin_str):
     # Convert binary string to hexadecimal
@@ -18,14 +24,27 @@ def hex_to_bin(hex_str):
 async def cpu_reset(dut):
     # Init and reset
     dut.rst_n.value = 0
+    await Timer(1, units="ns")
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
+    await RisingEdge(dut.aclk)     # Wait for a clock edge after reset
     dut.rst_n.value = 1           # De-assert reset
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
+    await RisingEdge(dut.aclk)     # Wait for a clock edge after reset
+
+@cocotb.coroutine
+async def inst_clocks(dut):
+    """this instantiates the axi environement & clocks"""
+    cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
+    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
 
 @cocotb.test()
 async def cpu_insrt_test(dut):
-    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
-    await RisingEdge(dut.clk)
+
+    await inst_clocks(dut)
+
+    SIZE = 4096
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+
     await cpu_reset(dut)
 
     ##################
@@ -38,7 +57,9 @@ async def cpu_insrt_test(dut):
     # dmem @ adress 0x00000008 that happens to be 0xDEADBEEF into register x18
 
     # Wait a clock cycle for the instruction to execute
-    await RisingEdge(dut.clk) # lw x18 0x8(x0)
+    while(dut.core.stall.value == 1) :
+        print("stall")
+        await RisingEdge(dut.clk) # lw x18 0x8(x0)
 
     # Check the value of reg x18
     assert binary_to_hex(dut.regfile.registers[18].value) == "DEADBEEF", f"expected DEADBEEF but got {binary_to_hex(dut.regfile.registers[18].value)} @ pc {binary_to_hex(dut.pc.value)}"
