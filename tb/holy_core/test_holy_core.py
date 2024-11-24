@@ -37,19 +37,59 @@ async def inst_clocks(dut):
     cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
 
+@cocotb.coroutine
+async def init_memory(axi_ram : AxiRam, hexfile, base_addr):
+    addr_offset = 0
+    with open(hexfile, "r") as file:
+        for raw_instruction in file :
+            addr = addr_offset + base_addr
+            str_instruction = raw_instruction.split("/")[0].strip()
+            instruction = int(str_instruction, 16).to_bytes(4,'little')
+            axi_ram.write(addr, instruction)
+            axi_ram.hexdump(addr,4)
+            addr_offset += 4
+
 @cocotb.test()
 async def cpu_insrt_test(dut):
 
     await inst_clocks(dut)
 
-    SIZE = 4096
+    # ==============
+    # Testbench MEMORY MAP
+    # ==============
+    # 0x1FFF
+    # Data
+    # 0x1000 (stored in gp : x3)
+    # ==============
+    # 0x0FFF
+    # Instructions
+    # 0x0000
+    #===============
+
+    SIZE = 2**13
     axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
 
     await cpu_reset(dut)
+    await init_memory(axi_ram_slave, "./test_imemory.hex", 0x0000)
+    await init_memory(axi_ram_slave, "./test_dmemory.hex", 0x1000)
+
+    ##################
+    # SAVE BASE ADDR IN X3
+    # 00000193  //DATA ADDR STORE                         | x3  <= 00001000
+    ##################
+    print("\n\nSAVING DATA BASE ADDR\n\n")
+
+    # Wait a clock cycle for the instruction to execute
+    while(dut.core.stall.value == 1) :
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk) # lw x18 0x8(x0)
+    # Check the value of reg x18
+    assert binary_to_hex(dut.core.regfile.registers[3].value) == "00001000"
 
     ##################
     # LOAD WORD TEST 
-    # lw x18 0x8(x0)
+    # 0081A903  //LW  TEST START :    lw x18 0x8(x3)      | x18 <= DEADBEEF
     ##################
     print("\n\nTESTING LW\n\n")
 
@@ -58,11 +98,13 @@ async def cpu_insrt_test(dut):
 
     # Wait a clock cycle for the instruction to execute
     while(dut.core.stall.value == 1) :
-        print("stall")
-        await RisingEdge(dut.clk) # lw x18 0x8(x0)
+        await RisingEdge(dut.clk)
+        print(hex(dut.core.instr_cache.cache_data[0].value))
+        print(hex(dut.core.data_cache.cache_data[0].value))
 
-    # Check the value of reg x18
-    assert binary_to_hex(dut.regfile.registers[18].value) == "DEADBEEF", f"expected DEADBEEF but got {binary_to_hex(dut.regfile.registers[18].value)} @ pc {binary_to_hex(dut.pc.value)}"
+    assert binary_to_hex(dut.core.instruction.value) == "0081A903"
+    await RisingEdge(dut.clk) # lw x18 0x8(x3)
+    assert binary_to_hex(dut.core.regfile.registers[18].value) == "DEADBEEF", f"expected DEADBEEF but got {binary_to_hex(dut.core.regfile.registers[18].value)} @ pc {binary_to_hex(dut.core.pc.value)}"
 
     ##################
     # STORE WORD TEST 

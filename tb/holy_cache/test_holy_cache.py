@@ -96,12 +96,12 @@ async def initial_read_test(dut):
 
     dut.cpu_read_enable.value = 0b0
     dut.cpu_write_enable.value = 0b0
-    await Timer(1, units="ps") # let the signals "propagate"
+    await Timer(1, units="ns") # let the signals "propagate"
 
     dut.cpu_address.value = 0x000
     dut.cpu_read_enable.value = 0b0
     dut.cpu_write_enable.value = 0b0
-    await Timer(1, units="ps") # let the signals "propagate"
+    await Timer(1, units="ns") # let the signals "propagate"
 
     assert dut.cache_system.cache_stall.value == 0b0
     assert dut.cache_system.next_state.value == IDLE

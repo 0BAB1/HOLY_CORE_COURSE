@@ -1,4 +1,5 @@
-00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
+000011B7  //DATA ADDR STORE     lui x3 0x1          | x3  <= 00001000
+0081A903  //LW  TEST START :    lw x18 0x8(x3)      | x18 <= DEADBEEF
 01202623  //SW  TEST START :    sw x18 0xC(x0)      | 0xC <= DEADBEEF
 01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
 01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
