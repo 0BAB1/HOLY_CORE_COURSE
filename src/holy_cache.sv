@@ -12,8 +12,12 @@ import holy_core_pkg::*;
 module holy_cache #(
     parameter CACHE_SIZE = 128 // Number of sets / words in cache
 )(
+    // CPU LOGIC CLOCK & RESET
     input logic clk,
     input logic rst_n,
+
+    // AXI CLOCK
+    input logic aclk,
 
     // CPU Interface
     input logic [31:0] address,
@@ -35,6 +39,8 @@ module holy_cache #(
     // Here is how a cache line is organized:
     // | DIRTY | VALID | BLOCK TAG | INDEX/SET | OFFSET | DATA |
     // | FLAGS         | ADDRESS INFOS                  | DATA |
+
+    /* verilator lint_off MULTIDRIVEN */
 
     // CACHE TABLE DECLARATION (hardcoded for now, TODO : fix that)
     logic [31:0]                    cache_data          [0:CACHE_SIZE-1];
@@ -61,8 +67,18 @@ module holy_cache #(
     // =======================
     cache_state_t state, next_state;
 
-    // State machine
-    always_ff @(posedge clk or negedge rst_n) begin
+    // CPU IF write logic (read is async)
+    always_ff @(posedge clk) begin
+        // Write to cache
+        if(hit && write_enable) begin
+            // async reads
+            cache_data[req_index] <= (cache_data[req_index] & ~byte_enable_mask) | (write_data & byte_enable_mask);
+            cache_dirty <= 1'b1;
+        end
+    end
+
+    // AXI State machine logic
+    always_ff @(posedge aclk or negedge rst_n) begin
         if (~rst_n) begin
             state <= IDLE;
             cache_valid <= 1'b0;
@@ -73,16 +89,6 @@ module holy_cache #(
             state <= next_state;
             cache_valid <= next_cache_valid;
             set_ptr <= next_set_ptr;
-
-            // SEQUENTIAL LOGIC for write (read is comb)
-            //-------------------
-
-            // Write to cache
-            if(hit && write_enable) begin
-                // async reads
-                cache_data[req_index] <= (cache_data[req_index] & ~byte_enable_mask) | (write_data & byte_enable_mask);
-                cache_dirty <= 1'b1;
-            end
 
             case (state)
                 RECEIVING_READ_DATA: begin
@@ -98,6 +104,8 @@ module holy_cache #(
             endcase
         end
     end
+
+    /* verilator lint_on MULTIDRIVEN */
 
     // Async Read logic & AXI SIGNALS declaration !
     always_comb begin

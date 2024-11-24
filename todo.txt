@@ -14,20 +14,21 @@ DOING
 ===================
 
 add mem_read that we didn't had before (adapt & retest control unit)
-
-===================
-NOT DONE
-===================
-
 integrate new logic block (mem deprecated, replace by) + add signals + arbitrer
-
 TB:
 find a way to init an external memory
 figure our this tlast bug once and for all, use new arbitrer tb to check vanilla interactions
 adapt tb to wait on stalls
+
+===================
+NOT DONE
+===================
 
 
 make things lot cleaner
 
 
 prepare tutorials and pdfs
+
+
+AXI wresp & rresp error handling.

@@ -1,9 +1,12 @@
 // This module instantiates the cache and routes the AXI interface as discrete Verilog signals for cocotb
 
 module axi_translator (
-    // Clock and Reset
+    // Cpu Clock and Reset
     input  logic                     clk,
     input  logic                     rst_n,
+
+    // Axi Clock
+    input  logic                     aclk,
 
     // Write Address Channel
     output logic [3:0]               axi_awid,
@@ -54,6 +57,8 @@ module axi_translator (
     output logic                     cpu_cache_stall
 );
 
+    import holy_core_pkg::*;
+
     // Declare the AXI master interface for the cache
     axi_if axi_master_intf();
 
@@ -101,11 +106,16 @@ module axi_translator (
     assign axi_master_intf.rvalid = axi_rvalid;
     assign axi_rready             = axi_master_intf.rready;
 
+    // dummy wireto shut verilator down
+    cache_state_t cache_state;
+
     // Instantiate the cache module
     holy_cache #(
     ) cache_system (
         .clk(clk), 
         .rst_n(rst_n),
+
+        .aclk(aclk),
 
         // AXI Master Interface
         .axi(axi_master_intf),
@@ -117,7 +127,8 @@ module axi_translator (
         .write_enable(cpu_write_enable),
         .byte_enable(cpu_byte_enable),
         .read_data(cpu_read_data),
-        .cache_stall(cpu_cache_stall)
+        .cache_stall(cpu_cache_stall),
+        .cache_state(cache_state)
     );
 
 endmodule
