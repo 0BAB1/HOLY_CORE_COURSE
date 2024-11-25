@@ -8,6 +8,14 @@ import numpy as np
 AXI_PERIOD = 16 # some weird number to test multiple freq compat
 CPU_PERIOD = 10
 
+# CACHE STATES CST
+IDLE                = 0b000
+SENDING_WRITE_REQ   = 0b001
+SENDING_WRITE_DATA  = 0b010
+WAITING_WRITE_RES   = 0b011
+SENDING_READ_REQ    = 0b100
+RECEIVING_READ_DATA = 0b101
+
 def binary_to_hex(bin_str):
     # Convert binary string to hexadecimal
     hex_str = hex(int(str(bin_str), 2))[2:]
@@ -683,3 +691,26 @@ async def cpu_insrt_test(dut):
 
     await RisingEdge(dut.clk) # lhu x21 -6(x7)
     assert binary_to_hex(dut.core.regfile.registers[21].value) == "0000DEAD"
+
+    #################
+    # CACHE WB TEST
+    # 20018393  //CACHE WB TEST :     addi x7 x3 0x200    | x7  <= 00001200 (just above 128*4=512B cache size)
+    # 0003AA03  //                    lw x20 0x0(x7)      | x20 <= 00000000 + MISS + WRITE BACK + RELOAD !
+    ##################
+
+    # Check test's init state
+    assert binary_to_hex(dut.core.instruction.value) == "20018393"
+
+    await RisingEdge(dut.clk) # addi x7 x3 0x200
+    assert binary_to_hex(dut.core.regfile.registers[7].value) == "00001200"
+
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.next_state.value == SENDING_WRITE_REQ
+
+    # Wait for the cache to retrieve data
+    while(dut.core.stall.value == 0b1) :
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk) # lw x20 0x0(x7)
+    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00000000"
+    assert axi_ram_slave.read(0x00001004, 4) == 0xFFEE0000.to_bytes(4,'little')

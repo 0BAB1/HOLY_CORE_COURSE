@@ -30,7 +30,8 @@ def test_control():
     generic_tb_runner("control")
 
 def test_holy_core():
-    generic_tb_runner("holy_core")
+    proj_path = Path(__name__).resolve().parent.parent
+    generic_tb_runner("holy_core", specific_top_level="holy_test_harness", additional_sources=[f"{proj_path}/tb/holy_core/holy_test_harness.sv"])
 
 """def test_memory():
     generic_tb_runner("memory")"""
@@ -51,6 +52,10 @@ def test_holy_cache():
     proj_path = Path(__name__).resolve().parent.parent
     generic_tb_runner("holy_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_cache/axi_translator.sv"])
 
+def test_external_req_arbitrer():
+    proj_path = Path(__name__).resolve().parent.parent
+    generic_tb_runner("external_req_arbitrer", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/external_req_arbitrer/axi_translator.sv"])
+
 if __name__ == "__main__":
     test_alu()
     test_control()
@@ -61,3 +66,4 @@ if __name__ == "__main__":
     test_load_store_decoder()
     test_reader()
     test_holy_cache()
+    test_external_req_arbitrer()

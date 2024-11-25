@@ -83,8 +83,8 @@ FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x2
 FFA39A03  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
 FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
 FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
-00000013  //NOP
-00000013  //NOP
+20018393  //CACHE WB TEST :     addi x7 x3 0x200    | x7  <= 00001200 (just above 128*4=512B cache size)
+0003AA03  //                    lw x20 0x0(x7)      | x20 <= 00000000 + MISS + WRITE BACK + RELOAD !
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

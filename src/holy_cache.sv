@@ -14,6 +14,8 @@ import holy_core_pkg::*;
 
 module holy_cache #(
     parameter CACHE_SIZE = 128 // Number of sets / words in cache
+    // 128W = 512B : 0x000 - 0x1FF address range
+    // Every range has been hardcoded, TODO : make it a parameter
 )(
     // CPU LOGIC CLOCK & RESET
     input logic clk,

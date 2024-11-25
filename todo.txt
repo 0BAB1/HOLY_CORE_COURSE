@@ -15,24 +15,29 @@ TB:
 make a test harness environement
 find a way to init an external memory
 
+adapt tb to wait on cache stall
+adapt tb signals assertion for new test harness
+
+add more holy tests for cache misses
+
 ===================
 DOING
 ===================
 
-figure our this tlast bug once and for all, use new arbitrer tb to check vanilla interactions
 
-adapt tb to wait on cache stall
-adapt tb signals assertion for new test harness
 
 ===================
 NOT DONE
 ===================
-make the interfaces clock less ?
+
+figure our this tlast bug once and for all, use new arbitrer tb to check vanilla interactions
+
+integrate all in pytest, make all the deisng coherent and run flawlessly
 
 make things lot cleaner
 
+AXI wresp & rresp error handling.
+
+run on FPGA
 
 prepare tutorials and pdfs
-
-
-AXI wresp & rresp error handling.
