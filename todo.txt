@@ -9,16 +9,20 @@ make lots of tb for cache, use an axi ext cocotb + axi translator
 
 make an axi arbitrer, less etricate tb but still some bs axi translator
 
+add mem_read that we didn't had before (adapt & retest control unit)
+integrate new logic block (mem deprecated, replace by) + add signals + arbitrer
+TB:
+make a test harness environement
+find a way to init an external memory
+
 ===================
 DOING
 ===================
 
-add mem_read that we didn't had before (adapt & retest control unit)
-integrate new logic block (mem deprecated, replace by) + add signals + arbitrer
-TB:
-find a way to init an external memory
 figure our this tlast bug once and for all, use new arbitrer tb to check vanilla interactions
-adapt tb to wait on stalls
+
+adapt tb to wait on cache stall
+adapt tb signals assertion for new test harness
 
 ===================
 NOT DONE

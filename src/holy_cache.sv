@@ -5,6 +5,9 @@
 *   Description : A 1 way direct mapped cache.
 *   Implementing AXI to request data from outside main memory.
 *   The goal is to allow the user to connect its own memory on FPGA.
+*
+*   NOTES : write enable has to be validated by a byte enable mask, otherwise no memory
+*   operation is applied (assign actual_write_enable = write_enable & |byte_enable;)
 */
 
 import holy_core_pkg::*;
@@ -60,7 +63,9 @@ module holy_cache #(
     assign hit = (req_block_tag == cache_block_tag) && cache_valid;
 
     // STALL LOGIC
-    assign cache_stall = (next_state != IDLE) | (~hit & (read_enable | write_enable));
+    logic actual_write_enable;
+    assign actual_write_enable = write_enable & |byte_enable;
+    assign cache_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
 
     // =======================
     // CACHE LOGIC
@@ -126,7 +131,7 @@ module holy_cache #(
                     read_data = cache_data[req_index];
                 end
 
-                else if(~hit && (read_enable ^ write_enable)) begin
+                else if(~hit && (read_enable ^ actual_write_enable)) begin
                     // switch state to handle the MISS, if data is dirty, we have to write first
                     case(cache_dirty)
                         1'b1 : next_state = SENDING_WRITE_REQ;
