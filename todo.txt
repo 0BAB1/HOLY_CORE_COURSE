@@ -4,40 +4,48 @@ DONE
 
 Add new cache components & tb base
 and then make it "work" (lol)
-
 make lots of tb for cache, use an axi ext cocotb + axi translator
-
 make an axi arbitrer, less etricate tb but still some bs axi translator
-
 add mem_read that we didn't had before (adapt & retest control unit)
 integrate new logic block (mem deprecated, replace by) + add signals + arbitrer
 TB:
 make a test harness environement
 find a way to init an external memory
-
 adapt tb to wait on cache stall
 adapt tb signals assertion for new test harness
-
 add more holy tests for cache misses
+integrate all in pytest, make all the deisng coherent and run flawlessly
 
 ===================
 DOING
 ===================
 
+...
 
+=======================
+NOT DONE - MILESTONES
+=======================
 
-===================
-NOT DONE
-===================
+figure our this tlast bug
 
-figure our this tlast bug once and for all, use new arbitrer tb to check vanilla interactions
+interface AXI in vivado correctly
 
-integrate all in pytest, make all the deisng coherent and run flawlessly
+add AXI Lite
 
-make things lot cleaner
+UART tb
+
+Compile actual assembly for the cpu meme files
+
+Run on FPGA - BLINK LED (JTAG init)
+
+Run on FPGA - Blink LED (more pro way ? idk, gotta figure it out)
+
+=======================
+NOT DONE - SIDEQUESTS
+=======================
 
 AXI wresp & rresp error handling.
 
-run on FPGA
+make things lot cleaner
 
-prepare tutorials and pdfs
+prepare tutorials (md) and pdfs (clean)
