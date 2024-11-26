@@ -14,6 +14,8 @@ interface axi_if #(
     logic [7:0] awlen;         // Burst length
     logic [2:0] awsize;        // Burst size
     logic [1:0] awburst;       // Burst type
+    logic [3:0] awqos;         // Quality of Service
+    logic [1:0] awlock;        // Lock type
     logic awvalid;
     logic awready;
 
@@ -36,6 +38,8 @@ interface axi_if #(
     logic [7:0] arlen;         // Burst length
     logic [2:0] arsize;        // Burst size
     logic [1:0] arburst;       // Burst type
+    logic [3:0] arqos;         // Quality of Service
+    logic [1:0] arlock;        // Lock type
     logic arvalid;
     logic arready;
 
@@ -58,6 +62,8 @@ interface axi_if #(
         output awlen,
         output awsize,
         output awburst,
+        output awqos,
+        output awlock,
         output awvalid,
         input  awready,
 
@@ -80,6 +86,8 @@ interface axi_if #(
         output arlen,
         output arsize,
         output arburst,
+        output arqos,
+        output arlock,
         output arvalid,
         input  arready,
 
@@ -103,6 +111,8 @@ interface axi_if #(
         input  awlen,
         input  awsize,
         input  awburst,
+        input  awqos,
+        input  awlock,
         input  awvalid,
         output awready,
 
@@ -125,6 +135,8 @@ interface axi_if #(
         input  arlen,
         input  arsize,
         input  arburst,
+        input  arqos,
+        input  arlock,
         input  arvalid,
         output arready,
 
