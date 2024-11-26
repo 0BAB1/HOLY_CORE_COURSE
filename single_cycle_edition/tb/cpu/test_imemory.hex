@@ -1,0 +1,128 @@
+00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
+01202623  //SW  TEST START :    sw x18 0xC(x0)      | 0xC <= DEADBEEF
+01002983  //ADD TEST START :    lw x19 0x10(x0)     | x19 <= 00000AAA
+01390A33  //                    add x20 x18 x19     | x20 <= DEADC999
+01497AB3  //AND TEST START :    and x21 x18 x20     | x21 <= DEAD8889
+01402283  //OR  TEST START :    lw x5 0x14(x0)      | x5  <= 125F552D
+01802303  //                    lw x6 0x18(x0)      | x6  <= 7F4FD46A
+0062E3B3  //                    or x7 x5 x6         | x7  <= 7F5FD56F
+00730663  //BEQ TEST START :    beq x6 x7 0xC       | #1 SHOULD NOT BRANCH
+00802B03  //                    lw x22 0x8(x0)      | x22 <= DEADBEEF
+01690863  //                    beq x18 x22 0x10    | #2 SHOULD BRANCH (positive offset)
+00000013  //                    nop                 | NEVER EXECUTED
+00000013  //                    nop                 | NEVER EXECUTED
+00000663  //                    beq x0 x0 0xC       | #4 SHOULD BRANCH (avoid loop)
+00002B03  //                    lw x22 0x0(x0)      | x22 <= AEAEAEAE (#2 destination)
+FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (negative offset)
+00000013  //                    nop                 | FINAL NOP
+00C000EF  //JAL TEST START :    jal x1 0xC          | #1 jump @PC+0xC     PC 0x44
+00000013  //                    nop                 | NEVER EXECUTED      PC 0x48
+00C000EF  //                    jal x1 0xC          | #2 jump @PC-0x4     PC 0x4C
+FFDFF0EF  //                    jal x1 0x-4         | #2 jump @PC-0x4     PC 0x50
+00000013  //                    nop                 | NEVER EXECUTED      PC 0x54
+00C02383  //                    lw x7 0xC(x0)       | x7 <= DEADBEEF      PC 0x58
+1AB38D13  //ADDI TEST START :   addi x26 x7 0x1AB   | x26 <= DEADC09A     PC 0x5C
+F2130C93  //                    addi x25 x6 0xF21   | x25 <= 7F4FD38B     PC 0x60
+1F1FA297  //AUIPC TEST START :  auipc x5 0x1F1FA    | x5 <= 1F1FA064
+2F2FA2B7  //LUI TEST START :    lui x5 0x2F2FA      | x5 <= 2F2FA000
+FFF9AB93  //SLTI TEST START :   slti x23 x19 0xFFF  | x23 <= 00000000
+001BAB93  //                    slti x23 x23 0x001  | x23 <= 00000001
+FFF9BB13  //SLTIU TEST START :  sltiu x22 x19 0xFFF | x22 <= 00000001
+0019BB13  //                    sltiu x22 x19 0x001 | x22 <= 00000000
+AAA94913  //XORI TEST START :   xori x18 x19 0xAAA  | x18 <= 21524445 (because sign extend)
+00094993  //                    xori x19 x18 0x000  | x19 <= 21524445
+AAA9EA13  //ORI TEST START :    ori x20 x19 0xAAA   | x20 <= FFFFFEEF
+000A6A93  //                    ori x21 x20 0x000   | x21 <= FFFFFEEF
+7FFA7913  //ANDI TEST START :   andi x18 x20 0x7FF  | x18 <= 000006EF
+FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
+000AFA13  //                    andi x20 x21 0x000  | x20 <= 00000000
+00499993  //SLLI TEST START :   slli x19 x19 0x4    | x19 <= FFFFEEF0
+02499993  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SL)
+0049DA13  //SRLI TEST START :   srli x20 x19 0x4    | x20 <= 0FFFFEEF
+0249DA13  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
+404ADA93  //SRAI TEST START :   srai x21 x21 0x4    | x21 <= FFFFFFEE
+424ADA93  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
+412A8933  //SUB TEST START :    sub x18 x21 x18     | x18 <= FFFFF8FF
+00800393  //SLL TEST START :    addi x7 x0 0x8      | x7  <= 00000008
+00791933  //                    sll x18 x18 x7      | x18 <= FFF8FF00
+013928B3  //SLT TEST START :    slt x17 x22 x23     | x17 <= 00000001 (-459008 < -4368)
+013938B3  //SLTU TEST START :   sltu x17 x22 x23    | x17 <= 00000001
+013948B3  //XOR TEST START :    xor x17 x18 x19     | x17 <= 000711F0
+0079D433  //SRL TEST START :    srl x8 x19 x7       | x8  <= 00FFFFEE
+4079D433  //SRA TEST START :    sra x8 x19 x7       | x8  <= FFFFFFEE
+0088C463  //BLT TEST START :    blt x17 x8 0x8      | not taken : x8 neg (sign), x17 pos (no sign)
+01144463  //                    blt x8 x17 0x8      | taken : x8 neg (sign), x17 pos (no sign)
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
+00841463  //BNE TEST START :    bne x8 x8 0x8       | not taken
+01141463  //                    bne x8 x17 0x8      | taken
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
+01145463  //BGE TEST START :    bge x8 x17 0x8      | not taken
+00845463  //                    bge x8 x8 0x8       | taken
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
+01146463  //BLTU TEST START :   bltu x8 x17 0x8     | not taken
+0088E463  //                    bltu x17 x8 0x8     | taken
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
+0088F463  //BGEU TEST START :   bgeu x17 x8 0x8     | not taken
+01147463  //                    bgeu x8 x17 0x8     | taken
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x108
+00000397  //JALR TEST START :   auipc x7 0x0        | x7 <= 00000110                PC = 0x10C 
+01438393  //                    addi x7 x7 0x10     | x7 <= 00000120                PC = 0x110
+FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000118, go @PC 0x11C  PC = 0x114
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x118
+008020A3  //SB TEST START :     sw x8 0x1(x0)       | NO WRITE ! (mis-aligned !)    PC = 0x11C
+00800323  //                    sb x8 0x6(x0)       | mem @ 0x4 <= 00EE0000         PC = 0x120
+008010A3  //SH TEST START :     sh x8 1(x0)         | NO WRITE ! (mis-aligned !)
+008011A3  //                    sh x8 3(x0)         | NO WRITE ! (mis-aligned !)
+00801323  //                    sh x8 6(x0)         | mem @ 0x4 <= FFEE0000      
+01000393  //LB TEST START :     addi x7 x0 0x10     | x7 <= 00000010 (base address for this test) // UNTESTES !!!
+FFF3A903  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER ! (x18 last value : FFF8FF00)
+FFF38903  //                    lb x18 -1(x7)       | x18 <= FFFFFFDE (0xC is DEADBEEF bc sw test)
+FFD3C983  //LBU TEST START :    lbu x19 -3(x7)      | x19 <= 000000BE
+FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x20 last value : 0FFFFEEF)
+FFA39A03  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
+FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
+FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
+00000013  //NOP
