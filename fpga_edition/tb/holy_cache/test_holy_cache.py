@@ -40,6 +40,20 @@ CACHE_SIZE = 128 #7 b addressable, SYNC IT WITH THE ACTUAL TB CACHE SIZE
 def generate_random_bytes(length):
     return bytes([random.randint(0, 255) for _ in range(length)])
 
+def read_cache(cache_data, line) :
+    """To read cache_data, because the packed array makes it an array of bits... Fuck vivado, I mean it"""
+    l = 127 - line
+    return (int(str(cache_data.value[32*l:(32*l)+31]),2))
+
+def dump_cache(cache_data, line) -> int :
+    if line == "*" :
+        for line_a in range(128): # for fixed cache size of 128
+            l = 127 - line_a
+            print(hex(int(str(cache_data.value[32*l:(32*l)+31]),2)))
+    else :
+        print(hex(int(str(cache_data.value[32*line:(32*line)+31]),2)))
+        
+
 @cocotb.coroutine
 async def reset(dut):
     await RisingEdge(dut.clk)
@@ -56,7 +70,10 @@ async def reset(dut):
 
     # Assert all is 0 after reset
     for cache_line in range(dut.cache_system.CACHE_SIZE.value):
-        assert int(dut.cache_system.cache_data[cache_line].value) == 0
+        assert read_cache(dut.cache_system.cache_data, cache_line) == 0
+        #assert int(dut.cache_system.cache_data[cache_line].value) == 0
+
+    #dump_cache(dut.cache_system.cache_data, "*")
 
 @cocotb.test()
 async def initial_read_test(dut):
@@ -229,7 +246,7 @@ async def initial_read_test(dut):
     dut.cpu_write_enable.value = 0b0
     await Timer(1, units="ns")
 
-    assert dut.cache_system.cache_data[int(0x0C/4)].value == expected_data
+    assert read_cache(dut.cache_system.cache_data,int(0x0C/4)) == expected_data
     assert dut.cache_system.cache_dirty.value == 0b1
 
     wb_test_addr = 0xF0C
@@ -414,7 +431,7 @@ async def initial_read_test(dut):
     assert dut.cpu_write_enable.value == 0b1
     assert dut.cpu_read_enable.value == 0b0 
     assert dut.cpu_write_data.value == 0xFFFFFFFF
-    assert not int(dut.cache_system.cache_data[int(8/4)].value) == 0xFFFFFFFF
+    assert not read_cache(dut.cache_system.cache_data,int(8/4)) == 0xFFFFFFFF
 
     assert dut.cache_system.next_state.value == IDLE
 
@@ -424,4 +441,4 @@ async def initial_read_test(dut):
     dut.cpu_write_enable.value = 0b0
     await Timer(1, units="ns")
 
-    assert int(dut.cache_system.cache_data[int(8/4)].value) == 0xFFFFFFFF
+    assert read_cache(dut.cache_system.cache_data,int(8/4)) == 0xFFFFFFFF

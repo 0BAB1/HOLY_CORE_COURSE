@@ -28,6 +28,11 @@ def hex_to_bin(hex_str):
     bin_str = bin_str.zfill(32)
     return bin_str.upper()
 
+def read_cache(cache_data, line) :
+    """To read cache_data, because the packed array makes it an array of bits..."""
+    l = 127 - line
+    return (int(str(cache_data.value[32*l:(32*l)+31]),2))
+
 @cocotb.coroutine
 async def cpu_reset(dut):
     # Init and reset
@@ -75,7 +80,7 @@ async def cpu_insrt_test(dut):
     #===============
 
     SIZE = 2**13
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
 
     await cpu_reset(dut)
     await init_memory(axi_ram_slave, "./test_imemory.hex", 0x0000)
@@ -120,10 +125,11 @@ async def cpu_insrt_test(dut):
     test_address = int(0xC / 4) 
 
     # Check the inital state
-    assert binary_to_hex(dut.core.data_cache.cache_data[test_address].value) == "F2F2F2F2"
+    # assert binary_to_hex(dut.core.data_cache.cache_data[test_address].value) == "F2F2F2F2"
+    assert read_cache(dut.core.data_cache.cache_data, test_address) == int("F2F2F2F2",16)
 
     await RisingEdge(dut.clk) # sw x18 0xC(x3)
-    assert binary_to_hex(dut.core.data_cache.cache_data[test_address].value) == "DEADBEEF"
+    assert read_cache(dut.core.data_cache.cache_data, test_address) == int("DEADBEEF",16)
 
     ##################
     # ADD TEST
@@ -626,11 +632,12 @@ async def cpu_insrt_test(dut):
 
     await RisingEdge(dut.clk) # sw x8 0x1(x0)
     # address is 1 because 0x6 is word @ address 4 and the test bench gets data by word
-    assert binary_to_hex(dut.core.data_cache.cache_data[1].value) == "00000000" # remains UNFAZED
+    #assert binary_to_hex(dut.core.data_cache.cache_data[1].value) == "00000000" 
+    assert read_cache(dut.core.data_cache.cache_data, 1) == int("00000000",16) # remains UNFAZED
     assert binary_to_hex(dut.core.instruction.value) == "00818323"
 
     await RisingEdge(dut.clk) # sb x8 0x6(x3)
-    assert binary_to_hex(dut.core.data_cache.cache_data[1].value) == "00EE0000"
+    assert read_cache(dut.core.data_cache.cache_data, 1) == int("00EE0000",16)
 
     #################
     # 008010A3  //SH TEST START :     sh x8 1(x0)         | NO WRITE ! (mis-aligned !)
@@ -643,13 +650,14 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.core.instruction.value) == "008010A3"
 
     await RisingEdge(dut.clk) # sh x8 1(x0)
-    assert binary_to_hex(dut.core.data_cache.cache_data[1].value) == "00EE0000" # remains UNFAZED
+    # assert binary_to_hex(dut.core.data_cache.cache_data[1].value) == "00EE0000" # remains UNFAZED
+    assert read_cache(dut.core.data_cache.cache_data, 1) == int("00EE0000",16) # remains UNFAZED
 
     await RisingEdge(dut.clk) # sh x8 3(x0)
-    assert binary_to_hex(dut.core.data_cache.cache_data[1].value) == "00EE0000" # remains UNFAZED
+    assert read_cache(dut.core.data_cache.cache_data, 1) == int("00EE0000",16) # remains UNFAZED
 
     await RisingEdge(dut.clk) # sh x8 6(x3) 
-    assert binary_to_hex(dut.core.data_cache.cache_data[1].value) == "FFEE0000"
+    assert read_cache(dut.core.data_cache.cache_data, 1) == int("FFEE0000",16) # remains UNFAZED
 
     #################
     # PARTIAL LOADS

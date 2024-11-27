@@ -9,12 +9,6 @@ module holy_core (
 
 import holy_core_pkg::*;
 
-// Support for AXI4 specs
-assign m_axi.awqos  = 4'b0000;
-assign m_axi.awlock = 2'b00;
-assign m_axi.arqos  = 4'b0000;
-assign m_axi.arlock = 2'b00;
-
 /**
 * M_AXI_ARBITRER, aka "mr l'arbitre"
 */
@@ -185,7 +179,7 @@ end
 regfile regfile(
     // basic signals
     .clk(clk),
-    .rst_n(rst_n),
+    .rst_n(rst_n | m_axi.aresetn),
 
     // Read In
     .address1(source_reg1),
@@ -260,7 +254,7 @@ cache_state_t d_cache_state;
 
 holy_cache data_cache (
     .clk(clk),
-    .rst_n(rst_n),
+    .rst_n(rst_n | m_axi.aresetn),
 
     .aclk(m_axi.aclk),
 
