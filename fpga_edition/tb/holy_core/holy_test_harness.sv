@@ -18,6 +18,7 @@ module holy_test_harness (
 
     // axi clock
     input logic aclk,
+    input logic aresetn,
     
     // Write Address Channel
     output logic [3:0]               m_axi_awid,
@@ -71,7 +72,7 @@ holy_core core(
 
 // Connect the discrete AXI signals to the m_axi
 assign m_axi.aclk      = aclk;
-assign m_axi.aresetn      = rst_n;
+assign m_axi.aresetn      = aresetn;
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;

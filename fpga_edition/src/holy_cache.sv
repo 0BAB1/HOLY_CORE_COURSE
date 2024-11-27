@@ -19,9 +19,9 @@ module holy_cache #(
 )(
     // CPU LOGIC CLOCK & RESET
     input logic clk,
-    input logic rst_n,
+    input logic rst_n, // (also is axi reset.)
 
-    // AXI CLOCK
+    // AXI Clock, separate necessary as arbitrer can't output it.
     input logic aclk,
 
     // CPU Interface
@@ -48,7 +48,7 @@ module holy_cache #(
     /* verilator lint_off MULTIDRIVEN */
 
     // CACHE TABLE DECLARATION (hardcoded for now, TODO : fix that)
-    logic [31:0]                    cache_data          [0:CACHE_SIZE-1];
+    logic [CACHE_SIZE-1:0][31:0] cache_data;
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
     logic                           cache_valid;  // is the current block valid ?
     logic                           next_cache_valid;
@@ -85,7 +85,7 @@ module holy_cache #(
     end
 
     // AXI State machine logic
-    always_ff @(posedge aclk or negedge rst_n or negedge axi.aresetn) begin
+    always_ff @(posedge aclk) begin
         if (~rst_n) begin
             state <= IDLE;
             cache_valid <= 1'b0;
