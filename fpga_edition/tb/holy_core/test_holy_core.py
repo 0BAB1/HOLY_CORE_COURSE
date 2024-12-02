@@ -96,7 +96,7 @@ async def cpu_insrt_test(dut):
     while(dut.core.stall.value == 1) :
         await RisingEdge(dut.clk)
 
-    await RisingEdge(dut.clk) # lw x18 0x8(x0)
+    await RisingEdge(dut.clk) # lui x3 0x1
     # Check the value of reg x18
     assert binary_to_hex(dut.core.regfile.registers[3].value) == "00001000"
 

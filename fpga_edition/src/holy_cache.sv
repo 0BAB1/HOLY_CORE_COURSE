@@ -8,6 +8,9 @@
 *
 *   NOTES : write enable has to be validated by a byte enable mask, otherwise no memory
 *   operation is applied (assign actual_write_enable = write_enable & |byte_enable;)
+*   
+*   Design assertion :
+*   ACLK <= CLK
 */
 
 import holy_core_pkg::*;
@@ -19,7 +22,7 @@ module holy_cache #(
 )(
     // CPU LOGIC CLOCK & RESET
     input logic clk,
-    input logic rst_n, // (also is axi reset.)
+    input logic rst_n, // (main cpu's AXI aresetn OR generic rst_n)
 
     // AXI Clock, separate necessary as arbitrer can't output it.
     input logic aclk,
@@ -45,14 +48,13 @@ module holy_cache #(
     // | DIRTY | VALID | BLOCK TAG | INDEX/SET | OFFSET | DATA |
     // | FLAGS         | ADDRESS INFOS                  | DATA |
 
-    /* verilator lint_off MULTIDRIVEN */
-
     // CACHE TABLE DECLARATION (hardcoded for now, TODO : fix that)
     logic [CACHE_SIZE-1:0][31:0] cache_data;
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
     logic                           cache_valid;  // is the current block valid ?
     logic                           next_cache_valid;
     logic                           cache_dirty;
+    logic                           next_cache_dirty;
 
     // INCOMING CACHE REQUEST SIGNALS
     logic [31:9]                    req_block_tag;
@@ -67,57 +69,56 @@ module holy_cache #(
     // STALL LOGIC
     logic actual_write_enable;
     assign actual_write_enable = write_enable & |byte_enable;
-    assign cache_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
+    logic comb_stall, seq_stall;
+    assign comb_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
+    assign cache_stall = comb_stall | seq_stall;
 
     // =======================
     // CACHE LOGIC
     // =======================
     cache_state_t state, next_state;
 
-    // CPU IF write logic (read is async)
+    // MAIN CLOCK DRIVEN SEQ LOGIC
     always_ff @(posedge clk) begin
-        // Write to cache
-        if(hit && write_enable) begin
-            // async reads
-            cache_data[req_index] <= (cache_data[req_index] & ~byte_enable_mask) | (write_data & byte_enable_mask);
-            cache_dirty <= 1'b1;
+        if (~rst_n) begin
+            cache_valid <= 1'b0;
+            cache_dirty <= 1'b0;
+            seq_stall <= 1'b0;
+        end else begin
+            cache_valid <= next_cache_valid;
+            cache_dirty <= next_cache_dirty;
+            seq_stall <= comb_stall;
+
+            if(hit && write_enable & state == IDLE) begin
+                cache_data[req_index] <= (cache_data[req_index] & ~byte_enable_mask) | (write_data & byte_enable_mask);
+                cache_dirty <= 1'b1;
+            end else if(axi.rvalid & state == RECEIVING_READ_DATA) begin
+                // Write incomming axi read
+                cache_data[set_ptr] <= axi.rdata;
+                if(axi.rready & axi.rlast) begin
+                    cache_block_tag <= req_block_tag;
+                    cache_dirty <= 1'b0;
+                end
+            end
         end
     end
 
-    // AXI State machine logic
+    // AXI CLOCK DRIVEN SEQ LOGIC
     always_ff @(posedge aclk) begin
         if (~rst_n) begin
             state <= IDLE;
-            cache_valid <= 1'b0;
             set_ptr <= 7'd0;
-            cache_dirty <= 1'b0;
-            cache_block_tag <= 23'b0;
         end else begin
             state <= next_state;
-            cache_valid <= next_cache_valid;
             set_ptr <= next_set_ptr;
-
-            case (state)
-                RECEIVING_READ_DATA: begin
-                    if(axi.rvalid) begin
-                        cache_data[set_ptr] <= axi.rdata;
-                        if(axi.rready & axi.rlast) begin
-                            cache_block_tag <= req_block_tag;
-                            cache_dirty <= 1'b0;
-                        end
-                    end
-                end
-                default : begin end
-            endcase
         end
     end
-
-    /* verilator lint_on MULTIDRIVEN */
 
     // Async Read logic & AXI SIGNALS declaration !
     always_comb begin
         next_state = state; // Default
         next_cache_valid = cache_valid;
+        next_cache_dirty = cache_dirty;
         axi.wlast = 1'b0;
         // the data being send is always set, "ready to go"
         axi.wdata = cache_data[set_ptr];
@@ -139,6 +140,10 @@ module holy_cache #(
                         1'b1 : next_state = SENDING_WRITE_REQ;
                         1'b0 : next_state = SENDING_READ_REQ;
                     endcase
+                end
+
+                else if(hit && actual_write_enable) begin
+                    next_cache_dirty = 1'b1;
                 end
 
                 // IDLE AXI SIGNALS : no request
@@ -229,6 +234,7 @@ module holy_cache #(
                     if (axi.rlast) begin
                         next_state = IDLE;
                         next_cache_valid = 1'b1;
+                        next_cache_dirty = 1'b0;
                     end
                 end
                 
