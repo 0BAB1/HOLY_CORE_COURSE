@@ -17,7 +17,7 @@ interface debug_if;
     logic [6:0] d_cache_set_ptr;
 
     // Modports for output
-    modport debug_out (
+    modport master (
         output instruction,
         output pc,
         output i_cache_state,

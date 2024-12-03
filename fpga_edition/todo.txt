@@ -15,10 +15,16 @@ adapt tb to wait on cache stall
 adapt tb signals assertion for new test harness
 add more holy tests for cache misses
 integrate all in pytest, make all the deisng coherent and run flawlessly
+interface AXI in vivado correctly
+Run on FPGA - LED (JTAG init)
 
 ===================
 DOING
 ===================
+
+ADD DEBUG SIGNALS
+
+Run on FPGA - Blink LED using instructions fed in HOLY CORE
 
 ...
 
@@ -26,23 +32,18 @@ DOING
 NOT DONE - MILESTONES
 =======================
 
-figure our this tlast bug
-
-interface AXI in vivado correctly
-
 add AXI Lite
 
 UART tb
 
-Compile actual assembly for the cpu meme files
+Compile actual assembly for the cpu mem files
 
-Run on FPGA - BLINK LED (JTAG init)
-
-Run on FPGA - Blink LED (more pro way ? idk, gotta figure it out)
 
 =======================
 NOT DONE - SIDEQUESTS
 =======================
+
+figure our this tlast bug in simulation
 
 AXI wresp & rresp error handling.
 

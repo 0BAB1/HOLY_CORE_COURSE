@@ -151,6 +151,8 @@ interface axi_if #(
 
 endinterface
 
+// unsed test code below (for various tests)
+
 interface aximm #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,

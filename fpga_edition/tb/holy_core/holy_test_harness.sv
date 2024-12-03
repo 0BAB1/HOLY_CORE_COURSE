@@ -57,17 +57,28 @@ module holy_test_harness (
     input  logic [1:0]               m_axi_rresp,
     input  logic                     m_axi_rlast,
     input  logic                     m_axi_rvalid,
-    output logic                     m_axi_rready
+    output logic                     m_axi_rready,
+
+    // debug signals (not used in tb for now, but here to avoid error)
+    output logic [2:0] i_cache_state, 
+    output logic [2:0] d_cache_state, 
+    output logic i_cache_stall,
+    output logic d_cache_stall, 
+    output logic [6:0] i_cache_set_ptr,
+    output logic [6:0] d_cache_set_ptr
 );
 
 axi_if m_axi();
+debug_if debug();
+
 
 holy_core core(
     .clk(clk), 
     .rst_n(rst_n),
 
     // AXI Master Interface
-    .m_axi(m_axi)
+    .m_axi(m_axi),
+    .debug(debug)
 );
 
 // Connect the discrete AXI signals to the m_axi
@@ -115,4 +126,11 @@ assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
 
     
+assign d_cache_state = debug.d_cache_state; 
+assign i_cache_state = debug.i_cache_state; 
+assign i_cache_stall = debug.i_cache_stall;
+assign d_cache_stall = debug.d_cache_stall; 
+assign i_cache_set_ptr = debug.i_cache_set_ptr;
+assign d_cache_set_ptr = debug.d_cache_set_ptr;
+
 endmodule
