@@ -4,10 +4,23 @@ module holy_core (
     input logic clk,
     input logic rst_n,
     // AXI Interface for external requests
-    axi_if.master m_axi
+    axi_if.master m_axi,
+    debug_if.debug_out debug
 );
 
 import holy_core_pkg::*;
+
+/**
+* FPGA Debug_out signals
+*/
+
+assign debug.instruction = instruction;
+assign debug.pc = pc;
+assign debug.i_cache_state = i_cache_state;
+assign debug.d_cache_state = d_cache_state;
+assign debug.i_cache_stall = i_cache_stall;
+assign debug.d_cache_stall = d_cache_stall;
+// others are assign directly to submodules outputs
 
 /**
 * M_AXI_ARBITRER, aka "mr l'arbitre"
@@ -91,7 +104,10 @@ holy_cache instr_cache (
 
     // M_AXI EXERNAL REQ IF
     .axi(m_axi_instr),
-    .cache_state(i_cache_state)
+    .cache_state(i_cache_state),
+
+    //debug
+    .set_ptr_out(debug.i_cache_set_ptr)
 );
 
 /**
@@ -269,7 +285,10 @@ holy_cache data_cache (
 
     // M_AXI EXERNAL REQ IF
     .axi(m_axi_data),
-    .cache_state(d_cache_state)
+    .cache_state(d_cache_state),
+
+    //debug
+    .set_ptr_out(debug.d_cache_set_ptr)
 );
 
 /**

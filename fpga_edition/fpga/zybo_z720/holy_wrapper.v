@@ -31,10 +31,18 @@ module holy_wrapper (
     input  wire [1:0]               m_axi_rresp,
     input  wire                     m_axi_rlast,
     input  wire                     m_axi_rvalid,
-    output wire                     m_axi_rready
+    output wire                     m_axi_rready,
+
+    // Debug OUT
+    output wire [2:0]               i_cache_state,
+    output wire [2:0]               d_cache_state,
+    output wire                     i_cache_stall,
+    output wire                     d_cache_stall,
+    output wire [6:0]               i_cache_set_ptr,
+    output wire [6:0]               d_cache_set_ptr
 );
 
-// Explicit wire declarations for all module connections
+// Explicit interface wires
 wire aclk;
 wire aresetn;
 wire clk;
@@ -68,11 +76,20 @@ wire [1:0]  m_axi_rresp;
 wire        m_axi_rlast;
 wire        m_axi_rvalid;
 wire        m_axi_rready;
+// Debug signal wires
+wire [2:0]  i_cache_state;
+wire [2:0]  d_cache_state;
+wire        i_cache_stall;
+wire        d_cache_stall;
+wire [6:0]  i_cache_set_ptr;
+wire [6:0]  d_cache_set_ptr;
 
 // Explicit connection to holy_test_harness module
 axi_details wrapped (
+    // GENERIC SIGNALS
     .clk(clk),
     .rst_n(rst_n),
+    // AXI SIGNALS
     .aclk(aclk),
     .aresetn(aresetn),
     .m_axi_awid(m_axi_awid),
@@ -103,7 +120,14 @@ axi_details wrapped (
     .m_axi_rresp(m_axi_rresp),
     .m_axi_rlast(m_axi_rlast),
     .m_axi_rvalid(m_axi_rvalid),
-    .m_axi_rready(m_axi_rready)
+    .m_axi_rready(m_axi_rready),
+    // DEBUG SIGNALS
+    .i_cache_state(i_cache_state), 
+    .d_cache_state(d_cache_state), 
+    .i_cache_stall(i_cache_stall),
+    .d_cache_stall(d_cache_stall), 
+    .i_cache_set_ptr(i_cache_set_ptr),
+    .d_cache_set_ptr(d_cache_set_ptr)
 );
 
 endmodule

@@ -40,7 +40,10 @@ module holy_cache #(
     axi_if.master axi,
 
     // State informations for arbitrer
-    output cache_state_t cache_state
+    output cache_state_t cache_state,
+
+    // debug signals
+    output logic [6:0] set_ptr_out
 );
     localparam INDEX_WIDTH = $clog2(CACHE_SIZE);
 
@@ -92,7 +95,7 @@ module holy_cache #(
             if(hit && write_enable & state == IDLE) begin
                 cache_data[req_index] <= (cache_data[req_index] & ~byte_enable_mask) | (write_data & byte_enable_mask);
                 cache_dirty <= 1'b1;
-            end else if(axi.rvalid & state == RECEIVING_READ_DATA) begin
+            end else if(axi.rvalid & state == RECEIVING_READ_DATA & axi.rready) begin
                 // Write incomming axi read
                 cache_data[set_ptr] <= axi.rdata;
                 if(axi.rready & axi.rlast) begin
@@ -243,7 +246,7 @@ module holy_cache #(
                 axi.awvalid = 1'b0;
                 axi.wvalid = 1'b0;
                 axi.bready = 1'b0;
-                // No read but address is okay
+                // Caching data
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b1;
             end
