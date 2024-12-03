@@ -12,9 +12,9 @@ module axi_details (
     input logic clk,
     input logic rst_n,
 
-    // ================================
-    // Detailled AXI IF for tb purpose
-    // ================================
+    // =================
+    // Detailled AXI IF
+    // =================
 
     // axi clock
     input logic aclk,
@@ -57,17 +57,38 @@ module axi_details (
     input  logic [1:0]               m_axi_rresp,
     input  logic                     m_axi_rlast,
     input  logic                     m_axi_rvalid,
-    output logic                     m_axi_rready
+    output logic                     m_axi_rready,
+
+    // ========================
+    // Detailled DEBUG SIGNALS
+    // ========================
+
+    // Core debug signals
+    output logic [31:0] instruction;
+    output logic [31:0] pc;
+
+    // Cache debug signals
+    output logic [2:0] i_cache_state; 
+    output logic [2:0] d_cache_state; 
+    output logic i_cache_stall;
+    output logic d_cache_stall; 
+    output logic [6:0] i_cache_set_ptr;
+    output logic [6:0] d_cache_set_ptr;
 );
 
-axi_if m_axi();
+// INTERFACES DECLARATION
+axi_if m_axi(); // axi master
+debug_if debug();
 
 holy_core core(
     .clk(clk), 
     .rst_n(rst_n),
 
     // AXI Master Interface
-    .m_axi(m_axi)
+    .m_axi(m_axi),
+
+    // Debug out interface
+    .debug(debug)
 );
 
 // Connect the discrete AXI signals to the m_axi
@@ -114,5 +135,12 @@ assign m_axi.rlast  = m_axi_rlast;
 assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
 
+// Same for debug out
+assign i_cache_state = debug.i_cache_state; 
+assign d_cache_state = debug.d_cache_state; 
+assign i_cache_stall = debug.i_cache_stall;
+assign d_cache_stall = debug.d_cache_stall; 
+assign i_cache_set_ptr = debug.i_cache_set_ptr;
+assign d_cache_set_ptr = debug.d_cache_set_ptr;
     
 endmodule
