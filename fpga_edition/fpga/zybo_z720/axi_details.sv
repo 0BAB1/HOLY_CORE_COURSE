@@ -64,16 +64,16 @@ module axi_details (
     // ========================
 
     // Core debug signals
-    output logic [31:0] instruction;
-    output logic [31:0] pc;
+    output logic [31:0] instruction,
+    output logic [31:0] pc,
 
     // Cache debug signals
-    output logic [2:0] i_cache_state; 
-    output logic [2:0] d_cache_state; 
-    output logic i_cache_stall;
-    output logic d_cache_stall; 
-    output logic [6:0] i_cache_set_ptr;
-    output logic [6:0] d_cache_set_ptr;
+    output logic [2:0] i_cache_state,
+    output logic [2:0] d_cache_state, 
+    output logic i_cache_stall,
+    output logic d_cache_stall, 
+    output logic [6:0] i_cache_set_ptr,
+    output logic [6:0] d_cache_set_ptr
 );
 
 // INTERFACES DECLARATION
@@ -142,5 +142,7 @@ assign i_cache_stall = debug.i_cache_stall;
 assign d_cache_stall = debug.d_cache_stall; 
 assign i_cache_set_ptr = debug.i_cache_set_ptr;
 assign d_cache_set_ptr = debug.d_cache_set_ptr;
-    
+
+assign instruction = debug.instruction;
+assign pc = debug.pc;
 endmodule

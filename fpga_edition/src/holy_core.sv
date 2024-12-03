@@ -5,7 +5,7 @@ module holy_core (
     input logic rst_n,
     // AXI Interface for external requests
     axi_if.master m_axi,
-    debug_if.debug_out debug
+    debug_if.master debug
 );
 
 import holy_core_pkg::*;
