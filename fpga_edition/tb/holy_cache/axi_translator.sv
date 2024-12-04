@@ -61,6 +61,7 @@ module axi_translator (
 
     // Declare the AXI master interface for the cache
     axi_if axi_master_intf();
+    logic [6:0] set_ptr_out;
 
     // Connect the discrete AXI signals to the axi_master_intf
     assign axi_master_intf.aclk      = clk;
@@ -128,7 +129,10 @@ module axi_translator (
         .byte_enable(cpu_byte_enable),
         .read_data(cpu_read_data),
         .cache_stall(cpu_cache_stall),
-        .cache_state(cache_state)
+        .cache_state(cache_state),
+
+        // debug interface
+        .set_ptr_out(set_ptr_out)
     );
 
 endmodule

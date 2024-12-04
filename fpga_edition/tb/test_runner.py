@@ -19,7 +19,7 @@ def generic_tb_runner(design_name, specific_top_level=None, additional_sources=[
         sources=sources,
         hdl_toplevel=f"{toplevel}",
         build_dir=f"./{design_name}/sim_build",
-        build_args=[f"--trace", "--trace-structs", f"{proj_path}/packages/holy_core_pkg.sv", f"{proj_path}/packages/axi_if.sv"] + additional_sources
+        build_args=[f"--trace", "--trace-structs", f"{proj_path}/packages/holy_core_pkg.sv", f"{proj_path}/packages/axi_if.sv", f"{proj_path}/packages/debug_if.sv"] + additional_sources
     )
     runner.test(hdl_toplevel=f"{toplevel}", test_module=f"test_{design_name}", test_dir=f"./{design_name}")
 

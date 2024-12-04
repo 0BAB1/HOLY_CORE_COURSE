@@ -5,7 +5,7 @@ import random
 from cocotbext.axi import AxiBus, AxiRam
 import numpy as np
 
-AXI_PERIOD = 16 # some weird number to test multiple freq compat
+AXI_PERIOD = 16
 CPU_PERIOD = 10
 
 # CACHE STATES CST
