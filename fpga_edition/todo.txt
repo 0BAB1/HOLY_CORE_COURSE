@@ -24,6 +24,8 @@ DOING
 
 ADD DEBUG SIGNALS
 
+CHANGE ARBITRER DEFAULT VALUES
+
 RUN ON SIGLE CLOCK (and test it first in simulation, as I did sims on async clocks)
 
 Run on FPGA - Blink LED using instructions fed in HOLY CORE

@@ -5,7 +5,17 @@ module holy_core (
     input logic rst_n,
     // AXI Interface for external requests
     axi_if.master m_axi,
-    debug_if.master debug
+
+    // OUTGOING DEBUG SIGNALS
+    output logic [31:0] debug_pc,  
+    output logic [31:0] debug_pc_next,
+    output logic [31:0] debug_instruction,  
+    output logic [2:0] debug_i_cache_state,  
+    output logic [2:0] debug_d_cache_state,
+    output logic [6:0] debug_i_set_ptr,  
+    output logic [6:0] debug_d_set_ptr,  
+    output logic debug_i_cache_stall,  
+    output logic debug_d_cache_stall  
 );
 
 import holy_core_pkg::*;
@@ -14,12 +24,14 @@ import holy_core_pkg::*;
 * FPGA Debug_out signals
 */
 
-assign debug.instruction = instruction;
-assign debug.pc = pc;
-assign debug.i_cache_state = i_cache_state;
-assign debug.d_cache_state = d_cache_state;
-assign debug.i_cache_stall = i_cache_stall;
-assign debug.d_cache_stall = d_cache_stall;
+assign debug_pc = pc;  
+assign debug_pc_next = pc_next;  
+assign debug_instruction = instruction;  
+assign debug_i_cache_state = i_cache_state;  
+assign debug_d_cache_state = d_cache_state;  
+assign debug_i_cache_stall = i_cache_stall;  
+assign debug_d_cache_stall  = d_cache_stall; 
+
 // others are assign directly to submodules outputs
 
 /**
@@ -107,7 +119,7 @@ holy_cache instr_cache (
     .cache_state(i_cache_state),
 
     //debug
-    .set_ptr_out(debug.i_cache_set_ptr)
+    .set_ptr_out(debug_i_set_ptr)
 );
 
 /**
@@ -288,7 +300,7 @@ holy_cache data_cache (
     .cache_state(d_cache_state),
 
     //debug
-    .set_ptr_out(debug.d_cache_set_ptr)
+    .set_ptr_out(debug_d_set_ptr)
 );
 
 /**

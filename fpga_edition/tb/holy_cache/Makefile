@@ -9,7 +9,6 @@ WAVES = 1
 VERILOG_SOURCES += $(PWD)/../../src/holy_cache.sv
 EXTRA_ARGS += $(PWD)/../../packages/holy_core_pkg.sv
 EXTRA_ARGS += $(PWD)/../../packages/axi_if.sv
-EXTRA_ARGS += $(PWD)/../../packages/debug_if.sv
 EXTRA_ARGS += $(PWD)/axi_translator.sv
 # use VHDL_SOURCES for VHDL files
 
