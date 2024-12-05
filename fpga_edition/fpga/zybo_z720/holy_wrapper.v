@@ -35,6 +35,7 @@ module holy_wrapper (
 
     // Debug OUT
     output wire [31:0]              pc,
+    output wire [31:0]              pc_next,
     output wire [31:0]              instruction,
     output wire [2:0]               i_cache_state,
     output wire [2:0]               d_cache_state,
@@ -79,6 +80,9 @@ wire        m_axi_rlast;
 wire        m_axi_rvalid;
 wire        m_axi_rready;
 // Debug signal wires
+wire [31:0] pc;
+wire [31:0] pc_d;
+wire [31:0] instruction;
 wire [2:0]  i_cache_state;
 wire [2:0]  d_cache_state;
 wire        i_cache_stall;
@@ -124,14 +128,15 @@ axi_details wrapped (
     .m_axi_rvalid(m_axi_rvalid),
     .m_axi_rready(m_axi_rready),
     // DEBUG SIGNALS
-    .i_cache_state(i_cache_state), 
-    .d_cache_state(d_cache_state), 
-    .i_cache_stall(i_cache_stall),
-    .d_cache_stall(d_cache_stall), 
-    .i_cache_set_ptr(i_cache_set_ptr),
-    .d_cache_set_ptr(d_cache_set_ptr),
-    .instruction(instruction),
-    .pc(pc)
+    .pc(pc),  
+    .pc_next(pc_next),  
+    .instruction(instruction),  
+    .i_cache_state(i_cache_state),  
+    .d_cache_state(d_cache_state),
+    .i_cache_set_ptr(i_cache_set_ptr),  
+    .d_cache_set_ptr(d_cache_set_ptr),  
+    .i_cache_stall(i_cache_stall),  
+    .d_cache_stall(d_cache_stall)
 );
 
 endmodule

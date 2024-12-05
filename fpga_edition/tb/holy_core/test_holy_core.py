@@ -5,7 +5,8 @@ import random
 from cocotbext.axi import AxiBus, AxiRam
 import numpy as np
 
-AXI_PERIOD = 16
+# WARNING : Passing test on async cloks does not means timing sync is met !
+AXI_PERIOD = 10
 CPU_PERIOD = 10
 
 # CACHE STATES CST

@@ -66,6 +66,7 @@ module axi_details (
     // Core debug signals
     output logic [31:0] instruction,
     output logic [31:0] pc,
+    output logic [31:0] pc_next,
 
     // Cache debug signals
     output logic [2:0] i_cache_state,
@@ -78,7 +79,6 @@ module axi_details (
 
 // INTERFACES DECLARATION
 axi_if m_axi(); // axi master
-debug_if debug();
 
 holy_core core(
     .clk(clk), 
@@ -88,7 +88,15 @@ holy_core core(
     .m_axi(m_axi),
 
     // Debug out interface
-    .debug(debug)
+    .debug_pc(pc),  
+    .debug_pc_next(pc_next),  
+    .debug_instruction(instruction),  
+    .debug_i_cache_state(i_cache_state),  
+    .debug_d_cache_state(d_cache_state),
+    .debug_i_set_ptr(i_cache_set_ptr),  
+    .debug_d_set_ptr(d_cache_set_ptr),  
+    .debug_i_cache_stall(i_cache_stall),  
+    .debug_d_cache_stall(d_cache_stall)
 );
 
 // Connect the discrete AXI signals to the m_axi
@@ -135,14 +143,4 @@ assign m_axi.rlast  = m_axi_rlast;
 assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
 
-// Same for debug out
-assign i_cache_state = debug.i_cache_state; 
-assign d_cache_state = debug.d_cache_state; 
-assign i_cache_stall = debug.i_cache_stall;
-assign d_cache_stall = debug.d_cache_stall; 
-assign i_cache_set_ptr = debug.i_cache_set_ptr;
-assign d_cache_set_ptr = debug.d_cache_set_ptr;
-
-assign instruction = debug.instruction;
-assign pc = debug.pc;
 endmodule
