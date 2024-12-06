@@ -43,10 +43,12 @@ module holy_cache #(
     output cache_state_t cache_state,
 
     // debug signals
-    output logic [6:0] set_ptr_out
+    output logic [6:0] set_ptr_out,
+    output logic [6:0] next_set_ptr_out
 );
     localparam INDEX_WIDTH = $clog2(CACHE_SIZE);
     assign set_ptr_out = set_ptr;
+    assign next_set_ptr_out = next_set_ptr;
 
     // Here is how a cache line is organized:
     // | DIRTY | VALID | BLOCK TAG | INDEX/SET | OFFSET | DATA |
@@ -127,6 +129,7 @@ module holy_cache #(
         // the data being send is always set, "ready to go"
         axi.wdata = cache_data[set_ptr];
         cache_state = state;
+        next_set_ptr = set_ptr;
 
         case (state)
             IDLE: begin
@@ -159,6 +162,7 @@ module holy_cache #(
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b0;
 
+                next_set_ptr = set_ptr;
             end
             SENDING_WRITE_REQ: begin
                 // HANDLE MISS WITH DIRTY CACHE : Update main memory first
@@ -175,16 +179,21 @@ module holy_cache #(
                 // No read
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b0;
+
+                next_set_ptr = et_ptr;
             end
 
             SENDING_WRITE_DATA : begin
-                if(set_ptr == 7'd127) begin
-                    next_state = WAITING_WRITE_RES;
-                    axi.wlast = 1'b1;
-                end
+
+                next_set_ptr = set_ptr;
 
                 if(axi.wready) begin
                     next_set_ptr = set_ptr + 1;
+                end
+
+                if(set_ptr == 7'd127) begin
+                    next_state = WAITING_WRITE_RES;
+                    axi.wlast = 1'b1;
                 end
 
                 // SENDING_WRITE_DATA AXI SIGNALS : sending data
@@ -212,6 +221,8 @@ module holy_cache #(
                 // No read
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b0;
+
+                next_set_ptr = set_ptr;
             end
 
             SENDING_READ_REQ : begin
@@ -230,27 +241,34 @@ module holy_cache #(
                 // No read but address is okay
                 axi.arvalid = 1'b1;
                 axi.rready = 1'b0;
+
+                next_set_ptr = set_ptr;
             end
 
-            RECEIVING_READ_DATA : begin
-                if(axi.rvalid) begin// if response is OKAY
+            RECEIVING_READ_DATA: begin
+                // Default to hold current pointer value
+                next_set_ptr = set_ptr;
+            
+                if (axi.rvalid) begin
+                    // Increment pointer on valid data
                     next_set_ptr = set_ptr + 1;
+            
                     if (axi.rlast) begin
+                        // Transition to IDLE on the last beat
                         next_state = IDLE;
                         next_cache_valid = 1'b1;
                         next_cache_dirty = 1'b0;
                     end
                 end
-                
-                // RECEIVING_READ_DATA AXI SIGNALS : We get the data incomming
-                // No write
+            
+                // AXI Signals
                 axi.awvalid = 1'b0;
                 axi.wvalid = 1'b0;
                 axi.bready = 1'b0;
-                // Caching data
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b1;
             end
+            
             default : begin end
         endcase
     end

@@ -13,7 +13,9 @@ module holy_core (
     output logic [2:0] debug_i_cache_state,  
     output logic [2:0] debug_d_cache_state,
     output logic [6:0] debug_i_set_ptr,  
+    output logic [6:0] debug_i_next_set_ptr,  
     output logic [6:0] debug_d_set_ptr,  
+    output logic [6:0] debug_d_next_set_ptr,  
     output logic debug_i_cache_stall,  
     output logic debug_d_cache_stall  
 );
@@ -119,7 +121,8 @@ holy_cache instr_cache (
     .cache_state(i_cache_state),
 
     //debug
-    .set_ptr_out(debug_i_set_ptr)
+    .set_ptr_out(debug_i_set_ptr),
+    .next_set_ptr_out(debug_i_next_set_ptr)
 );
 
 /**
@@ -300,7 +303,8 @@ holy_cache data_cache (
     .cache_state(d_cache_state),
 
     //debug
-    .set_ptr_out(debug_d_set_ptr)
+    .set_ptr_out(debug_d_set_ptr),
+    .next_set_ptr_out(debug_d_next_set_ptr)
 );
 
 /**

@@ -42,7 +42,9 @@ module holy_wrapper (
     output wire                     i_cache_stall,
     output wire                     d_cache_stall,
     output wire [6:0]               i_cache_set_ptr,
-    output wire [6:0]               d_cache_set_ptr
+    output wire [6:0]               d_cache_set_ptr,
+    output wire [6:0]               i_next_set_ptr,
+    output wire [6:0]               d_next_set_ptr
 );
 
 // Explicit interface wires
@@ -89,6 +91,8 @@ wire        i_cache_stall;
 wire        d_cache_stall;
 wire [6:0]  i_cache_set_ptr;
 wire [6:0]  d_cache_set_ptr;
+wire [6:0]  i_next_set_ptr;
+wire [6:0]  d_next_set_ptr;
 
 // Explicit connection to holy_test_harness module
 axi_details wrapped (
@@ -136,7 +140,9 @@ axi_details wrapped (
     .i_cache_set_ptr(i_cache_set_ptr),  
     .d_cache_set_ptr(d_cache_set_ptr),  
     .i_cache_stall(i_cache_stall),  
-    .d_cache_stall(d_cache_stall)
+    .i_next_set_ptr(i_next_set_ptr),
+    .d_cache_stall(d_cache_stall),
+    .d_next_set_ptr(d_next_set_ptr)
 );
 
 endmodule
