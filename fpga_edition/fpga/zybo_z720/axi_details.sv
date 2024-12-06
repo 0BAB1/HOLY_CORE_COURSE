@@ -74,7 +74,9 @@ module axi_details (
     output logic i_cache_stall,
     output logic d_cache_stall, 
     output logic [6:0] i_cache_set_ptr,
-    output logic [6:0] d_cache_set_ptr
+    output logic [6:0] i_next_set_ptr,
+    output logic [6:0] d_cache_set_ptr,
+    output logic [6:0] d_next_set_ptr
 );
 
 // INTERFACES DECLARATION
@@ -94,14 +96,16 @@ holy_core core(
     .debug_i_cache_state(i_cache_state),  
     .debug_d_cache_state(d_cache_state),
     .debug_i_set_ptr(i_cache_set_ptr),  
+    .debug_i_next_set_ptr(i_next_set_ptr),
     .debug_d_set_ptr(d_cache_set_ptr),  
+    .debug_d_next_set_ptr(d_next_set_ptr),
     .debug_i_cache_stall(i_cache_stall),  
     .debug_d_cache_stall(d_cache_stall)
 );
 
 // Connect the discrete AXI signals to the m_axi
-assign m_axi.aclk      = aclk;
-assign m_axi.aresetn      = aresetn;
+assign m_axi.aclk       = aclk;
+assign m_axi.aresetn    = aresetn;
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;

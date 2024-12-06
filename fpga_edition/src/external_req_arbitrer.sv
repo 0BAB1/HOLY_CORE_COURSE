@@ -20,28 +20,33 @@ module external_req_arbitrer (
     input cache_state_t d_cache_state
 );
 
+localparam CACHE_SIZE = 128;
+
 // The request controller simply muxes the transactions until they are done using state info from the caches
 
 always_comb begin : main_axi_mux
-    // Default values for master AXI signals, all 0. franckly we don't care about them.
-    m_axi.awid = 0;
+    // Default values set to 0s
     m_axi.awaddr = 0;
-    m_axi.awlen = 0;
-    m_axi.awsize = 0;
-    m_axi.awburst = 0;
     m_axi.awvalid = 0;
     m_axi.wdata = 0;
-    m_axi.wstrb = 0;
     m_axi.wlast = 0;
     m_axi.wvalid = 0;
     m_axi.bready = 0;
-    m_axi.arid = 0;
     m_axi.araddr = 0;
-    m_axi.arlen = 0;
-    m_axi.arsize = 0;
-    m_axi.arburst = 0;
     m_axi.arvalid = 0;
     m_axi.rready = 0;
+
+    // Invariant AXI Signals get hardcoded values
+
+    m_axi.awlen = CACHE_SIZE-1; // num of WORDS (packects of 4B)
+    m_axi.awsize = 3'b010; 
+    m_axi.awburst = 2'b01;
+    m_axi.arlen = CACHE_SIZE-1;
+    m_axi.arsize = 3'b010;
+    m_axi.arburst = 2'b01;
+    m_axi.awid = 4'b0000;
+    m_axi.arid = 4'b0000;
+    m_axi.wstrb = 4'b1111;
 
     s_axi_instr.awready = 0;
     s_axi_instr.wready = 0;
@@ -107,7 +112,7 @@ always_comb begin : main_axi_mux
         s_axi_instr.rvalid = m_axi.rvalid;
         m_axi.rready       = s_axi_instr.rready;
     
-    end else if (d_cache_state != IDLE) begin
+    end else if (d_cache_state != IDLE & i_cache_state == IDLE) begin
         // Write Address Channel
         m_axi.awid     = s_axi_data.awid;
         m_axi.awaddr   = s_axi_data.awaddr;
