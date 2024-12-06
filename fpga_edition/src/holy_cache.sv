@@ -46,6 +46,7 @@ module holy_cache #(
     output logic [6:0] set_ptr_out
 );
     localparam INDEX_WIDTH = $clog2(CACHE_SIZE);
+    assign set_ptr_out = set_ptr;
 
     // Here is how a cache line is organized:
     // | DIRTY | VALID | BLOCK TAG | INDEX/SET | OFFSET | DATA |
