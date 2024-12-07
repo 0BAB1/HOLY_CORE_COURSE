@@ -16,19 +16,17 @@ adapt tb signals assertion for new test harness
 add more holy tests for cache misses
 integrate all in pytest, make all the deisng coherent and run flawlessly
 interface AXI in vivado correctly
-Run on FPGA - LED (JTAG init)
+Init JTAG to MAster FPGA - LED (JTAG init)
+ADD DEBUG SIGNALS
+CHANGE ARBITRER DEFAULT VALUES
+RUN ON SIGLE CLOCK (and test it first in simulation, as I did sims on async clocks)
+Run on FPGA - Blink LED using instructions fed in HOLY CORE
 
 ===================
 DOING
 ===================
 
-ADD DEBUG SIGNALS
-
-CHANGE ARBITRER DEFAULT VALUES
-
-RUN ON SIGLE CLOCK (and test it first in simulation, as I did sims on async clocks)
-
-Run on FPGA - Blink LED using instructions fed in HOLY CORE
+Add AXI Lite
 
 ...
 
@@ -38,7 +36,6 @@ NOT DONE - MILESTONES
 
 DO CDC matter
 
-add AXI Lite
 
 UART tb
 
