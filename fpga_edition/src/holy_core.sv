@@ -285,7 +285,7 @@ cache_state_t d_cache_state;
 
 holy_cache data_cache (
     .clk(clk),
-    .rst_n(rst_n | m_axi.aresetn),
+    .rst_n(rst_n),
 
     .aclk(m_axi.aclk),
 
