@@ -161,8 +161,6 @@ module holy_cache #(
                 // No read
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b0;
-
-                next_set_ptr = set_ptr;
             end
             SENDING_WRITE_REQ: begin
                 // HANDLE MISS WITH DIRTY CACHE : Update main memory first
@@ -179,21 +177,19 @@ module holy_cache #(
                 // No read
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b0;
-
-                next_set_ptr = et_ptr;
             end
 
             SENDING_WRITE_DATA : begin
 
-                next_set_ptr = set_ptr;
-
                 if(axi.wready) begin
                     next_set_ptr = set_ptr + 1;
                 end
-
+                
                 if(set_ptr == 7'd127) begin
-                    next_state = WAITING_WRITE_RES;
                     axi.wlast = 1'b1;
+                    if(axi.wready) begin
+                        next_state = WAITING_WRITE_RES;
+                    end
                 end
 
                 // SENDING_WRITE_DATA AXI SIGNALS : sending data
@@ -221,8 +217,6 @@ module holy_cache #(
                 // No read
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b0;
-
-                next_set_ptr = set_ptr;
             end
 
             SENDING_READ_REQ : begin
@@ -241,14 +235,10 @@ module holy_cache #(
                 // No read but address is okay
                 axi.arvalid = 1'b1;
                 axi.rready = 1'b0;
-
-                next_set_ptr = set_ptr;
             end
 
             RECEIVING_READ_DATA: begin
-                // Default to hold current pointer value
-                next_set_ptr = set_ptr;
-            
+        
                 if (axi.rvalid) begin
                     // Increment pointer on valid data
                     next_set_ptr = set_ptr + 1;
@@ -269,7 +259,9 @@ module holy_cache #(
                 axi.rready = 1'b1;
             end
             
-            default : begin end
+            default : begin
+                $display("CACHE FSM SATETE ERROR");
+            end
         endcase
     end
 
