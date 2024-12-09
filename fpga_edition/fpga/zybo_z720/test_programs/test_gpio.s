@@ -3,8 +3,9 @@
 # Now THAT's some McGyver shit !
 # Expected behavior : turn LED on
 
-    .section .text
-    .globl _start
+.section .text
+.align 2
+.global _start
 
 _start:
     # Initialization
