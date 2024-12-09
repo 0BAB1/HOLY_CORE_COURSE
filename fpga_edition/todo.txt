@@ -26,13 +26,17 @@ Run on FPGA - Blink LED using instructions fed in HOLY CORE
 DOING
 ===================
 
-Add AXI Lite
+Check how low can the timing can close (50, 75 ,100 , ... ?)
+
+Make more sophisticacted programs, use a compiler.
 
 ...
 
 =======================
 NOT DONE - MILESTONES
 =======================
+
+Add AXI lite bypasser (with configurable memory range for MMIO)
 
 DO CDC matter
 
