@@ -24,3 +24,4 @@ _start:
     # Exit strategy : Infinite loop
     addi x0, x0, 0x0            # NOP                                           # 00000013
     beq x0, x0, -0x4            # Repeat                                        # FE000EE3
+    
