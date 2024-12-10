@@ -161,6 +161,9 @@ module holy_cache #(
                 // No read
                 axi.arvalid = 1'b0;
                 axi.rready = 1'b0;
+
+                // Defaults to 0
+                next_set_ptr = 7'd0;
             end
             SENDING_WRITE_REQ: begin
                 // HANDLE MISS WITH DIRTY CACHE : Update main memory first
