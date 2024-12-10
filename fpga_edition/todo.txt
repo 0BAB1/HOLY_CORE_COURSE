@@ -30,6 +30,8 @@ Check how low can the timing can close (50, 75 ,100 , ... ?)
 
 Make more sophisticacted programs, use a compiler.
 
+REDO ALL TESTS with better seq logic on next cahce dirty...
+
 ...
 
 =======================
@@ -39,7 +41,6 @@ NOT DONE - MILESTONES
 Add AXI lite bypasser (with configurable memory range for MMIO)
 
 DO CDC matter
-
 
 UART tb
 

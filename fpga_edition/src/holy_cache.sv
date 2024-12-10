@@ -46,7 +46,6 @@ module holy_cache #(
     output logic [6:0] set_ptr_out,
     output logic [6:0] next_set_ptr_out
 );
-    localparam INDEX_WIDTH = $clog2(CACHE_SIZE);
     assign set_ptr_out = set_ptr;
     assign next_set_ptr_out = next_set_ptr;
 
@@ -60,7 +59,6 @@ module holy_cache #(
     logic                           cache_valid;  // is the current block valid ?
     logic                           next_cache_valid;
     logic                           cache_dirty;
-    logic                           next_cache_dirty;
 
     // INCOMING CACHE REQUEST SIGNALS
     logic [31:9]                    req_block_tag;
@@ -92,7 +90,6 @@ module holy_cache #(
             seq_stall <= 1'b0;
         end else begin
             cache_valid <= next_cache_valid;
-            cache_dirty <= next_cache_dirty;
             seq_stall <= comb_stall;
 
             if(hit && write_enable & state == IDLE) begin
@@ -124,7 +121,6 @@ module holy_cache #(
     always_comb begin
         next_state = state; // Default
         next_cache_valid = cache_valid;
-        next_cache_dirty = cache_dirty;
         axi.wlast = 1'b0;
         // the data being send is always set, "ready to go"
         axi.wdata = cache_data[set_ptr];
@@ -147,10 +143,6 @@ module holy_cache #(
                         1'b1 : next_state = SENDING_WRITE_REQ;
                         1'b0 : next_state = SENDING_READ_REQ;
                     endcase
-                end
-
-                else if(hit && actual_write_enable) begin
-                    next_cache_dirty = 1'b1;
                 end
 
                 // IDLE AXI SIGNALS : no request
@@ -250,7 +242,6 @@ module holy_cache #(
                         // Transition to IDLE on the last beat
                         next_state = IDLE;
                         next_cache_valid = 1'b1;
-                        next_cache_dirty = 1'b0;
                     end
                 end
             
