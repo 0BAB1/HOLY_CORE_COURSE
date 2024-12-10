@@ -76,7 +76,7 @@ async def reset(dut):
     #dump_cache(dut.cache_system.cache_data, "*")
 
 @cocotb.test()
-async def initial_read_test(dut):
+async def main_test(dut):
     """In this test, the inital valid flag should be 0, meaning we have to send a read query"""
 
     # ==================================
