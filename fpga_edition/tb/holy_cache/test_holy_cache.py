@@ -6,19 +6,6 @@ from cocotbext.axi import AxiBus, AxiRam
 import numpy as np
 
 # https://github.com/alexforencich/cocotbext-axi
-
-# To test for cache behavior and code validation :
-# AXI external query for data
-# Basic Read/Write (regular meomory test)
-# New AXI external query, check for writeback
-# TODO : first ill check the BARE minumum and then, once I get somthing somewhat working, add aseertion on ALL interfaces
-
-# for now, axi clk / rst and cache clk / rst are the SAME
-
-# EDGE CASES TO TEST
-# write the very last value in cache and checks that it gets written back to main mem when write-back happens
-
-# Threshold to detect deadlocks in while loops
 DEADLOCK_THRESHOLD = 10e3
 
 # CACHE STATES CST
@@ -29,8 +16,8 @@ WAITING_WRITE_RES   = 0b011
 SENDING_READ_REQ    = 0b100
 RECEIVING_READ_DATA = 0b101
 
-# clock perdiods
-AXI_PERIOD = 16
+# clock perdiods, if different, make sure AXI_PERIOD >= CPU_PERIOD
+AXI_PERIOD = 10
 CPU_PERIOD = 10
 
 # Cach stuff
