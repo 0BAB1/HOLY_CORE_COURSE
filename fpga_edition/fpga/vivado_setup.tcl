@@ -1,8 +1,5 @@
-# Close any open projects
-close_project
-
 # Create a new project
-create_project integration_v6 /home/rootmin/Documents/VIVADO_projects/integration_v6 -part xc7z020clg400-1
+create_project integration_v7 /home/rootmin/Documents/VIVADO_projects/integration_v6 -part xc7z020clg400-1 -force
 set_property board_part digilentinc.com:zybo-z7-20:part0:1.2 [current_project]
 
 # Add constraint file
@@ -92,45 +89,76 @@ save_bd_design
 # Clean up existing address segments to avoid overlaps
 delete_bd_objs [get_bd_addr_segs]
 
-# Define Address Segments
-set_property range 8K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_bram_ctrl_0_Mem0}]
-set_property range 4K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
-set_property offset 0x00002000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
-set_property offset 0x00000000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_bram_ctrl_0_Mem0}]
+#add ILA
 
-# Ensure no address conflicts
+startgroup
+apply_bd_automation -rule xilinx.com:bd_rule:board -config { Manual_Source {Auto}}  [get_bd_pins rst_clk_wiz_100M/ext_reset_in]
+apply_bd_automation -rule xilinx.com:bd_rule:debug -dict [list \
+                                                          [get_bd_intf_nets holy_wrapper_0_m_axi] {AXI_R_ADDRESS "Data and Trigger" AXI_R_DATA "Data and Trigger" AXI_W_ADDRESS "Data and Trigger" AXI_W_DATA "Data and Trigger" AXI_W_RESPONSE "Data and Trigger" CLK_SRC "/clk_wiz/clk_out1" SYSTEM_ILA "Auto" APC_EN "0" } \
+                                                         ]
+endgroup
+
+# make ILA get all probes
+# add probes
+startgroup
+set_property -dict [list \
+  CONFIG.C_MON_TYPE {MIX} \
+  CONFIG.C_NUM_MONITOR_SLOTS {2} \
+  CONFIG.C_NUM_OF_PROBES {11} \
+] [get_bd_cells system_ila_0]
+endgroup
+
+
+# connect
+connect_bd_net [get_bd_pins holy_wrapper_0/pc] [get_bd_pins system_ila_0/probe0]
+connect_bd_net [get_bd_pins holy_wrapper_0/pc_next] [get_bd_pins system_ila_0/probe1]
+connect_bd_net [get_bd_pins holy_wrapper_0/instruction] [get_bd_pins system_ila_0/probe2]
+connect_bd_net [get_bd_pins holy_wrapper_0/i_cache_state] [get_bd_pins system_ila_0/probe3]
+connect_bd_net [get_bd_pins holy_wrapper_0/i_cache_stall] [get_bd_pins system_ila_0/probe4]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_stall] [get_bd_pins system_ila_0/probe5]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_stall] [get_bd_pins system_ila_0/probe6]
+undo
+connect_bd_net [get_bd_pins system_ila_0/probe6] [get_bd_pins holy_wrapper_0/i_cache_set_ptr]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_set_ptr] [get_bd_pins system_ila_0/probe7]
+connect_bd_net [get_bd_pins holy_wrapper_0/i_next_set_ptr] [get_bd_pins system_ila_0/probe8]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_next_set_ptr] [get_bd_pins system_ila_0/probe9]
+connect_bd_net [get_bd_ports cpu_reset] [get_bd_pins system_ila_0/probe10]
+
+# Add axi converted for gpio
+
+delete_bd_objs [get_bd_intf_nets axi_smc_M01_AXI]
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_protocol_converter:2.1 axi_protocol_convert_0
+endgroup
+set_property location {3.5 1016 214} [get_bd_cells axi_protocol_convert_0]
+connect_bd_intf_net [get_bd_intf_pins axi_protocol_convert_0/M_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
+connect_bd_intf_net [get_bd_intf_pins axi_protocol_convert_0/S_AXI] [get_bd_intf_pins axi_smc/M01_AXI]
+apply_bd_automation -rule xilinx.com:bd_rule:clkrst -config { Clk {/clk_wiz/clk_out1 (50 MHz)} Freq {100} Ref_Clk0 {} Ref_Clk1 {} Ref_Clk2 {}}  [get_bd_pins axi_protocol_convert_0/aclk]
+regenerate_bd_layout
+
+# Manage the addresses
 assign_bd_address
 
-# Resolve polarity mismatch for aresetn
+set_property offset 0 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
+set_property offset 0x40000000 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_gpio_0_Reg}]
+set_property range 4K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_gpio_0_Reg}]
+set_property offset 0x0002000 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_gpio_0_Reg}]
+
+delete_bd_objs [get_bd_addr_segs jtag_axi_0/Data/SEG_axi_bram_ctrl_0_Mem0] [get_bd_addr_segs jtag_axi_0/Data/SEG_axi_gpio_0_Reg]
+assign_bd_address
+
+# Fix pin areset for CPU
+
 disconnect_bd_net /reset_rtl_1 [get_bd_pins holy_wrapper_0/aresetn]
 connect_bd_net [get_bd_pins holy_wrapper_0/aresetn] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
 
-# Add a System ILA for debugging
-apply_bd_automation -rule xilinx.com:bd_rule:debug -dict [list \
-    [get_bd_intf_nets holy_wrapper_0_m_axi] {AXI_R_ADDRESS "Data and Trigger" AXI_R_DATA "Data and Trigger" \
-    AXI_W_ADDRESS "Data and Trigger" AXI_W_DATA "Data and Trigger" AXI_W_RESPONSE "Data and Trigger" \
-    CLK_SRC "/clk_wiz/clk_out1" SYSTEM_ILA "Auto" APC_EN "0"} \
-]
+# Validate + wrapper
 
-# Set Debug Parameters
-set_property -dict [list \
-    CONFIG.C_MON_TYPE {MIX} \
-    CONFIG.C_NUM_MONITOR_SLOTS {1} \
-    CONFIG.C_NUM_OF_PROBES {11} \
-] [get_bd_cells system_ila_0]
-
-# Adjust protocol converter settings to match AXI4Lite requirements
-startgroup
-set_property -dict [list CONFIG.SI_PROTOCOL.VALUE_SRC USER CONFIG.MI_PROTOCOL.VALUE_SRC USER] [get_bd_cells axi_protocol_convert_0]
-set_property -dict [list \
-    CONFIG.MI_PROTOCOL {AXI4LITE} \
-    CONFIG.SI_PROTOCOL {AXI4} \
-    CONFIG.TRANSLATION_MODE {2} \
-] [get_bd_cells axi_protocol_convert_0]
-endgroup
-
-# Validate Design
 validate_bd_design
+add_files -norecurse /home/rootmin/Documents/VIVADO_projects/integration_v6/integration_v7.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v
+update_compile_order -fileset sources_1
+set_property top design_1_wrapper [current_fileset]
+update_compile_order -fileset sources_1
 
-# Generate Wrapper and Outputs
-make_wrapper -files [get_files {design_1.bd}] -top
+# generate synth, inmpl & bitstream
+launch_runs impl_1 -to_step write_bitstream -jobs 6
