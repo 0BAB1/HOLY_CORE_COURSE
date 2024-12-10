@@ -3,8 +3,9 @@
 # Now THAT's some McGyver shit !
 # Expected behavior : turn LED on
 
-    .section .text
-    .globl _start
+.section .text
+.align 2
+.global _start
 
 _start:
     # Initialization
@@ -24,3 +25,4 @@ _start:
     # Exit strategy : Infinite loop
     addi x0, x0, 0x0            # NOP                                           # 00000013
     beq x0, x0, -0x4            # Repeat                                        # FE000EE3
+    
