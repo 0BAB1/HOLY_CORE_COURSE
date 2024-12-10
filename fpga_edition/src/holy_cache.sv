@@ -8,21 +8,16 @@
 *
 *   NOTES : write enable has to be validated by a byte enable mask, otherwise no memory
 *   operation is applied (assign actual_write_enable = write_enable & |byte_enable;)
-*   
-*   Design assertion :
-*   ACLK <= CLK
 */
 
 import holy_core_pkg::*;
 
 module holy_cache #(
-    parameter CACHE_SIZE = 128 // Number of sets / words in cache
-    // 128W = 512B : 0x000 - 0x1FF address range
-    // Every range has been hardcoded, TODO : make it a parameter
+    parameter CACHE_SIZE = 128
 )(
     // CPU LOGIC CLOCK & RESET
     input logic clk,
-    input logic rst_n, // (main cpu's AXI aresetn OR generic rst_n)
+    input logic rst_n,
 
     // AXI Clock, separate necessary as arbitrer can't output it.
     input logic aclk,
@@ -53,7 +48,7 @@ module holy_cache #(
     // | DIRTY | VALID | BLOCK TAG | INDEX/SET | OFFSET | DATA |
     // | FLAGS         | ADDRESS INFOS                  | DATA |
 
-    // CACHE TABLE DECLARATION (hardcoded for now, TODO : fix that)
+    // CACHE TABLE DECLARATION
     logic [CACHE_SIZE-1:0][31:0] cache_data;
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
     logic                           cache_valid;  // is the current block valid ?
