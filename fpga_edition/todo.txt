@@ -21,16 +21,13 @@ ADD DEBUG SIGNALS
 CHANGE ARBITRER DEFAULT VALUES
 RUN ON SIGLE CLOCK (and test it first in simulation, as I did sims on async clocks)
 Run on FPGA - Blink LED using instructions fed in HOLY CORE
-
+REDO ALL TESTS with better seq logic on next cahce dirty...
+Check how low can the timing can close (50, 75 ,100 , ... ?) => 50 will do it for now.
 ===================
 DOING
 ===================
 
-Check how low can the timing can close (50, 75 ,100 , ... ?)
-
 Make more sophisticacted programs, use a compiler.
-
-REDO ALL TESTS with better seq logic on next cahce dirty...
 
 ...
 
