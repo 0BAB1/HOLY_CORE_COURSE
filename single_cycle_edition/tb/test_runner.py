@@ -1,8 +1,13 @@
+# TESTRUNNER 
+#
+# BRH 10/24
+#
 # This file allows for a global deign test.
 # It will run all test benches for each logic block.
-
 # You can run tests indvidually (recommended for debugging)
 # by going ito a design sub dir and simply running the "make" command
+#
+# https://docs.cocotb.org/en/latest/runner.html
 
 import os
 from pathlib import Path

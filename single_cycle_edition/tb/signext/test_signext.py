@@ -1,3 +1,7 @@
+# READER TESTBECH
+#
+# BRH 10/24
+
 import cocotb
 from cocotb.triggers import Timer
 import random

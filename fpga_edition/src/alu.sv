@@ -1,3 +1,11 @@
+/*
+* HOLY CORE ALU
+*
+* BRH 10/24
+*
+* Simple and non efficient ALU.
+*/
+
 `timescale 1ns/1ps
 
 module alu (

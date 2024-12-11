@@ -1,3 +1,7 @@
+# REGFILE TESTBECH
+#
+# BRH 10/24
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer

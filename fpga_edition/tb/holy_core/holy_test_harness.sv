@@ -2,9 +2,8 @@
 *
 *   Author : BABIN-RIBY Hugo
 *   Project : Holy Core V2
-*   Description : This is just an "axi_translator" module, but because
-*   it's used for the core, I chose to call it "test harness". It sounds
-*   better for a top module in my opnion.
+*   Description : This is just an "axi_translator" wapper module.aclk
+*   This wrapper module instantiates the cache and routes the AXI interface as discrete Verilog signals for cocotb
 */
 
 module holy_test_harness (

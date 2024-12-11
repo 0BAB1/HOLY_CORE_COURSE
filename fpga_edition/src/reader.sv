@@ -1,3 +1,12 @@
+/*
+* READER
+*
+* BRH 10/24
+*
+* Reads incomming data from cache and formats it depending on the issued instruction's f3
+* and the bye_enable mask.
+*/
+
 `timescale 1ns/1ps
 
 module reader (

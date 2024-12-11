@@ -1,10 +1,9 @@
-/** holy_test_harness
+/** axi_details
 *
-*   Author : BABIN-RIBY Hugo
+*   Author : BRH
 *   Project : Holy Core V2
-*   Description : This is just an "axi_translator" module, but because
-*   it's used for the core, I chose to call it "test harness". It sounds
-*   better for a top module in my opnion.
+*   Description : First wrapper for vivado to "demux" the axi interface into detailed signals
+*   (Suitable for all targets)
 */
 
 module axi_details (

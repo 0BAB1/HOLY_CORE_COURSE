@@ -1,3 +1,9 @@
+# HOLY_CORE TESTBECH
+#
+# Uses a pre-made hardcoded HEX program.
+#
+# BRH 10/24
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer

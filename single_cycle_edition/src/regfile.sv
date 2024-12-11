@@ -1,3 +1,11 @@
+/*
+* REGISTER FILE
+*
+* BRH 10/24
+*
+* Simple register file. RISC-V compliant.
+*/
+
 `timescale 1ns/1ps
 
 module regfile (

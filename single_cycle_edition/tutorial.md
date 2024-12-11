@@ -936,12 +936,12 @@ DEADBEEF  // @ 0x00000008 What we'll try to get in x18
 Great ! Here is how we are going to organize ou cpu tb folder (we put the ```.hex``` file in there as the HDL file are called from here so ```$readmemh("myrom.hex")``` will gets the ```.hex``` files from there) :
 
 ```txt
-tb
-├── cpu
-│   ├── Makefile
-│   ├── test_cpu.py
-│   ├── test_dmemory.hex
-│   └── test_imemory.hex
+tb/
+- cpu/
+   - Makefile
+   - test_cpu.py
+   - test_dmemory.hex
+   - test_imemory.hex
 ```
 
 And now we can design a test bench ! First, we design some helper functions that will convert str data from ```HEX``` to ```BIN``` as needed (python tricks to deal with multiple data types expressed as ```str``` in cocotb), we also declare a ```cocotb.coroutine``` that will handle cpu resets :

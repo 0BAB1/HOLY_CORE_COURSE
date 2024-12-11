@@ -1,9 +1,8 @@
-
-"""
-/*
-* THE MEMORY MODULE IS UNUSED IN THE FPGA EDITION !
-*/
-"""
+# MEMORY TESTBENCH
+#
+# BRH 10/24
+#
+# NOT USED IN FPGA EDITION !
 
 import cocotb
 from cocotb.clock import Clock

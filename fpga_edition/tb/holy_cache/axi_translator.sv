@@ -1,4 +1,10 @@
-// This module instantiates the cache and routes the AXI interface as discrete Verilog signals for cocotb
+/* AXI_TRANSLATOR
+*
+* BRH 11/24
+*
+* This wrapper module instantiates the cache and routes the AXI interface as discrete Verilog signals for cocotb
+*/
+
 
 module axi_translator (
     // Cpu Clock and Reset
@@ -111,6 +117,7 @@ module axi_translator (
     cache_state_t cache_state;
 
     // Instantiate the cache module
+    /* verilator lint_off PINMISSING */
     holy_cache #(
     ) cache_system (
         .clk(clk), 
@@ -134,5 +141,6 @@ module axi_translator (
         // debug interface
         .set_ptr_out(set_ptr_out)
     );
+    /* verilator lint_on PINMISSING */
 
 endmodule
