@@ -1,3 +1,11 @@
+/*
+* SIGN EXTENDER
+*
+* BRH 10/24
+*
+* Extends the imm sign to 32bits based on source specified by the control unit.
+*/
+
 `timescale 1ns/1ps
 
 module signext (

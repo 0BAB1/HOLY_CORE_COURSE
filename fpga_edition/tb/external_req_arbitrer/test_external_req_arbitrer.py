@@ -1,9 +1,13 @@
+# EXTERNAL REQUESTS ARBITRER TESTBECH
+#
+# BRH 10/24
+#
+# Post for guidance on cocotbext-axi: https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
-import random
 from cocotbext.axi import AxiBus, AxiRam, AxiMaster
-import numpy as np
 
 # https://github.com/alexforencich/cocotbext-axi
 

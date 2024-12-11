@@ -1,3 +1,10 @@
+# MEMORY TESTBENCH
+#
+# BRH 10/24
+#
+# NOT USED IN FPGA EDITION !
+
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer

@@ -1,3 +1,12 @@
+/*
+* MEMORY
+*
+* BRH 10/24
+*
+* Simple memory array to remember program or instruction data.
+* Has a simple cpu request interface. Supports byte_enable masks.
+*/
+
 `timescale 1ns/1ps
 
 module memory #(

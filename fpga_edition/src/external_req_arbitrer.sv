@@ -1,6 +1,6 @@
 /** External AXI requests arbitrer MODULE
 *
-*   Author : BABIN-RIBY Hugo
+*   Author : BRH
 *   Project : Holy Core V2
 *   Description : A simple arbitrer that muxes incomming
 *   AXI requests from data and instruction caches to a single AXI

@@ -1,13 +1,21 @@
-build_gpio_hex: gpio.o
-	riscv64-unknown-elf-objdump -d gpio.o | sed -n 's/^[ \t]*[0-9a-f]\+:[ \t]*\([0-9a-f]\+\).*/\1/p' > gpio.hex
-	rm -rf gpio.o
+# Makefile for test programs
+#
+# Takes "test.s" and turns it into "test.hex", an hex dump ready for use
+# in a tcl script for being loaded in BRAM (running "build_test_hex").
+# you can also run "make build_test" to get all the objdump details with debug hints
+#
+# BRH 11/12
 
-build_gpio: gpio.o
-	riscv64-unknown-elf-objdump -d gpio.o > gpio.hex
-	rm -rf gpio.o
+build_test_hex: test.o
+	riscv64-unknown-elf-objdump -d test.o | sed -n 's/^[ \t]*[0-9a-f]\+:[ \t]*\([0-9a-f]\+\).*/\1/p' > test.hex
+	rm -rf test.o
 
-gpio.o: test_gpio.s
-	riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -g test_gpio.s -o gpio.o
+build_test: test.o
+	riscv64-unknown-elf-objdump -d test.o > test.hex
+	rm -rf test.o
+
+test.o: test.s
+	riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -g test.s -o test.o
 
 .PHONY: clean
 clean:

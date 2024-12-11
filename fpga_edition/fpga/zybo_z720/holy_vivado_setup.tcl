@@ -1,25 +1,36 @@
+# HOLY VIVADO SETUP
+#
+# TARGET BOARD : ZYBO Z7-20
+#
+# This scripts automates the integration of core in a basic SoC with a connection to the LEDs and Some BRAM.0
+# Afer this script is done, it launches synth, impl and generates a bitstream. Check the "example programs"
+# folder to load a program.
+# Please run it from the ROOT of the repo
+#
+# BRH 12/24
+
 # Create a new project
-create_project integration_v7 /home/rootmin/Documents/VIVADO_projects/integration_v6 -part xc7z020clg400-1 -force
+create_project holy_soc_project ./HOLY_SOC -part xc7z020clg400-1 -force
 set_property board_part digilentinc.com:zybo-z7-20:part0:1.2 [current_project]
 
 # Add constraint file
-add_files -fileset constrs_1 -norecurse /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/fpga/zybo_z720/constraints.xdc
+add_files -fileset constrs_1 -norecurse ./fpga_edition/fpga/zybo_z720/constraints.xdc
 
 # Add source files
 add_files -norecurse {
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/fpga/zybo_z720/holy_wrapper.v
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/holy_cache.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/control.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/reader.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/packages/axi_if.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/packages/holy_core_pkg.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/regfile.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/external_req_arbitrer.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/alu.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/fpga/zybo_z720/axi_details.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/holy_core.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/signext.sv
-    /home/rootmin/Documents/Code/YOUTUBE/HOLY_CORE_COURSE/fpga_edition/src/load_store_decoder.sv
+    ./fpga_edition/fpga/zybo_z720/holy_wrapper.v
+    ./fpga_edition/src/holy_cache.sv
+    ./fpga_edition/src/control.sv
+    ./fpga_edition/src/reader.sv
+    ./fpga_edition/packages/axi_if.sv
+    ./fpga_edition/packages/holy_core_pkg.sv
+    ./fpga_edition/src/regfile.sv
+    ./fpga_edition/src/external_req_arbitrer.sv
+    ./fpga_edition/src/alu.sv
+    ./fpga_edition/fpga/zybo_z720/axi_details.sv
+    ./fpga_edition/src/holy_core.sv
+    ./fpga_edition/src/signext.sv
+    ./fpga_edition/src/load_store_decoder.sv
 }
 
 # Update compile order
@@ -155,7 +166,8 @@ connect_bd_net [get_bd_pins holy_wrapper_0/aresetn] [get_bd_pins rst_clk_wiz_100
 # Validate + wrapper
 
 validate_bd_design
-add_files -norecurse /home/rootmin/Documents/VIVADO_projects/integration_v6/integration_v7.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v
+make_wrapper -files [get_files ./HOLY_SOC/holy_soc_project.srcs/sources_1/bd/design_1/design_1.bd] -top
+add_files -norecurse ./HOLY_SOC/holy_soc_project.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v
 update_compile_order -fileset sources_1
 set_property top design_1_wrapper [current_fileset]
 update_compile_order -fileset sources_1

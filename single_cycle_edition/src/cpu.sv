@@ -1,3 +1,13 @@
+/*
+* HOLY CORE
+*
+* BRH 10/24
+*
+* holy_core cpu. A simple core to solve simple problems. Thus the holyness ;)
+*
+* Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.
+*/
+
 `timescale 1ns/1ps
 
 module cpu (

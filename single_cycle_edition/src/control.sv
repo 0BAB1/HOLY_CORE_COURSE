@@ -1,4 +1,12 @@
-`timescale 1ns/1ps
+/*
+* HOLY CORE CONTROL UNIT
+*
+* BRH 10/24
+*
+* Generic control unit. Refer to the schematics.
+*/
+
+timescale 1ns/1ps
 
 module control (
     // IN

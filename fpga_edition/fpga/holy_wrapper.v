@@ -1,3 +1,11 @@
+/** holy_wrapper
+*
+*   Author : BRH
+*   Project : Holy Core V2
+*   Description : Second wrapper for vivado, serves as plain verilog top module.
+*   (Suitable for all targets)
+*/
+
 module holy_wrapper (
     input wire clk,
     input wire rst_n,

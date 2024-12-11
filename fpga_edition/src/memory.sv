@@ -1,8 +1,15 @@
-`timescale 1ns/1ps
-
 /*
-* THE MEMORY MODULE IS UNUSED IN THE FPGA EDITION !
+* MEMORY
+*
+* BRH 10/24
+*
+* NOT USED IN FPGA EDITION !
+*
+* Simple memory array to remember program or instruction data.
+* Has a simple cpu request interface. Supports byte_enable masks.
 */
+
+`timescale 1ns/1ps
 
 module memory #(
     parameter WORDS = 128,

@@ -1,4 +1,9 @@
-// This module instantiates the cache and routes the AXI interface as discrete Verilog signals for cocotb
+/* AXI_TRANSLATOR
+*
+* BRH 11/24
+*
+* This wrapper module instantiates the cache and routes the AXI interface as discrete Verilog signals for cocotb
+*/
 
 import holy_core_pkg::*;
 

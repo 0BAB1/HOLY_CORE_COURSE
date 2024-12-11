@@ -1,3 +1,11 @@
+/*
+* LOAD STORE DECODER
+*
+* BRH 10/24
+*
+* Sits before the data memory and allows to feed the right signals into the memory's cpu interface.
+*/
+
 `timescale 1ns/1ps
 
 module load_store_decoder (

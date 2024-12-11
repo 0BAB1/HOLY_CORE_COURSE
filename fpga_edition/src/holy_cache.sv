@@ -1,13 +1,11 @@
 /** CACHE MODULE
 *
-*   Author : BABIN-RIBY Hugo
+*   Author : BRH
 *   Project : Holy Core V2
 *   Description : A 1 way direct mapped cache.
 *   Implementing AXI to request data from outside main memory.
+*   With a CPU interface for basic core request with stall signal.
 *   The goal is to allow the user to connect its own memory on FPGA.
-*
-*   NOTES : write enable has to be validated by a byte enable mask, otherwise no memory
-*   operation is applied (assign actual_write_enable = write_enable & |byte_enable;)
 */
 
 import holy_core_pkg::*;
