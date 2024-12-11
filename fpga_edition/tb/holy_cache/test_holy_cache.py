@@ -64,7 +64,6 @@ async def reset(dut):
 
 @cocotb.test()
 async def main_test(dut):
-    """In this test, the inital valid flag should be 0, meaning we have to send a read query"""
 
     # ==================================
     # CLOCKS & RAM DECLARATION
@@ -89,14 +88,12 @@ async def main_test(dut):
     for address in range(0,SIZE,4):
         assert mem_golden_ref[int(address/4)] == axi_ram_slave.read(address, 4)
 
-    
+    # ==================================
+    # INIT STATE CHECKS
+    # ==================================
 
     assert dut.cache_system.state.value == IDLE
     assert dut.cache_system.next_state.value == IDLE
-
-    # ==================================
-    # BASIC STALL LOGIC 
-    # ==================================
 
     dut.cpu_read_enable.value = 0b0
     dut.cpu_write_enable.value = 0b0
