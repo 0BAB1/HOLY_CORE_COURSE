@@ -15,3 +15,4 @@ gpio.o
 *.log
 .Xil
 HOLY_SOC
+*str

@@ -18,7 +18,7 @@ add_files -fileset constrs_1 -norecurse ./fpga_edition/fpga/zybo_z720/constraint
 
 # Add source files
 add_files -norecurse {
-    ./fpga_edition/fpga/zybo_z720/holy_wrapper.v
+    ./fpga_edition/fpga/holy_wrapper.v
     ./fpga_edition/src/holy_cache.sv
     ./fpga_edition/src/control.sv
     ./fpga_edition/src/reader.sv
@@ -27,7 +27,7 @@ add_files -norecurse {
     ./fpga_edition/src/regfile.sv
     ./fpga_edition/src/external_req_arbitrer.sv
     ./fpga_edition/src/alu.sv
-    ./fpga_edition/fpga/zybo_z720/axi_details.sv
+    ./fpga_edition/fpga/axi_details.sv
     ./fpga_edition/src/holy_core.sv
     ./fpga_edition/src/signext.sv
     ./fpga_edition/src/load_store_decoder.sv
