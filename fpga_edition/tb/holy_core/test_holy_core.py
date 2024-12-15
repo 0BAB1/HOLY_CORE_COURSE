@@ -11,7 +11,7 @@ import random
 from cocotbext.axi import AxiBus, AxiRam
 import numpy as np
 
-# WARNING : Passing test on async cloks does not means timing sync is met !
+# WARNING : Passing test on async cloks does not mean CDC timing sync is met !
 AXI_PERIOD = 10
 CPU_PERIOD = 10
 
