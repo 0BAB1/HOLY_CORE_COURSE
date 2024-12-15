@@ -19,7 +19,7 @@ module alu (
     output logic last_bit
 );
 
-import holy_core__pkg::*;
+import holy_core_pkg::*;
 
 wire [4:0] shamt = src2[4:0];
 

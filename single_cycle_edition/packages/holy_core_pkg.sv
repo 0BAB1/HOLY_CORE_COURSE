@@ -9,7 +9,7 @@
 
 `timescale 1ns/1ps
 
-package holy_core__pkg;
+package holy_core_pkg;
 
   // INSTRUCTION OP CODES
   typedef enum logic [6:0] {
