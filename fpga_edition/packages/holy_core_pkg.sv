@@ -1,7 +1,15 @@
+/** HOLY CORE PACKAGE
+*
+* This file contains a collection of signals values from RISC-V and core-specific specs.
+*
+* Author : BRH
+*
+* 12/24
+*/
+
 `timescale 1ns/1ps
 
 package holy_core_pkg;
-  // https://docs.google.com/spreadsheets/d/1qkPa6muBsE1olzJDY9MTXeHVy1XvEswYHMTnvV1bRlU/edit?usp=sharing
 
   typedef enum logic [2:0] { 
       IDLE, // Acts as simple BRAM array

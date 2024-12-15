@@ -1,16 +1,18 @@
 # HOLY CORE COURSE PROJECT
 
+![waveform banner](./banner.png)
+
 An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailled tutorials as a reference.
 
 The course is divided in multiple blocks to learn different aspects of digital design. The table below indicates availability of these learning blocks.
 
-> The code will always be **open-source** But some materials might be paid, especially for the more advanced course.
+| Block Name            | Status            |
+| ----------            | ------            |
+| Single cycle edition  | FINISHING PHASE   |
+| FPGA edition          | FINISHING PHASE   |
+| Pipelined edition     | NOT STARTED       |
 
-| Block Name            | Markdown tutorial     | PDF tutorial  | Status            |
-| ----------            | -----------------     | ------------  | ------            |
-| Single cycle edition  | Free & Open source    | Paid          | FINISHING PHASE   |
-| FPGA edition          |                       |               | BUILDING PHASE    |
-| Pipelined edition     |                       |               | NOT STARTED       |
+> The code will always be **open-source**. I do give the option to pay for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
 
 ## Prerequestites
 
@@ -21,19 +23,21 @@ To start this course you need to have these basics down :
 - SystemVerilog / HDL knowledge.
 - Have a linux distro
 
-> **Please check out the [setup](./setup.md) before starting the course !** Use it to setup you environement properly. You can also keep it neer beacause it contains various information regarding testing that will be useful in the later stages of the course.
+**Please check out the setup mnual before starting the course !**
 
-## The tutorials
+Use it to setup you environement properly before working on the tu
 
-Before diving into the tutorials, it is **mandatory** to setup your environement correctly first using the guidelines below.
+## The tutorials (WHERE DO I START)
 
-If you already did that, know that the repo is organized in branches, one per block. The first block's tutorial (single cycle RV32I) is completely free in *MarkDown* format but you can buy the PDF edition to support me (it contains more details, my own notes and some personal easter eggs too ;p). Other blocks are paid but you can still access the source code if you want.
+Before diving into the tutorials, it is **mandatory** to setup your environement correctly first **using the guidelines listed in the setup manual** (@ the root of the tutorials repo : `setup.md`)
 
-So, once the setup is done, you can read the course summary below and open the PDF of the block you want to build or access the first tutorial for free [here](./tutorial.md).
+Once the setup is done you can start working on the *single cycle edition* tutorial.
+
+Happy learning !
 
 ## Course summary
 
-What can you learn from the differents course block ?
+What can you learn from the differents course blocks ?
 
 ### Single cycle edition
 
@@ -59,13 +63,9 @@ Take a deep dive into memory.
 
 ### Pipelined edition
 
-Make the core more performant by adding a pipeline.
+Make the core more performant by adding a pipeline (On my todo list).
 
 **Goal :** Increase the core perfs by pipelining it and hadling all the hazards that comes with it.
-
-<!-- Still not sure I'll do that though -->
-
-### FPGA edition
 
 ## A word on the course
 
@@ -74,6 +74,6 @@ The HOLY CORE is a project I started for my own learning journey and I documente
 - ...Make my own understading clearer
 - ...Make the whole thing availible once I'm done
 
-So yes, it was made **by** a "begginer" **for** begginers. If your nerdy self decides something is "wrong" in the way I decided to conduct my (Holy) operations, I suggest you re-consider the fact of complaining for better activities like : *touching grass* or *going for a walk outside* for example.
+So yes, it was made **by** a "begginer" **for** begginers. If you decide something is "wrong" in the way I decided to conduct my (holy) operations, I suggest you re-consider the fact of complaining for better activities like : *touching grass* or *going for a walk outside* for example.
 
-Nevertheless, I am still very open to meaningful and constructive criticism, in which case I will be more than happy to consider you opinion.
+Nevertheless, I am still very open to meaningful and constructive criticism, in which case I will be more than happy to consider your opinion.
