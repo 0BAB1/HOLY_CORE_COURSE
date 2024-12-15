@@ -6,7 +6,7 @@
 * Generic control unit. Refer to the schematics.
 */
 
-timescale 1ns/1ps
+`timescale 1ns/1ps
 
 module control (
     // IN
@@ -27,7 +27,7 @@ module control (
     output logic [1:0] second_add_source
 );
 
-import holy_core__pkg::*;
+import holy_core_pkg::*;
 
 /**
 * MAIN DECODER
