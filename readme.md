@@ -35,6 +35,10 @@ Before diving into the tutorials, it is **mandatory** to setup your environement
 
 Once the setup is done you can start working on the *single cycle edition* tutorial.
 
+1. [Setup your project](./setup.md)
+2. [Build a basic single core](./single_cycle_edition/single_cycle_edition.md)
+3. [Add memory and GPIO interfacing (Cache + AXI) / Use Vivado to impl on FPGA / Run real software](./fpga_edition/fpga_edition.md)
+
 Happy learning !
 
 ## Course summary
