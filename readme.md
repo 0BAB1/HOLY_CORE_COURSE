@@ -12,7 +12,9 @@ The course is divided in multiple blocks to learn different aspects of digital d
 | FPGA edition          | FINISHED   |
 | Pipelined edition     | ON MY TODO LIST      |
 
-> The code will always be **open-source**. I do give the option to pay for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
+> The code will always be **open-source**. I do give the option to donate for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
+
+Link : [*todo : add link*](https://0bab1.github.io/BRH/)
 
 ## Prerequestites
 
@@ -21,7 +23,7 @@ To start this course you need to have these basics down :
 - Python programming.
 - RISC-V assembly.
 - SystemVerilog / HDL knowledge.
-- Have a linux distro
+- Have a linux distro (you can do it on windows, glhf)
 
 **Please check out the setup mnual before starting the course !**
 
@@ -63,6 +65,8 @@ Take a deep dive into memory.
 
 ### Pipelined edition
 
+> The pipelined edition is on my todo list but I need to move on to other projects and freelancing stuff for now.
+
 Make the core more performant by adding a pipeline (On my todo list).
 
 **Goal :** Increase the core perfs by pipelining it and hadling all the hazards that comes with it.
@@ -74,6 +78,6 @@ The HOLY CORE is a project I started for my own learning journey and I documente
 - ...Make my own understading clearer
 - ...Make the whole thing availible once I'm done
 
-So yes, it was made **by** a "begginer" **for** begginers. If you decide something is "wrong" in the way I decided to conduct my (holy) operations, I suggest you re-consider the fact of complaining for better activities like : *touching grass* or *going for a walk outside* for example.
+So yes, it was made **by** a "begginer" **for** "begginers". If you decide something is "wrong" in the way I decided to conduct my (holy) operations, I suggest you re-consider the fact of complaining for better activities like : *touching grass* or *going for a walk outside* for example.
 
 Nevertheless, I am still very open to meaningful and constructive criticism, in which case I will be more than happy to consider your opinion.
