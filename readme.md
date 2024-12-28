@@ -8,9 +8,9 @@ The course is divided in multiple blocks to learn different aspects of digital d
 
 | Block Name            | Status            |
 | ----------            | ------            |
-| Single cycle edition  | FINISHING PHASE   |
-| FPGA edition          | FINISHING PHASE   |
-| Pipelined edition     | NOT STARTED       |
+| Single cycle edition  | FINISHED   |
+| FPGA edition          | FINISHED   |
+| Pipelined edition     | ON MY TODO LIST      |
 
 > The code will always be **open-source**. I do give the option to pay for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
 
