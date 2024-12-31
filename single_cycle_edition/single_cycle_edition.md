@@ -3,7 +3,7 @@ SINGLE CYCLE EDITION TUTORIAL
 
 AUTHOR :  BABIN-RIBY Hugo a.k.a. BRH
 
-Plese refer to the LICENSE for legal details on this document
+Please refer to the LICENSE for legal details on this document
 
 LAST EDIT : 12/2024
 -->
@@ -16,7 +16,7 @@ This tutorial will teach **you** how to build and test a fully working RISC-V Si
 
 We'll use a set of open-source tools to allow everyone to complete this project at home using little to no specific resources.
 
-Before starting, please check out the check out the **setup manual** (*at the root of the tutorial's repo*). It also contains important informations on the prerequesites for your system.
+Before starting, please check out the check out the **setup manual** (*at the root of the tutorial's repo*). It also contains important informations on the prerequisites for your system.
 
 This tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) and on the *Digital Design and Computer Architecture, RISC-V Edition* Book from Sarah & David Harris. (*I'll let you do your own research to get your hands on the PDF*).
 
@@ -26,9 +26,9 @@ In this tutorial, we will build the following core :
 
 ![finished single cycle](./images/Holy_core.jpg)
 
-Which aims at implementing all of the **RV32I** base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each intruction we'll implement.
+Which aims at implementing all of the **RV32I** base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each instruction we'll implement.
 
-We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than low-level basics (e.g. full aders, shifts, ... and gate-level design in general).
+We will implement these using SystemVerilog at the Register-Transfer Level (RTL), meaning we will focus on the underlying logic of the CPU rather than low-level basics (e.g. full adders, shifts, ... and gate-level design in general).
 
 You can also find some tables for instructions [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html).
 
@@ -38,9 +38,9 @@ Definitive source code may differ a bit as I changed simulator along the way and
 
 ## 0 : Quick roadmap
 
-In order to build this core, we'll start by following the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (availible for free on youtube). You can also use their book cited in the intro. This will allow you to have another reference to start this project, which can be extremely useful if there is something you struggle to understand.
+In order to build this core, we'll start by following the [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) lectures (available for free on youtube). You can also use their book cited in the intro. This will allow you to have another reference to start this project, which can be extremely useful if there is something you struggle to understand.
 
-The plan now consists in thinking about each type of instruction we can encounter and create the logic blocks necessary to make them happen. As stated in the **setup manual**, we'll test these blocks individually to make sure each feature works, and we'll them put them togheter to form our core.
+The plan now consists in thinking about each type of instruction we can encounter and create the logic blocks necessary to make them happen. As stated in the **setup manual**, we'll test these blocks individually to make sure each feature works, and we'll them put them together to form our core.
 
 > Note that the testbenches and verification techniques can be improved but once again, this
 > learning material for a non-critical usage.
@@ -89,7 +89,7 @@ As you can see, before doing any actual hardware digital interpretation of this 
 - A basic ALU
 - And a decoder/control unit we will improve as time goes on
 
-We'll start by ceazting basic versions of the different building blocks and test their bahavior seperatly.
+We'll start by ceazting basic versions of the different building blocks and test their behavior separately.
 
 We'll then assemble them to form our first version of our datapath.
 
@@ -97,9 +97,9 @@ We'll then assemble them to form our first version of our datapath.
 
 ### 1.1.a : HDL Code
 
-We'll implement some basic piece of memory that can store X amount of words and it will respond in 1 clock cycle (which is way too good to be true, but memory is a pain so we'll *conviniently* ignore that for now...).
+We'll implement some basic piece of memory that can store X amount of words and it will respond in 1 clock cycle (which is way too good to be true, but memory is a pain so we'll *conveniently* ignore that for now...).
 
-So, let's get to work shall we ? We create a memeory.sv file in which we'll write some RTL logic :
+So, let's get to work shall we ? We create a memory.sv file in which we'll write some RTL logic :
 
 ```verilog
 // memory.sv
@@ -241,9 +241,9 @@ To run this, check out the **setup manual**.
 
 ### 1.1.b : HDL Code
 
-For the reg file, it's just 32x32bits registers. we'll implement it like memory execpt the size is fixed to 32 bits with 5bits addressing.
+For the reg file, it's just 32x32bits registers. We'll implement it like memory except the size is fixed to 32 bits with 5bits addressing.
 
-The I/Os are a bit different though as we have to accomodate all the instruction types. E.g. in R-Types (which operates ONLY on registers) we can write to a register whilst getting data from 2 of them at the same time.
+The I/Os are a bit different though as we have to accommodate all the instruction types. E.g. in R-Types (which operates ONLY on registers) we can write to a register whilst getting data from 2 of them at the same time.
 
 ```verilog
 // regfile.sv
@@ -293,7 +293,7 @@ endmodule
 
 ### 1.1.b : Verification
 
-Now to verify this HDL, we'll simply use random write on A3, and read after each write on both addresses. We then compare to a therorical golden state update in software in the testbench.
+Now to verify this HDL, we'll simply use random write on A3, and read after each write on both addresses. We then compare to a theoretical golden state update in software in the testbench.
 
 We also add small tests at the end to test the 0 constant.
 
@@ -403,9 +403,7 @@ assign zero = alu_result == 32'b0;
     
 endmodule
 ```
-
-We also add a ```alu_control``` option, to later select other arithmetic operation. We default the result to 0 if the requested arithmetic isn't iplemented and we add a "zero" flag that we'll use in later designs.
-
+We also add a `alu_control` option, to later select other arithmetic operation. We default the result to 0 if the requested arithmetic isn't implemented and we add a "zero" flag that we'll use in later designs.
 ### 1.1.c : Verification
 
 Simple design, simple testbench, but this time, the alu being pur combinational logic, we do not use a clock :
@@ -455,12 +453,11 @@ async def zero_test(dut):
     assert int(dut.zero.value) == 1
     assert int(dut.alu_result.value) == 0
 ```
-
 Here we declare multiple tests, it's exactly the same as making a single block but it improves readability so why not.
 
 ## 1.1.d : Implementing the sign extender
 
-In odrer to manipulte the immediate in other computation block, we need to make it 32bit wide. Also, Immediates can be "scatered" around in the instruction in RISC-V (e.g. Sotre Word ```sw```). This means that we'll need to :
+In order to manipulate the immediate in other computation block, we need to make it 32bit wide. Also, Immediates can be "scattered" around in the instruction in RISC-V (e.g. Store Word ```sw```). This means that we'll need to :
 
 1. Gather the immediate in the instruction, depending on the op code (ie, include some control inputs)
 2. Extend the gathered immediate sign to 32bits. Here is a basic implemention for our basic lw only with some preparations for the future :
@@ -508,9 +505,9 @@ import numpy as np
 async def random_write_read_test(dut):
     # TEST POSITIVE IMM = 123 WITH SOURCE = 0
     imm = 0b000001111011 #123
-    imm <<= 13 # leave "room" for ramdom junk
+    imm <<= 13 # leave "room" for random junk
     source = 0b00
-    # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
+    # 25 bits sent to sign extend contains data before that will be ignored (rd, f3,..)
     # masked to leave room for imm "test payload"
     random_junk = 0b000000000000_1010101010101 
     raw_data = random_junk | imm
@@ -582,7 +579,7 @@ As you can see, there is an ALU control as well. This is because a single instru
 
 > You can find the full table for the entire course in the `Holy_Reference_Tables.pdf` file.
 
-This process of seperating ```alu_op``` and ```alu_control``` may seem weird but trust me, it is for the better as we add mulptiple arithmetic option for each type of instruction :
+This process of seperating ```alu_op``` and ```alu_control``` may seem weird but trust me, it is for the better as we add multiple arithmetic options for each type of instruction :
 
 ```verilog
 module control (
@@ -668,7 +665,7 @@ async def control_test(dut):
     assert dut.reg_write.value == "1"
 ```
 
-> ```await set_unknown(dut)``` is here to set the signals to default ```X``` values. You can check the section on tests setup or the source code for more info. If you don't use it, you may having passing test whereas you are checking on other tests states. It will be up to you to update it (**by uncommenting the assignements**) as we add input to the *control* unit. Don't, worry, it will come to mind naturally.
+> ```await set_unknown(dut)``` is here to set the signals to default ```X``` values. You can check the section on tests setup or the source code for more info. If you don't use it, you may have a passing test whereas you are checking on other tests states. It will be up to you to update it (**by uncommenting the assignements**) as we add input to the *control* unit. Don't, worry, it will come to mind naturally.
 
 Here is what the ```set_unknown``` function looks like :
 
@@ -679,7 +676,7 @@ async def set_unknown(dut):
     await Timer(1, units="ns")
     dut.op.value = BinaryValue("XXXXXXX")
     #
-    # Uncomment the following throughout the course whan needed
+    # Uncomment the following throughout the course when needed
     #
     # dut.func3.value = BinaryValue("XXX")
     # dut.func7.value = BinaryValue("XXXXXXX")
@@ -700,7 +697,7 @@ Use the [tables](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/inst
 
 ## 1.2 : Laying down the ```lw``` datapath (finally)
 
-We can now start to edit ```cpu.sv``` and add the pieces toggether ! From tehere (a working lw datapath), we'll be able to add functionalities and build more advanced features !
+We can now start to edit ```cpu.sv``` and add the pieces together ! From there (a working lw datapath), we'll be able to add functionalities and build more advanced features !
 
 ### 1.2 : HDL Code
 
@@ -760,7 +757,7 @@ memory #(
 * CONTROL
 */
 
-// Intercepts instructions data, generate control signals accordignly
+// Intercepts instructions data, generate control signals accordingly
 // in control unit
 logic [6:0] op;
 assign op = instruction[6:0];
@@ -876,11 +873,11 @@ memory #(
 endmodule
 ```
 
-This one is large but failry simple, no fancy logic here as we pretty much just assemble legos according to the plan with a bunch of additional wires. Note the "always comb" muxes we add in preparetion for further improvements, even though they are pretty useless right now.
+This one is large but fairly simple, no fancy logic here as we pretty much just assemble legos according to the plan with a bunch of additional wires. Note the "always comb" muxes we add in preparation for further improvements, even though they are pretty useless right now.
 
 > Tip : to navigate such HDL files, use the "find" feature of your text editor **extensively** ! It will be you best friend when it comes to finding out *what* goes *where* when these files gets big.
 
-Note that I added some ```.mem_init("blablabla")``` parameters to the memory. This has to do with verification afterward. Here is the updated memory's verilog to acoomodate this change :
+Note that I added some ```.mem_init("blablabla")``` parameters to the memory. This has to do with verification afterward. Here is the updated memory's verilog to accommodate this change :
 
 ```verilog
 module memory #(
@@ -901,7 +898,7 @@ end
 endmodule
 ```
 
-see below verification for explainations...
+see below verification for explanations...
 
 ### 1.2 : Verification
 
@@ -913,7 +910,7 @@ So here is our todo list to lay down the tests :
 - Loads these files for simulation
 - Write the testbench
 
-Sounds simple enough, but our current project testing setup has some limitations that have to be carefully taken into account. These limitation leads to :
+Sounds simple enough, but our current project testing setup has some limitations that have to be carefully taken into account. These limitations lead to :
 
 - We will only have 1 memory (*it is what it is*).
 - We have to load the initial "ROMs" memory hexfiles directly via hardcoded verilog. Thus the modifications and limitations described above.
@@ -921,7 +918,7 @@ Sounds simple enough, but our current project testing setup has some limitations
 
 With all of these facts in mind, let's write some test ROMs for our lw datapath !
 
-For the instrcution memory to test our data path, we'll use a simple lw test  :
+For the instruction memory to test our data path, we'll use a simple lw test  :
 
 ```asm
 lw x18 8(x0) // loads daata from addr 0x00000008 in reg x18 (s2)
@@ -949,7 +946,7 @@ DEADBEEF  // @ 0x00000008 What we'll try to get in x18
 //(...)
 ```
 
-Great ! Here is how we are going to organize ou cpu tb folder (we put the ```.hex``` file in there as the HDL file are called from here so ```$readmemh("myrom.hex")``` will gets the ```.hex``` files from there) :
+Great ! Here is how we are going to organize our cpu tb(testbench) folder (we put the ```.hex``` file in there as the HDL file are called from here so ```$readmemh("myrom.hex")``` will gets the ```.hex``` files from there) :
 
 ```txt
 tb/
@@ -1093,8 +1090,8 @@ here is a quick breakdown :
 
 Here is a todo list to implement these new changes :
 
-- The immediate is now "scatered" around the instruction, we'll need to:
-  - Tell the control to select anthother source for the IMM
+- The immediate is now "scattered" around the instruction, we'll need to:
+  - Tell the control to select another source for the IMM
   - Tell the sign extender unit how to interpret that
 - We'll also need to update the control unit to :
   - Not enable write for the regs
@@ -1186,7 +1183,7 @@ async def signext_s_type_test(dut):
         assert int(dut.immediate.value) - (1 << 32) == imm
 ```
 
-As we can see, we randomized the testes and used more bitwise manipulation for assertions to make the whole testing more robust.
+As we can see, we randomized the tests and used more bitwise manipulation for assertions to make the whole testing more robust.
 
 > (This also serves as a great biwise operations exercise !)
 
@@ -1241,7 +1238,7 @@ As you can see it is simple a matter of adding a decoding case.
 
 ### 2.1.b : Verification
 
-For the verification, it is also pretty somple :
+For the verification, it is also pretty simple :
 
 ```python
 # test_control.py
@@ -1268,7 +1265,7 @@ async def sw_control_test(dut):
 
 > Note that these tests will change, we will later add "flavors" to these I and S types : ```lb```, ```sb```, ... which will have another f3, which will require a bit more decoding and logic, but for now, this will do just fine !
 
-## 2.2 : Actually mplementing the ```sw``` datapath
+## 2.2 : Actually implementing the ```sw``` datapath
 
 Globally in the datapath, nothing much changes, we just link the signals we previously kept on 0 for the memory write inputs :
 
@@ -1301,7 +1298,7 @@ memory #(
 
 ### 2.2 : Verification
 
-To verify, once again, we set up the memory files on a scenario that will be easily predictible in testing so we can verify the CPU behavior, whilst keeping of course the previos ```lw``` tests in our memory files :
+To verify, once again, we set up the memory files on a scenario that will be easily predictible in testing so we can verify the CPU behavior, whilst keeping of course the previous ```lw``` tests in our memory files :
 
 ```txt
 //test_imemory.hex
@@ -1316,7 +1313,7 @@ To verify, once again, we set up the memory files on a scenario that will be eas
 
 As you can see, we add a new instruction that will take the value we loaded in x18 and store it @ addr 0x0000000C in memory.
 
-Speaking of memory, the file did not really change, except I changed the 0xC value to ```0xF2F2F2F2``` to avoir asserting 00000000 as it is too common of a value :
+rpeaking of memory, the file did not really change, except I changed the 0xC value to ```0xF2F2F2F2``` to avoid asserting 00000000 as it is too common of a value :
 
 ```txt
 //test_dmemory.hex
@@ -1330,7 +1327,7 @@ F2F2F2F2
 //...
 ```
 
-And for the testbench, I simply did some assertions based on how the CPU should react to these instructions. We also get rit of the "init" test that test for init memory state as it executed the instruction to verify PC & memory behavior, which messed up all of the memory state for assertions. Here is the final result :
+And for the testbench, I simply did some assertions based on how the CPU should react to these instructions. We also get rid of the "init" test that tested for init memory state as it executed the instruction to verify PC & memory behavior, which messed up all of the memory state for assertions. Here is the final result :
 
 ```python
 # test_cpu.py
@@ -1401,7 +1398,7 @@ Okay ! It's going great, we implemented a second kind of instruction ! so let's 
 - Created a basic control unit accordingly
 - Tested everything along the way
 
-We now have a very strong base to build on ! and we can almost say that the CPU is starting to look like a true processing unit ! Let's take a look at what remains to do :
+We now have a very strong base to build on ! and we can almost say that the CPU is starting to look like a true processing unit ! Let's take a look at what remains to be done :
 
 - Implement ```R-Type``` format (arithmetic between regitser)
 - Implement ```B-Type & J-Type``` formats (Jumps and conditional branches)
@@ -1425,11 +1422,11 @@ Here is what an ```add``` instruction look like :
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | 0000000 | xxxxx |xxxxx | 000 |xxxxx |0110011 |
 
-## 3.1.a : Updataing the control unit
+## 3.1.a : Updating the control unit
 
-So, to accomodate the new requierements, we add the following signals as outputs to our control unit :
+So, to accomodate the new requirements, we add the following signals as outputs to our control unit :
 
-- ```alu_source``` which tells our alu not to get it's second operand from the immediate, but rather from the second read register.
+- ```alu_source``` which tells our alu not to get its second operand from the immediate, but rather from the second read register.
 - ```write_back_source``` Which tells our registers to get data from the alu for writing back to reg3, instead of the memory_read.
 
 ### 3.1.a : HDL Code
@@ -1893,7 +1890,7 @@ async def and_control_test(dut):
     assert dut.write_back_source.value == "0"
 ```
 
-We then add som ```AND``` logic to our ALU...
+We then add some ```AND``` logic to our ALU...
 
 ```verilog
 // alu.sv
@@ -2147,12 +2144,12 @@ And there we go ! We just added suport for 2 more instructions ! This section wa
 
 [The Lecture](https://youtu.be/sVZmqLRkbVk?feature=shared&t=550)
 
-Okay, now we can start to see how to remember data and do basic math ! great, we got ourselve a very dumb calculator. But the very essence of modern computing is **Conditional programing**.
+Okay, now we can start to see how to remember data and do basic math ! great, we got ourselves a very dumb calculator. But the very essence of modern computing is **Conditional programing**.
 
-When you first lean programming, conditions are the first thing you learn
+When you first learn programming, conditions are the first thing you learn
 Even loops depends on them (We could even argue they are the same thing) !
 It allows us to automate computing in ways that leverages the power of digital computing.
-Without these, we could just tell the computer to execute a dumb set of math operations, exactly like a calculator would, but in less convinient (even though it is faster).
+Without these, we could not have any control flow - just tell the computer to execute a dumb set of math operations, exactly like a calculator would, but in less convinient (even though it is faster).
 
 So, conditions sounds great, and I guess you already know how they work in C, Python and assembly.
 But how will we implement it here ?
@@ -2173,14 +2170,14 @@ So let's get to work shall we ?
 
 ## 4.1 : What do we need to add ```beq``` support
 
-To implement ```beq``` just like everython we did until now, we have to implement the intruction type datapath in the cpu. Here is a little todo list of what awaits us :
+To implement ```beq``` just like everything we did until now, we have to implement the instruction type datapath in the cpu. Here is a little todo list of what awaits us :
 
 - Update the control to be able to change the source of ```pc``` and ```immediate```
-- Add substraction arithmetic to the ALU to check for equal
+- Add subtraction arithmetic to the ALU to check for equal
 - Update the ```pc_next``` choice
 - Add some add arithmetic to compute a ```PC_target```
 
-Here is a figure from the Harris' **DDCA Books, RISC-V Edition** alonside a table for the new weird IMM source
+Here is a figure from the Harris' **DDCA Books, RISC-V Edition** alongside a table for the new weird IMM source
 
 ![beq / B-type datapath enhancements](./images/Beq_datapath.png)
 
@@ -2285,7 +2282,7 @@ endmodule
 
 ### 4.1.a : Verification
 
-Great ! Now let's adapat our test cases and create a new one accordingly !
+Great ! Now let's adapt our test cases and create a new one accordingly !
 
 ```python
 # test_control.py
@@ -2346,7 +2343,7 @@ Note that our ```beq``` testbench is separated in two :
 1. Test whilst the branching condition is **not** met (pc_source should stay default)
 2. Test whilst the branching condition **is** met (pc_source should change to select new target)
 
-## 4.1.b : Update the ALU for substraction arithmetic
+## 4.1.b : Update the ALU for subtraction arithmetic
 
 Before going any further, here are some basics that are neverthelesss important (and are pretty important details that ANYONE can get wrong) :
 
@@ -2474,7 +2471,7 @@ As you can see, the immediate range is 13 bits (we add a single 0 bit at the end
 
 > But why a single 0 and not two ? an instruction is 32 bits ! so the theorical minimum offset is 4Bytes not 2Bytes !
 
-Yes and no, This allows the user to point on "half words" on 16 bits. **In our case, this is not useful** and will autamatically be discarded by the way we implemented our memory. **BUT** it can be useful if the **Compressed** extension set is implemented, but this is out of the scope of this tutorial. (It's a pain to work with AND it's optional so let's just not do that for now).
+Yes and no, This allows the user to point on "half words" on 16 bits. **In our case, this is not useful** and will automatically be discarded by the way we implemented our memory. **BUT** it can be useful if the **Compressed** extension set is implemented, but this is out of the scope of this tutorial. (It's a pain to work with AND it's optional so let's just not do that for now).
 
 ### 4.1.c : Verification
 
@@ -2596,7 +2593,7 @@ end
 //..other logic...
 ```
 
-> As we touched the datapath and other logics, now is a good time to see if all testbenches are still okay. I suggest you re-test all the design after each mofification by the way.
+> As we touched the datapath and other logics, now is a good time to see if all testbenches are still okay. I suggest you re-test all the design after each modification by the way.
 
 Let's now build a test program for our new ```beq```.
 
@@ -2631,7 +2628,7 @@ FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (-offset)
 00000013  //NOP
 ```
 
-We don't need to interviene on data memory, let's go right to the test case.
+We don't need to intervene on data memory, let's go right to the test case.
 
 ```python
 # test_cpu.py
@@ -2725,7 +2722,7 @@ Don't mind the last **2'b11** value for the *write_back* mux on the scheme, we r
 
 ### 5.1.a : HDL Code
 
-As usual, we add this imm source to our HDL Code. I grabed this opportunity to heavily re-factored the signext code as immediates sizes were now too different from one to another :
+As usual, we add this imm source to our HDL Code. I grabbed this opportunity to heavily re-factor the signext code as immediates sizes were now too different from one to another :
 
 ```verilog
 // signext.sv 
@@ -2763,7 +2760,7 @@ This module is now shorter and makes more sense. Let's move on to verifying it.
 
 ### 5.1.a : Verification
 
-First, run the old tests to make sur our HDL code chages did not affect the underlying logic.
+First, run the old tests to make sure our HDL code chages did not affect the underlying logic.
 
 And then, to verify our new immediate, we do as usual: using some bitwise gymnastic, a pen and some paper :
 
@@ -2877,7 +2874,7 @@ endmodule
 
 ### 5.1.b : Verification
 
-To verify this new desing, we first need to update our tests cases by replacing :
+To verify this new design, we first need to update our tests cases by replacing :
 
 ```python
 # test_control.py
@@ -3107,7 +3104,7 @@ That's it ! Because when you think about it, we already have everything we need 
 
 So let's get to work !
 
-## 6.1.a : Updating th control unit
+## 6.1.a : Updating the control unit
 
 ### 6.1.a : HDL Code
 
@@ -3137,7 +3134,7 @@ Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book)
 //...
 ```
 
-Only the source of the write_back changes ! Which makes sense ! Let's test that witout further ado !
+Only the source of the write_back changes ! Which makes sense ! Let's test that without further ado !
 
 ### 6.1.a : Verification
 
@@ -3224,7 +3221,7 @@ And it works ! GG ! This ```addi``` instruction can also be used as ```li``` aka
 
 ## 7 : Implementing ```U-Type``` instructions
 
-Okay ! Our CPU is now capable of doing many things ! And as we implemented most of the instructions types, adding new instructions sould be fairly easy.
+Okay ! Our CPU is now capable of doing many things ! And as we implemented most of the instructions types, adding new instructions should be fairly easy.
 
 > **BUT WAIT !** An instruction type is missing !
 
@@ -3270,7 +3267,7 @@ The mux before pc target chooses between :
 
 There also is a new source for the *second_adder* to add to the decoder. (*don't mind the empty mux input for the second add, we keep this one for later*)
 
-These modifs will make ```imm_source``` 3 bits wide instead of 2. So we'll have to update things accordingly. (*This will sometimes happen, remenber to always update everython accordingly*).
+These modifs will make ```imm_source``` 3 bits wide instead of 2. So we'll have to update things accordingly. (*This will sometimes happen, remember to always update everything accordingly*).
 
 ## 7.1.a : Updating *signext*
 
@@ -3547,7 +3544,7 @@ As you can see, we also add a MUX case for the ```write_back_source``` signal an
 
 By the way, here is a little fun fact : **we still don't use F7 at all in our CPU !** We'll use it to discriminate R-Types don't worry ;)
 
-> Warning ! You have to make 2 ```always_comb``` block, otherwise it does not work ! Idk if its about simulation or something, but if you put both second_add_select and pc_select muxes in the same ```always_comb```, it just does not update the pc correctly for the ```jal``` and the simualtion crashes ! (yes it took me a whole hour to figure this sh*t out haha).
+> Warning ! You have to make 2 ```always_comb``` block, otherwise it does not work ! Idk if it's about simulation or something, but if you put both second_add_select and pc_select muxes in the same ```always_comb```, it just does not update the pc correctly for the ```jal``` and the simulation crashes ! (yes it took me a whole hour to figure this sh*t out haha).
 
 ### 7.2 : Verification
 
@@ -3606,7 +3603,7 @@ And it works ! two birds with one stone !
 
 ## 8 : rushing instructions : ```I-Types```
 
-> This part will contain less details as I assume you now have enough experience to understands problems and fixes more easily.
+> This part will contain less details as I assume you now have enough experience to understand problems and fixes more easily.
 
 Okay, we just implemented our last instruction type ! Meaning we now have a pretty robust datapath on which we can implement more instructions (*hopefully*) without much of a problem !
 
@@ -3790,7 +3787,7 @@ This one may be a bit tricky : If you recall, x19 is set to 0x00000AAA via ```lw
 
 Given that ```slti``` uses signed values, **0xFFF is -1** ! which is why ```x23 <= 00000000```.
 
-After that, I test the more obious ```0 (x23) < 1 (0x001)``` for a less etricate test case.
+After that, I test the more obvious ```0 (x23) < 1 (0x001)``` for a less entricate test case.
 
 Here here is the updated test_bench :
 
@@ -3861,7 +3858,7 @@ We simply add this statement in the alu logic :
 
 ### 8.2.a : Verification
 
-And we verify using this testbench, slighlty simpler than the signed version as every number here is treated as positive :
+And we verify using this testbench, slightly simpler than the signed version as every number here is treated as positive :
 
 ```python
 # test_alu.py
@@ -4056,7 +4053,7 @@ async def xor_test(dut):
 
 > Don't forget to update all the bit widths in this file !
 
-## 8.3.b : Updating th *control* unit for ```xori```
+## 8.3.b : Updating the *control* unit for ```xori```
 
 ### 8.3.b : HDL Code
 
@@ -4188,9 +4185,9 @@ Here is a list of the points of attention to keep in mind whilst implementing ``
 
 Please consider the following too :
 
-> Don't forget to use a 5 bit shamt for the *shift* instructions ! The upper 7 bits of the immediate (*for shift instructions*) acts like a f7 ! so we need to invalidate (*or add a default case that does nothing*) the instructions that are not conform to that ! This translate in a 0 in reg write if "*f7*" is invalid. (We *may* add an ```illegal_op``` flag later in future tutorials if we re-use this core for other projects). We also only use the 5 lower bits of ```src2``` in the alu. So make sure to add f7 to the datapath, and invalidate the non-support f7s for shift in control !
+> Don't forget to use a 5 bit shamt for the *shift* instructions ! The upper 7 bits of the immediate (*for shift instructions*) acts like a f7 ! so we need to invalidate (*or add a default case that does nothing*) the instructions that are not conformimg to that ! This translates in a 0 in reg write if "*f7*" is invalid. (We *may* add an ```illegal_op``` flag later in future tutorials if we re-use this core for other projects). We also only use the 5 lower bits of ```src2``` in the alu. So make sure to add f7 to the datapath, and invalidate the non-support f7s for shift in control !
 
-This should give you a bit of a challenge too ! (You can use the final source code if needed, especially for the ```sra``` testbench which can be a bit challenging with python's weird representation of negative numers ! (You can refer to this [stack overflow post](https://stackoverflow.com/questions/64963170/how-to-do-arithmetic-right-shift-in-python-for-signed-and-unsigned-values) for this matter).
+This should give you a bit of a challenge too ! (You can use the final source code if needed, especially for the ```sra``` testbench which can be a bit challenging with python's weird representation of negative numbers ! (You can refer to this [stack overflow post](https://stackoverflow.com/questions/64963170/how-to-do-arithmetic-right-shift-in-python-for-signed-and-unsigned-values) for this matter).
 
 ## 9 : Rushing instructions : ```R-Types```
 
@@ -4230,7 +4227,7 @@ For the control's HDL Logic, we need to keep something in mind :
 
 As stated earlier, the logic will be kind of the same than for shifts. **Why ?** Well because ```add``` and ```sub``` **both share the same *f3***
 
-That means meaning we have to use *f7* to know which is which. And becase the ````addi```` also shares the same ```alu_op``` signal than ```add``` and ```sub``` we also have to take this scenario into account ! *(because ```addi``` use immediate instead of f7, meaning the value could be anything !)*
+That means meaning we have to use *f7* to know which is which. And because the ````addi```` also shares the same ```alu_op``` signal than ```add``` and ```sub``` we also have to take this scenario into account ! *(because ```addi``` use immediate instead of f7, meaning the value could be anything !)*
 
 I added comments in the code below to make that a bit clearer.
 
@@ -4268,11 +4265,11 @@ always_comb begin
                 // ...
 ```
 
-To avoid bloating the code, I won't unvalidate the non-compliant f7 and only check for the bit #5 of f7 to either chose ```sub``` or ```add```. That will also be on less feature to test.
+To avoid bloating the code, I won't invalidate the non-compliant f7 and only check for the bit #5 of f7 to either chose ```sub``` or ```add```. That will also be on less feature to test.
 
-Is it right ? no. But I plan on imlementing ```invalid_op``` flags once we set the constant and try to pipeline this thing. So let's leave that for later !
+Is it right ? no. But I plan on implementing ```invalid_op``` flags once we set the constant and try to pipeline this thing. So let's leave that for later !
 
--*"the compiler knows what he's doing anyway"* -famous last words.
+-*"the compiler knows what it's doing anyway"* -famous last words.
 
 ### 9.1.b : Verification
 
@@ -4379,11 +4376,11 @@ So this way, we can already verify :
 
 without touching anything !
 
-> Exercice for you : come up with a test programm and testbench to verify cpu behavior with these instructions ;)
+> Exercise for you : come up with a test programm and testbench to verify cpu behavior with these instructions ;)
 
 And what about ```srl``` and ```sra``` ?
 
-Well, nothing to do neither ! *(except test it of course)* Why ? Well, we did test for the *f7*-ish immediate before in a scenario specific to our ```I-Tpye``` stuggle to differentiate ```srl``` and ```sra``` because their *f3* encoding were the same.
+Well, nothing to do either ! *(except test it of course)* Why ? Well, we did test for the *f7*-ish immediate before in a scenario specific to our ```I-Tpye``` stuggle to differentiate ```srl``` and ```sra``` because their *f3* encoding were the same.
 
 Turns out R-Types uses actual f7, and guess what :
 
@@ -4425,13 +4422,13 @@ How ? Well, we'll simply add an output flags to our ALU that will serve the exac
 
 - ```alu_last bit``` will be 1 if the last ```alu_result``` bit is 1.
 
-And to use the correct arithmetic, we'll have to improve our *control*'s *ALU_Decoder* to chose the correct arithmetic from the ALU. In the `Holy_Reference_Tables.pdf` file, there is a dedicated page containing all the data you need for reference.
+And to use the correct arithmetic, we'll have to improve our *control*'s *ALU_Decoder* to choose the correct arithmetic from the ALU. In the `Holy_Reference_Tables.pdf` file, there is a dedicated page containing all the data you need for reference.
 
 Here is the recap of the datapath we'll have after ```blt```, not much is changing except for the new ```alu_last_bit``` signal.
 
 ![blt new signal datapath inmg](./images/blt_datapath.jpg)
 
-> As you can see, we go for a strategy where the alu only gives us the state of its last bit and the *branch logic* inside the control unit will sort out from there, depending on the instruction, wheter we branch or not.
+> As you can see, we go for a strategy where the alu only gives us the state of its last bit and the *branch logic* inside the control unit will sort out from there, depending on the instruction, whether we branch or not.
 
 And last but not least, after we got our flags and correct arithmetic, we'll also need to improve the ```pc_source``` selector, by adding a whole *branch logic* section (The `Holy_Reference_Tables.pdf` file as a page for that for reference).
 
@@ -4668,7 +4665,7 @@ Here is what ```jalr``` looks like :
 | ------------  | ------------  | ------ | ------------ | ------- |
 | XXXXXXXXXXXX  | XXXXX         | 000    | XXXXX        | 110**0**111 |
 
-This instruction is formated as an I-Type and "behaves" as a J-Type (it's a jump instruction after all !)
+This instruction is formatted as an I-Type and "behaves" as a J-Type (it's a jump instruction after all !)
 
 Its unique *OP* code makes it easy to distinguish (still similar to ```jal```'s : 110**0**111).
 
@@ -4696,7 +4693,7 @@ Here is a recap of our datapath we will implement of ```jalr```:
 
 ## 11.1 : Laying down the work to do
 
-So you though it was all easy from now on ?
+So you thought it was all easy from now on ?
 
 **WRONG** ! We now have more to do on the datapth. Which is not hard by itself but rather long as we have to update signals width in both the logic AND the tests.
 
@@ -4776,7 +4773,7 @@ To update our datapth, here is a refresher of our new layout :
 
 ### 11.1.b : HDL Code
 
-We quickly identify that there is not much to do, if not updating the ```second_add_source``` width and add a MUX option accordignly :
+We quickly identify that there is not much to do, if not updating the ```second_add_source``` width and add a MUX option accordingly :
 
 ```verilog
 // cpu.sv
@@ -4855,7 +4852,7 @@ And it works ! GG to us.
 
 ## 12 : A bit of memory
 
-Okay, we've implemented all locical operations ! GG.
+Okay, we've implemented all logical operations ! GG.
 
 But now is time to enter the realms of "*the things we said we would do later, don't worry bro*".
 
@@ -4876,9 +4873,9 @@ Which are non-aligned (aka not modulo 4) version of our already-existing ```sw``
 
 > Non aligned ? not really. I will elaborate on that more in section 12.1; Just know that byte-wise memory operations cannot really be mis-aligned technically speaking.
 
-To really understand the behaior of these instruction, I suggest you use a risc-v ISA simulator like this ["*RISC-V Interpreter*"](https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter/) (you can find better one that support unsigned and half words but this one can give you an idea).
+To really understand the behavior of these instruction, I suggest you use a risc-v ISA simulator like this ["*RISC-V Interpreter*"](https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter/) (you can find better one that support unsigned and half words but this one can give you an idea).
 
-## 12.1 : Relfexions on CPU behavior
+## 12.1 : Reflections on CPU behavior
 
 For our stores instructions, we need to improve our memory first. To do so, we need to understand what is expected from our core from a programming standpoint.
 
@@ -4890,11 +4887,11 @@ According to [this discussion](https://groups.google.com/a/groups.riscv.org/g/hw
 
 In this sceneario, it is **up to us** to decide what to do. And the "what to do" will be : **nothing**.
 
-In that case, we should also throw an exception but remember : this is something for future improvements. On top of that, mis-aligned lh are, *theorically*, not supposed to happen as the compiler "knows" what he is doing.
+In that case, we should also throw an exception but remember : this is something for future improvements. On top of that, mis-aligned lh are, *theorically*, not supposed to happen as the compiler "knows" what it is doing.
 
 Now, the way we will handle that "**nothing**" can vary in many ways :
 
-- **Do we want the CPU or the memory to handle these mis-alignement ?** It depends on how we'll implement memory later on, maybe what controller we'll use, and how this said controller will handle these exceptions... To get the best predictible behavior, it is better to just handle these thing ourselve in the cpu core. It is also a more standard way to handle this stuff.
+- **Do we want the CPU or the memory to handle these mis-alignement ?** It depends on how we'll implement memory later on, maybe what controller we'll use, and how this said controller will handle these exceptions... To get the best predictible behavior, it is better to just handle these things ourselves in the cpu core. It is also a more standard way to handle this stuff.
 - **Where exactly do we want to handle these exceptions in the cpu ?** Right now, we have a single cycle CPU. But in a pipelined cpu, every stage has its role. This kind of exception shall idealy be caught in the "decoding" stage, aka at the very beginning of the cpu, where we generate control signals (right after fetching it from memory) but in reality, it is a bit more tricky than that. More on that in the later sections.
 
 > We could theorically implement that "yolo" style but it is a bit more important for future improvement that what we were used to procrastinate on until now, so might as well think about these problems early this time ;)
@@ -4964,7 +4961,7 @@ By keeping in mind what we just said in section 12.2, memory never sees non word
 - A nice word-aligned address
 - And a ```byte_enable``` mask along the ```write_enable``` signal
 
-But let's leaver the decoder for later and focus on the momory for now as this section is about updating our new memory according to our new requierements.
+But let's leave the decoder for later and focus on the momory for now as this section is about updating our new memory according to our new requierements.
 
 ### 12.2.a : HDL Code
 
@@ -5023,7 +5020,7 @@ end
 endmodule
 ```
 
-To test of this new code did not affect underlying memory logic, we can see if our module still behaves correctly by **temporarly** replacing ```if (byte_enable[i]) begin``` with ```if (1) begin``` which will enable write on all bytes and *hopefully* make our previous tests pass.
+To test if this new code did not affect underlying memory logic, we can see if our module still behaves correctly by **temporarly** replacing ```if (byte_enable[i]) begin``` with ```if (1) begin``` which will enable write on all bytes and *hopefully* make our previous tests pass.
 
 And it works just fine so let's revert this temporary change and move on !
 
@@ -5134,7 +5131,7 @@ With that in mind, here is how we'll proceed to know where to write (or not) :
 
 As you can see, we added a whole "*load_store_decoder*" or "*byte_enable_decoder*" *(you can call it however you want)* which will produce the adequate ```byte_enable``` mask depending on the address offset and the instruction being fetched.
 
-**This unit also processes the data we send to the memory**, and the reeason why come from this extract of the [RISC-V Specs](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) :
+**This unit also processes the data we send to the memory**, and the reason why come from this extract of the [RISC-V Specs](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) :
 
 > The SW, SH, and SB instructions store 32-bit, 16-bit, and 8-bit values from the low bits of register rs2 to memory
 
@@ -6112,11 +6109,11 @@ This time, we test them all at once as tthe principle is the same as what we did
 
 Well... Looks like we implemented all of the RV32I instruction set ! But is it the end ? Well yes and no.
 
-After making this course on my side, I looked into implemeting this core on fpga. The thing is that if I wanted to do so, the core needed to be... well... a bit more profesionnal !
+After making this course on my side, I looked into implementing this core on fpga. The thing is that if I wanted to do so, the core needed to be... well... a bit more profesionnal !
 
-This is beacause using external momery etc raises the need to building interfaces, which is easier to do using system verilog fancy notations.
+This is beacause using external memory etc raises the need to building interfaces, which is easier to do using system verilog fancy notations.
 
-So the first task is to switch to actual systemverilog ! Until now I used **icarus verilog** as a simulator, eaning I have to switch to **verilator** to have full system verilog support. (*On your side, the setup file told you to use **verilator** so you shouldn't have to switch.*)
+So the first task is to switch to actual systemverilog ! Until now I used **icarus verilog** as a simulator, meaning I have to switch to **verilator** to have full system verilog support. (*On your side, the setup file told you to use **verilator** so you shouldn't have to switch.*)
 
 Once this is done, we can actually start doing a bit od cleaning to make the core more "pro".
 

@@ -4,7 +4,7 @@ Welcome back ! Let's get you up to speed how how we'll setup our project to star
 
 ## Tools used for the project
 
-### Prerequestites
+### Prerequisites
 
 I suggest you use **LINUX** as the tech stack used is fully open source, meaning most of the support is towards linux. Windows might work, but I did not even try.
 
@@ -18,9 +18,9 @@ To start this course you also need to have these basics down :
 
 ### The HDL : SystemVerilog
 
-SystemVerilog is used, you don't need to install anything to write in this language if not a text editor.
+SystemVerilog is used, you don't need to install anything to write in this language, only a text editor.
 
-We'll also use plain verilog as well for wrapping the design in the late *fpga edition* setcion.
+We'll also use plain verilog as well for wrapping the design in the later *fpga edition* section.
 
 ### Simulator :  Verilator
 
@@ -52,14 +52,14 @@ Useful commands :
 
 ## Seting up the tests (CODE BASE STRUCTURE and SETUP)
 
-### Chosing you edition
+### Choosing your edition
 
-This course contains multiple "blocks" that aims at learning different aspects of designing your own CPU.
-Each of these block have its own subfolder (e.g. `single_cycle_edition` or `fpga_edition`).
+This course contains multiple "blocks" that aims at teaching different aspects of designing your own CPU.
+Each of these block has its own subfolder (e.g. `single_cycle_edition` or `fpga_edition`).
 
 ### Cleaning a project
 
-When doing tests, simulation create a bunch of log & build folders. You can get rid of them by running `make clean` @ the root of the edition you're working on (thus the `Makefile` at each edition's root).
+When doing tests, each simulation creates a bunch of log & build folders. You can get rid of them by running `make clean` @ the root of the edition you're working on (thus the `Makefile` at each edition's root).
 
 ### Course edition structure
 
