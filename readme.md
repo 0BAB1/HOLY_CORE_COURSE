@@ -2,7 +2,7 @@
 
 ![waveform banner](./banner.png)
 
-An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailled tutorials as a reference.
+An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailed tutorials as a reference.
 
 The course is divided in multiple blocks to learn different aspects of digital design. The table below indicates availability of these learning blocks.
 
@@ -16,7 +16,7 @@ The course is divided in multiple blocks to learn different aspects of digital d
 
 Link : [*todo : add link*](https://0bab1.github.io/BRH/)
 
-## Prerequestites
+## Prerequisites
 
 To start this course you need to have these basics down :
 
@@ -25,13 +25,13 @@ To start this course you need to have these basics down :
 - SystemVerilog / HDL knowledge.
 - Have a linux distro (you can do it on windows, glhf)
 
-**Please check out the setup mnual before starting the course !**
+**Please check out the [setup manual](./setup.md) before starting the course !**
 
-Use it to setup you environement properly before working on the tu
+Use it to setup your environment properly before working on the tutorial
 
 ## The tutorials (WHERE DO I START)
 
-Before diving into the tutorials, it is **mandatory** to setup your environement correctly first **using the guidelines listed in the setup manual** (@ the root of the tutorials repo : `setup.md`)
+Before diving into the tutorials, it is **mandatory** to setup your environment correctly first **using the guidelines listed in the setup manual** (@ the root of the tutorials repo : `setup.md`)
 
 Once the setup is done you can start working on the *single cycle edition* tutorial.
 
@@ -43,7 +43,7 @@ Happy learning !
 
 ## Course summary
 
-What can you learn from the differents course blocks ?
+What can you learn from the different course blocks ?
 
 ### Single cycle edition
 
