@@ -29,7 +29,6 @@ jobs:
           sudo apt-get install g++
           sudo apt-get install libfl2 
           sudo apt-get install libfl-dev 
-          sudo apt-get install zlibc zlib1g zlib1g-dev 
           sudo apt-get install git autoconf flex bison
 
       # Install Verilator and Python dependencies
