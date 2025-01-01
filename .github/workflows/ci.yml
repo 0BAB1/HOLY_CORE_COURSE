@@ -29,7 +29,6 @@ jobs:
           sudo apt-get update
           pip install cocotb pytest cocotb-test numpy
           git clone https://github.com/verilator/verilator
-          unsetenv VERILATOR_ROOT
           unset VERILATOR_ROOT
           cd verilator
           git pull
