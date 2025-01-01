@@ -49,7 +49,7 @@ I really encourage you to read the [blog post](https://0bab1.github.io/BRH/posts
 
 Towards the end of this *fpga editionù, I'll use a ZYBO Z7-20 embedding a Zynq. I won't use the Zynq's processing system and anything works just fine as long as it's programable logic so your average FPGA shall do.
 
-![Zybo board](./images/zybo.jpg)
+![Zybo board](../images/zybo.jpg)
 
 Just note that even if I give a lot of details, the actual vivado TCL scripts and constraints file are for my board. It sould not be musch of a problem adapting these to your own needs though.
 
@@ -109,7 +109,7 @@ This is because all we'll do is simply **wait for it to arrive** by **stalling**
 
 To replace our old `memory.sv` logic and interface between the core and external memory, we'll use a **cache** (`$`) system :
 
-![very abstract stall](./images/very%20abstract%20stall.png)
+![very abstract stall](../images/very%20abstract%20stall.png)
 
 > If you don't know what a cache is, refer to the resources to learn more and get yourself up to speed.
 
@@ -159,7 +159,7 @@ So when the cpu asks to read the data in a certain addres, in order to know whet
 Here is the logic to determine the stall signal using the **CPU request** alongside the **cache table** signals.
 Note that there is a **register** at the end to ensure that the stall assertion is asynchronous but the de-assertion is synchronous to ensure all AXI transactions (we'll go over that in the next section) are finished before starting fetching new instructions.
 
-![cache without AXI](./images/cache%20without%20AXI.png)
+![cache without AXI](../images/cache%20without%20AXI.png)
 
 ### Requesting data from main memory using AXI
 
@@ -182,7 +182,7 @@ They are also optional meaning it's bloat anyway.
 
 We'll drive this axi interface by using a Finite State Machine that can modify the cache using a pointer and that produces a `cache_state` signal which we'll be able to use to know what the cache's AXI interface is currently doing :
 
-![full holy cache with AXI](./images/full%20cache.png)
+![full holy cache with AXI](../images/full%20cache.png)
 
 We'll go over this design in more details later (Note this scheme is a simplification).
 
@@ -198,7 +198,7 @@ Well, just like the single cycle edition, we'll have :
 
 They both operate separatly and hold their own cache table. Here is what such an integration look like :
 
-![holy core only cache](./images/HOLYCORE%20no%20arbitrer.png)
+![holy core only cache](../images/HOLYCORE%20no%20arbitrer.png)
 
 On this scheme I also added the stalling logic that simply makes sures the next PC is set to the current PC whenever the core stalls.
 
@@ -210,11 +210,11 @@ To address this problem, we can add a simple ```external_request_arbitrer``` mod
 
 The ```external_request_arbitrer``` will simply work by probing the different cache state to route on or another cache M_AXI interface to the main core's M_AXI.
 
-![holy core arbitrer](./images/arbitrer.png)
+![holy core arbitrer](../images/arbitrer.png)
 
 And here is the integration with the new external request arbitrer :
 
-![full holy core](./images/HOLY_CORE_FPGA.png)
+![full holy core](../images/HOLY_CORE_FPGA.png)
 
 And that was the full core ! Now that we know the *why*, let's do the *howù shall we ?
 
@@ -408,7 +408,7 @@ each of them having their own way of talking to the cache.
 And when the cache is talking to memory, he simply signals the CPU to wait while he's in buisness by asserting `stall`.
 Here is a reminder of the cache's structure :
 
-![holy cache without AXI](./images/full%20cache.png)
+![holy cache without AXI](../images/full%20cache.png)
 
 To make the whole AXI thing work out, we'll build the cache around a Finite State Machine (FSM).
 Here are the different states we'll use to describe *what* the cache is currently doing with main memory :
@@ -515,7 +515,7 @@ endmodule
 
 Regarding the ```next_cache_valid``` signal, it's simply a way to drive the next value of a signal using comb logic like so :
 
-![dq latch](./images/dq.JPG)
+![dq latch](../images/dq.JPG)
 
 > Note that we are using the ```CACHE_SIZE``` parameter. It's fixed to 128 and it shall stay that way as every bit range will be hardcoded from now on.
 > (Because I was a beginner and this was easier for me haha)
@@ -531,7 +531,7 @@ We'll also assert the state we're in is ```IDLE``` by declaring some states (eve
 
 You can refer to the cache schemes for reference :
 
-![full holy cache for hit and stall reference](./images/full%20cache.png)
+![full holy cache for hit and stall reference](../images/full%20cache.png)
 
 ```sv
 // holy_cache.sv
@@ -676,7 +676,7 @@ We also use **SEQ LOGIC** driven by ```aclk```to :
 
 Enough talking, here is a scheme of the FSM :
 
-![holy core axi FSM](./images/axi%20fsm.png)
+![holy core axi FSM](../images/axi%20fsm.png)
 
 Of course, depending on the current state, we'll assert diffferent signals and when data is being transfered, we'll
 have to modify the `set_ptr` accordingly.
@@ -1395,7 +1395,7 @@ Of course merging, two AXI interface toghteher is simply not possible but what w
 
 It would look like this :
 
-![external AXI request arbitrer simplified](./images/external%20AXI%20request%20arbitrer%20simplified.png).
+![external AXI request arbitrer simplified](../images/external%20AXI%20request%20arbitrer%20simplified.png).
 
 One question now remains : **How do we decide what AXI interface gets to get muxes to the outside ?**. To answer, we can first make some assumptions
 
@@ -1408,7 +1408,7 @@ One question now remains : **How do we decide what AXI interface gets to get mux
 
 We now introduce some control logic for our custom interconnect :
 
-![external AXI request arbitrer full](./images/external%20AXI%20request%20arbitrer%20full.png)
+![external AXI request arbitrer full](../images/external%20AXI%20request%20arbitrer%20full.png)
 
 Here is the verilog description of the logic for this module :
 
@@ -1702,7 +1702,7 @@ async def main_test(dut):
 
 Recall the schemes for our final design :
 
-![full holy core](./images/HOLY_CORE_FPGA.png)
+![full holy core](../images/HOLY_CORE_FPGA.png)
 
 We see that we now have all the missing pieces to make it happen.
 
@@ -1715,7 +1715,7 @@ Note that the ```load_store_unit``` is simply a wrapper for all the logic that s
 
 Here is an in depth view as a reminder :
 
-![Holy core's load store unit](./images/lsu.png)
+![Holy core's load store unit](../images/lsu.png)
 
 *Nota :*  `LSU` a common term in computer design but for us **it's just a way to make the schemes simpler**,
 **we won't create any additional module**. With that being said, integration should be relatively simple compared to
@@ -2179,7 +2179,7 @@ Before starting here are a few specifics on what I use :
 
 I use a Zybo Z7-20 for the board
 
-![zybo z7-20 board](./images/zybo.jpg)
+![zybo z7-20 board](../images/zybo.jpg)
 
 And I also use vivado 2023.2 as an EDA.
 
@@ -2187,7 +2187,7 @@ It's better if you have the same environment as me (especially for the EDA) but 
 
 Here is a schematic of the SoC we'll put together :
 
-![SoC shemes for HOLY CORE](./images/SoC_simple.png)
+![SoC shemes for HOLY CORE](../images/SoC_simple.png)
 
 There are a few new things here, let me get you up to speed on these :
 
@@ -2296,7 +2296,7 @@ We can now proceed to add these file to our sources in vivado and create a new b
 We can then add (by a drag and drop) our `holy_wrapper.v` top module in the block design.
 
 After that, simply add all of the other components like so :
-![final holy core fpga soc in vivado](./images/SoC_final.png)
+![final holy core fpga soc in vivado](../images/SoC_final.png)
 
 You can then validate the block design, generate an HDL wrapper an set this wrapper as the new top module for synthesis.
 
@@ -2318,13 +2318,13 @@ The clock speed is set to 50MHz in my example.
 
 We can now launch bitstream generation & flash the said bitstream onto the board. We'll be greeted by the ILA dubugger that we can leverage to check on our live debug signals.
 
-![ila debugging](./images/ila.png)
+![ila debugging](../images/ila.png)
 
 > If you are not familiar with ILA debugging yet, it is a very powerful tool that you should learn. See the resources to learn more.
 
 Now, we put the CORE on reset and the AXI interfaces on active using the buttons we defined in our constraint file like in the following example :
 
-![flashed board reset](./images/flashed%20board%20reset.png)
+![flashed board reset](../images/flashed%20board%20reset.png)
 
 We can now move on to building a program.
 
@@ -2428,7 +2428,7 @@ Once this is done, the program is in the BRAM, ready to run.
 
 To run it simply realease the CORE's `reset` signal. And *voilà* ! blinking LEDs !
 
-![counter program running](./images/working%20leds.png)
+![counter program running](../images/working%20leds.png)
 
 ## Resources
 
