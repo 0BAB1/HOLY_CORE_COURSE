@@ -27,8 +27,17 @@ jobs:
       - name: Install Verilator and Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y verilator
           pip install cocotb pytest cocotb-test numpy
+          git clone https://github.com/verilator/verilator
+          unsetenv VERILATOR_ROOT
+          unset VERILATOR_ROOT
+          cd verilator
+          git pull
+          git tag
+          autoconf
+          ./configure
+          make -j `nproc`
+          sudo make install
 
       # Check versions
       - name: Check software version
