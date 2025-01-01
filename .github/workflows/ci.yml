@@ -33,6 +33,7 @@ jobs:
           cd verilator
           git pull
           git tag
+          git checkout stable
           autoconf
           ./configure
           make -j `nproc`
