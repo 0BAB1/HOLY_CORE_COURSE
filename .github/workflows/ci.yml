@@ -23,6 +23,16 @@ jobs:
         with:
           python-version: 3.10.9
 
+      - name: Install Verilator prerequesites
+        run: |
+          sudo apt-get install git help2man perl python3 make
+          sudo apt-get install g++
+          sudo apt-get install libgz
+          sudo apt-get install libfl2 
+          sudo apt-get install libfl-dev 
+          sudo apt-get install zlibc zlib1g zlib1g-dev 
+          sudo apt-get install git autoconf flex bison
+
       # Install Verilator and Python dependencies
       - name: Install Verilator and Dependencies
         run: |
