@@ -30,6 +30,11 @@ jobs:
           sudo apt-get install -y verilator
           pip install cocotb pytest cocotb-test numpy
 
+      # Check versions
+      - name: Check software version
+        run: |
+          verilator --version
+
       # Run tests in single_cycle_edition
       - name: Run Tests in single_cycle_edition
         run: |
