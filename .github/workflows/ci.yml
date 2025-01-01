@@ -1,0 +1,43 @@
+name: Tesbenches
+
+on:
+  push:
+    branches:
+      - test-ci
+  pull_request:
+    branches:
+      - test-ci
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Set up Python environment
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      # Install Verilator and Python dependencies
+      - name: Install Verilator and Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator
+          pip install cocotb pytest cocotb-test
+
+      # Run tests in single_cycle_edition
+      - name: Run Tests in single_cycle_edition
+        run: |
+          cd single_cycle_edition
+          pytest
+
+      # Run tests in fpga_edition
+      - name: Run Tests in fpga_edition
+        run: |
+          cd fpga_edition
+          pytest
