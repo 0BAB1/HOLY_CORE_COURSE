@@ -36,6 +36,7 @@ jobs:
         run: |
           sudo apt-get update
           pip install cocotb pytest cocotb-test numpy
+          pip install cocotbext-axi
           git clone --recursive https://github.com/verilator/verilator
           unset VERILATOR_ROOT
           cd verilator
