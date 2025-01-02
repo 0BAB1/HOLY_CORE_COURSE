@@ -3,10 +3,10 @@ name: Tesbenches
 on:
   push:
     branches:
-      - test-ci
+      - master
   pull_request:
     branches:
-      - test-ci
+      - master
 
 jobs:
   test:
