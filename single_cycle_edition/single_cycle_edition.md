@@ -16,7 +16,7 @@ This tutorial will teach **you** how to build and test a fully working RISC-V Si
 
 We'll use a set of open-source tools to allow everyone to complete this project at home using little to no specific resources.
 
-Before starting, please check out the check out the **setup manual** (*at the root of the tutorial's repo*). It also contains important informations on the prerequisites for your system.
+Before starting, please check out the **setup manual** (*at the root of the tutorial's repo*). It also contains important information on the prerequisites for your system.
 
 This tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) and on the *Digital Design and Computer Architecture, RISC-V Edition* Book from Sarah & David Harris. (*I'll let you do your own research to get your hands on the PDF*).
 
