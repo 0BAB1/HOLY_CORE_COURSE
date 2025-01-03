@@ -10,7 +10,6 @@ temp.py
 *.vcd
 gpio.hex
 gpio.o
-*.pdf
 *.tex
 *.jou
 *.log
