@@ -14,7 +14,7 @@ The course is divided in multiple blocks to learn different aspects of digital d
 
 > The code will always be **open-source**. I do give the option to donate for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
 
-Link : [*todo : add link*](https://0bab1.github.io/BRH/)
+Link : [support using PDF Versions]([https://0bab1.github.io/BRH/](https://babinriby.gumroad.com/l/holy_core))
 
 ## Prerequisites
 
