@@ -22,7 +22,7 @@ Course Summary :
 - Create a cache that uses the AXI interface
 - Integrate 2 cache in the CPU (data and instructions)
 - Test the whole design
-- Use the deisng on FPGA using external BRAM
+- Use the design on FPGA using external BRAM
 
 We have a lot of work to do so let's get started !
 
