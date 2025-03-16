@@ -930,6 +930,8 @@ Which translates as this in HEX format (comments like ```//blablabla``` are igno
 00802903  //LW TEST START : lw x18 8(x0)
 00000013  //NOP
 00000013  //NOP
+00000013  //NOP
+00000013  //NOP
 //(Filled the rest with NOPs...) 
 ```
 
