@@ -478,7 +478,7 @@ logic [11:0] gathered_imm;
 
 always_comb begin
     case (imm_source)
-        1'b00 : gathered_imm = raw_src[24:13];
+        2'b00 : gathered_imm = raw_src[24:13];
         default: gathered_imm = 12'b0;
     endcase
 end
@@ -928,6 +928,8 @@ Which translates as this in HEX format (comments like ```//blablabla``` are igno
 
 ```txt
 00802903  //LW TEST START : lw x18 8(x0)
+00000013  //NOP
+00000013  //NOP
 00000013  //NOP
 00000013  //NOP
 //(Filled the rest with NOPs...) 
