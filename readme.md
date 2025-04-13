@@ -85,3 +85,5 @@ The HOLY CORE is a project I started for my own learning journey and I documente
 So yes, it was made **by** a "begginer" **for** "begginers". If you decide something is "wrong" in the way I decided to conduct my (holy) operations, I suggest you re-consider the fact of complaining for better activities like : *touching grass* or *going for a walk outside* for example.
 
 Nevertheless, I am still very open to meaningful and constructive criticism, in which case I will be more than happy to consider your opinion.
+
+> Side note : After seeing copies of my work on linkedin, I would also like to add that **stealing a codebase** and making your own **very bad** pdf using an AI generator, just to make a linkedin post **without ever mentionning this project** is extremely pittyful. But I hope you'll realise, once you start trying to "vibe code" your way into the digital design world and get fired because you can't get anything done execpt AI prompted stuff, that doing so was a bad idea. Hell is real and stealing leads you there ;) have a good day (not)
