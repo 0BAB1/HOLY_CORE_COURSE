@@ -23,11 +23,13 @@ RUN ON SIGLE CLOCK (and test it first in simulation, as I did sims on async cloc
 Run on FPGA - Blink LED using instructions fed in HOLY CORE
 REDO ALL TESTS with better seq logic on next cahce dirty...
 Check how low can the timing can close (50, 75 ,100 , ... ?) => 50 will do it for now.
+
 ===================
 DOING
 ===================
 
 Make more sophisticacted programs, use a compiler.
+Add AXI lite bypasser (with configurable memory range for MMIO)
 
 ...
 
@@ -35,7 +37,6 @@ Make more sophisticacted programs, use a compiler.
 NOT DONE - MILESTONES
 =======================
 
-Add AXI lite bypasser (with configurable memory range for MMIO)
 
 DO CDC matter
 
