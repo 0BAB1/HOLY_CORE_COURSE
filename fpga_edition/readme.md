@@ -26,7 +26,7 @@ vivado -source fpga_edition/fpga/zybo_z720/holy_vivado_setup.tcl
 
 It should create the entire project for you and you'll end up with the following SOC :
 
-![generated SoC](holy_SoC.png)
+![generated SoC](../images/holy_SoC.png)
 
 Here's what in there :
 
