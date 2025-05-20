@@ -63,7 +63,7 @@ Take a deep dive into memory.
 
 **Goal :** Implement the core on FPGA and leverage systemVerilog capabilities to :
 
-- Add interfaxce to interact with the "outside" world
+- Add interface to interact with the "outside" world
 - Improve our design by using cache and querying external data using AXI.
 - Interact with I/Os
 
@@ -75,7 +75,13 @@ Make the core more performant by adding a pipeline (On my todo list).
 
 **Goal :** Increase the core perfs by pipelining it and hadling all the hazards that comes with it.
 
-## A word on the course
+## OPEN SOURCE and CONTRIBUTIONS
+
+Contributions are very welcomed as I know I tend to make a lot of mistakes.
+
+**Special mention** to this Veryl rewrite of the `HOLY CORE` called `VERY HOLY CORE` by @jbeaurivage : [Link to VERY HOLY CORE repo](https://github.com/jbeaurivage/very-holy-core).
+
+## A word on the course (AKA me being a grumpy dude, as always)
 
 The HOLY CORE is a project I started for my own learning journey and I documented by explaining what I do to... :
 
