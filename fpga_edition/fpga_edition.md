@@ -2430,6 +2430,18 @@ To run it simply realease the CORE's `reset` signal. And *voilà* ! blinking LED
 
 ![counter program running](../images/working%20leds.png)
 
+## 7 : Making the core more usable
+
+> The core works ! That's great !
+
+Yes it's great, but we have to move on because the core is not really usable as we have to manually make weird manipulations to clear the cache and us MMIO (Memory Mapped Input Output).
+
+To handle this problem, we can use multiple techniques :
+
+- Add AXI LITE bypasser to a certain memory range 
+  - e.g. 0x4000_0000 to 0x4000_FFFF only operates with instant AXI_LITE and bypasses the cache system
+- todo
+
 ## Resources
 
 Resource name | Link | Comment|
