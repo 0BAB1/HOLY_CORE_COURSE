@@ -2430,7 +2430,7 @@ To run it simply realease the CORE's `reset` signal. And *voilà* ! blinking LED
 
 ![counter program running](../images/working%20leds.png)
 
-## 7 : Making the core more usable, implementing Zicsr and Zicntr
+## 7 : Making the core more usable, introducing Zicsr and Zicntr
 
 > The core works ! That's great !
 
@@ -2438,11 +2438,11 @@ Yes it's great, but we have to move on because the core is not really usable as 
 
 To handle this problem, we can use multiple techniques :
 
-- Add a cache bypasser to a certain memory range 
+- Add a cache bypasser to a certain memory range
   - e.g. 0x4000_0000 to 0x4000_FFFF would bypass the cache by using AXI-LITE to write directly to the destination.
   - means we have to complexify our interface and development (add AXI-LITE, which we'll have to live debug on top of tb)
   - weird user experience (has to know core specific memory ranges)
-- Add CSR registers extension support (Zicsr and Zicntr)
+- Add CSR (Control Status Registers) extension support (Zicsr and Zicntr)
   - Zicsr allows us to set control registers to allows the user to have direct control on the core behavior (like order a cache flush easily)
   - Zicntr allows us to create useful counters that the user can use (time) and that we can use for performances measurements (number of cycles and instrctions fectched)
 
@@ -2450,7 +2450,79 @@ Because we're here to learn and make a "real" Risc-V core with "normal" behavior
 
 > CSR are not mandatory from what I read, meaning we can create fully custom one in the Zicsr extension, COOL ! So yes, that means the it still requires the user to learn stuff about our core (specific CSR to set to clear cache) but it is **normal** in RISC-V. Later, if we dig more on the softaware side, we can abstract that in a utilities librairy for the core ! :)
 
+**Okay so what really are CSR registers ?**
 
+Well we can say it's just another register file the user (the guy who will program stuff for our core) can use to interact **DIRECTLY** with the core !
+
+And you may be seeing it comming, but we'll allows the user to control cache behavior via these CSR.
+
+So we'll start by reding what are CSR here : [link](https://five-embeddev.com/riscv-user-isa-manual/latest-latex/csr.html#csrinsts) and we see that the ISA only defines an instruction type that looks like an I-type :
+
+ csr | rs1 / unsigned imm     | f3           | rd      | op |
+ ------------ | ------------ |------------ | ------- | ------- |
+ XXXXXXXXXXXX | XXXXX    | XXX        | XXXX | 1110011 |
+
+The F3 field will control what specific operation we want to do but the idea is lways the same :
+
+1. We write CSR content into `rd`
+2. We replace that said content by what is rs1
+
+Now, there are a couple of specificities because there are 6 different CSR instruction. Accounting for unsigned version there are really only 3.
+
+Here is what they do :
+
+ Name | What they do    | f3  |
+ ------------ | ------------ |------------ |
+ CSRRW  |  Exactly what we just described  | 001 |
+ CSRRS  |  Same, but does not reaplce ! It runs a bitwise OR (csr <= rs \| csr) | 010 |
+ CSRRC  |  Same, but does not reaplce ! It runs a bitwise NOT AND (csr <= ~rs \& csr) | 011 |
+ CSRRI  |  Same but rs is replaced with 5bits immediate, zero exented | 101 |
+ CSRRSI  |  Same but rs is replaced with 5bits immediate, zero exented  | 110 |
+ CSRRCI  |  Same but rs is replaced with 5bits immediate, zero exented  | 111 |
+
+But why these bitwise operations ? Well here are some use case where it's useful :
+
+- CSRRS for setting flags
+- CSRRS / CSRRS for simply reading (set rs / uimm to 0)
+- CSRRC to unset flags
+- ...
+
+> Side note, operations here are atomic, meaning that if you peak on what's in the register using another system (another core, or whatever) the data inside will not have "intermediary state" but in our core it is the case by default so we don't have to care about that.
+
+Last thing, the elephant in the room : **yes, CSR are addressable on 12bits**, meaning you can have 4096 of them (they still act as regular registers), and because the bas RV32I specs only defines the instruction, you get to define whatever you feel like, no mandatory CSR ! (except for priviledged ISA but we don't aim for that so it's okay).
+
+Alright so not that we have the idea down, time to get to work and implement it !
+
+## 8 : Implementing `Zicsr` and `Zicntr` : building the CSR Regfile
+
+## 8.1 : Todo for `Zicsr`
+
+Alright, so the requirements are pretty stright forward for this one. On top of that, we only have 1 CSR to implement, and we'll call it : `flush_cache`.
+
+The way `flush_cache` will work is by simply setting the lowest bi to 1, the cache will stall and **write back** all its data through AXI, after that, all data will be **invalidated**.
+
+Then the harware resets the flag to 0 and life goes on.
+
+Here is what the module would look like :
+
+![csr file scheme](../images/csr_file.png)
+
+So, without further ado, let's create a new `csr_file.sv` file !
+
+## 9 : Datapath modifications to add the `Zicsr` and `Zicntr`
+
+Alright so implement this in the *HOLY CORE*, we'll need to :
+
+- Add a new whole CSR regfile that needs to see
+  - The CSR address (taken directly from the instruction)
+  - Some Write Back data (and the Write Enable signals that comes with it)
+  - The F3 to know how to apply the WB data.
+- Add a new write back path (to write back to these regfiles)
+  - with a new mux to chose between imm and rs1
+
+Here is what such a datapth would look like :
+
+![datapath with CSR regfile](../images/added_csr.jpg)
 
 ## Resources
 
