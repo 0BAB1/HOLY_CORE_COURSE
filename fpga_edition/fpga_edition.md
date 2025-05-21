@@ -2430,7 +2430,7 @@ To run it simply realease the CORE's `reset` signal. And *voilà* ! blinking LED
 
 ![counter program running](../images/working%20leds.png)
 
-## 7 : Making the core more usable
+## 7 : Making the core more usable, implementing Zicsr and Zicntr
 
 > The core works ! That's great !
 
@@ -2438,9 +2438,19 @@ Yes it's great, but we have to move on because the core is not really usable as 
 
 To handle this problem, we can use multiple techniques :
 
-- Add AXI LITE bypasser to a certain memory range 
-  - e.g. 0x4000_0000 to 0x4000_FFFF only operates with instant AXI_LITE and bypasses the cache system
-- todo
+- Add a cache bypasser to a certain memory range 
+  - e.g. 0x4000_0000 to 0x4000_FFFF would bypass the cache by using AXI-LITE to write directly to the destination.
+  - means we have to complexify our interface and development (add AXI-LITE, which we'll have to live debug on top of tb)
+  - weird user experience (has to know core specific memory ranges)
+- Add CSR registers extension support (Zicsr and Zicntr)
+  - Zicsr allows us to set control registers to allows the user to have direct control on the core behavior (like order a cache flush easily)
+  - Zicntr allows us to create useful counters that the user can use (time) and that we can use for performances measurements (number of cycles and instrctions fectched)
+
+Because we're here to learn and make a "real" Risc-V core with "normal" behavior, We'll implement the CSR, it will also be useful to **FLEX** because the core now supports more things, making it -*without any doubt*- automatically better.
+
+> CSR are not mandatory from what I read, meaning we can create fully custom one in the Zicsr extension, COOL ! So yes, that means the it still requires the user to learn stuff about our core (specific CSR to set to clear cache) but it is **normal** in RISC-V. Later, if we dig more on the softaware side, we can abstract that in a utilities librairy for the core ! :)
+
+
 
 ## Resources
 

@@ -42,15 +42,15 @@ To install, here are some directions to install it on your system :
 
 [Install docs](https://docs.cocotb.org/en/stable/install.html)
 
+[My blog post on cocotb for tips](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/)
+
 Useful commands :
 
 ``sudo apt-get install make python3 python3-pip libpython3-dev``
 
 ``pip install cocotb``
 
-## Tutorial repo structure
-
-## Seting up the tests (CODE BASE STRUCTURE and SETUP)
+## CODE BASE STRUCTURE and TESTS SETUP
 
 ### Choosing your edition
 
@@ -111,7 +111,7 @@ As you can see, depending on the Design Under Test (DUT) we can add verious file
 
 There is also a **test runner** used to run all tests at once using `pytest`.
 
-To learn more, I recommend reading : **I did an entire blog post about cocotb and this specific setup : [cocotb blog post link](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/)**
+To learn more, I recommend reading this blog post I made : [cocotb blog post link](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/)
 
 #### Quick shortcut links for those who know how to use cocotb
 
