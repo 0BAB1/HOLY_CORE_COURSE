@@ -23,36 +23,37 @@ RUN ON SIGLE CLOCK (and test it first in simulation, as I did sims on async cloc
 Run on FPGA - Blink LED using instructions fed in HOLY CORE
 REDO ALL TESTS with better seq logic on next cahce dirty...
 Check how low can the timing can close (50, 75 ,100 , ... ?) => 50 will do it for now.
+prepare tutorials (md) and pdfs (clean)
+Compile actual assembly for the cpu mem files
 
 ===================
 DOING
 ===================
 
-Make more sophisticacted programs, use a compiler.
-Add AXI lite bypasser (with configurable memory range for MMIO)
+Implement CSR for better dev experience (cache flush Zicsr)
 
-...
+Implement CSR counters (Zicntr)
 
 =======================
-NOT DONE - MILESTONES
+NOT DONE - TODO MILESTONES
 =======================
 
+Compile programs from C.
 
-DO CDC matter
+Add an SD card controller in the SoC, make a bootloader.
 
-UART tb
+Add basic utilities in a HOLY LIBRAIRY. (cache hadling, get counters, simplified MMIO access)
 
-Compile actual assembly for the cpu mem files
+Use the sensors, make a drone takeoff and stable (at least on the Z axis).
 
+Once everything is done, split the core and PIPELINE it (objective : 80MHz).
 
 =======================
 NOT DONE - SIDEQUESTS
 =======================
 
-figure our this tlast bug in simulation
+figure out this tlast bug in simulation
 
 AXI wresp & rresp error handling.
 
-make things lot cleaner
-
-prepare tutorials (md) and pdfs (clean)
+What about Holy C
