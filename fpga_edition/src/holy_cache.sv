@@ -6,6 +6,9 @@
 *   Implementing AXI to request data from outside main memory.
 *   With a CPU interface for basic core request with stall signal.
 *   The goal is to allow the user to connect its own memory on FPGA.
+*
+*   Created 11/24
+*   Modification : 05/25 (add manual flush support from incomming csr flag)
 */
 
 import holy_core_pkg::*;
@@ -21,13 +24,14 @@ module holy_cache #(
     input logic aclk,
 
     // CPU Interface
-    input logic [31:0] address,
-    input logic [31:0] write_data,
-    input logic read_enable,
-    input logic write_enable,
-    input logic [3:0]byte_enable,
+    input logic [31:0]  address,
+    input logic [31:0]  write_data,
+    input logic         read_enable,
+    input logic         write_enable,
+    input logic [3:0]   byte_enable,
+    input logic         csr_flush_order,
     output logic [31:0] read_data,
-    output logic cache_stall,
+    output logic        cache_stall,
 
     // AXI Interface for external requests
     axi_if.master axi,
@@ -47,7 +51,7 @@ module holy_cache #(
     // | FLAGS         | ADDRESS INFOS                  | DATA |
 
     // CACHE TABLE DECLARATION
-    logic [CACHE_SIZE-1:0][31:0] cache_data;
+    logic [CACHE_SIZE-1:0][31:0]    cache_data;
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
     logic                           cache_valid;  // is the current block valid ?
     logic                           next_cache_valid;
@@ -130,7 +134,7 @@ module holy_cache #(
                     read_data = cache_data[req_index];
                 end
 
-                else if(~hit && (read_enable ^ actual_write_enable)) begin
+                else if( (~hit && (read_enable ^ actual_write_enable)) | csr_flush_order) begin
                     // switch state to handle the MISS, if data is dirty, we have to write first
                     case(cache_dirty)
                         1'b1 : next_state = SENDING_WRITE_REQ;

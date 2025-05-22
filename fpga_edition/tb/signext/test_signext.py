@@ -12,7 +12,7 @@ async def signext_i_type_test(dut):
     # TEST POSITIVE IMM = 123 WITH SOURCE = 0
     imm = 0b000001111011 #123
     imm <<= 13 # leave "room" for ramdom junk
-    source = 0b00
+    source = 0b000
     # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
     # masked to leave room for imm "test payload"
     random_junk = 0b000000000000_1010101010101 
@@ -27,7 +27,7 @@ async def signext_i_type_test(dut):
     # TEST Negative IMM = -42 WITH SOURCE = 0
     imm = 0b111111010110 #-42
     imm <<= 13 # leave "room" for ramdom junk
-    source = 0b00
+    source = 0b000
     # 25 bits sent to sign extend contains data before that will be ignred (rd, f3,..)
     # masked to leave room for imm "test payload"
     random_junk = 0b000000000000_1010101010101 
@@ -50,7 +50,7 @@ async def signext_s_type_test(dut):
         imm_11_5 = imm >> 5
         imm_4_0 = imm & 0b000000011111
         raw_data = (imm_11_5 << 18) | (imm_4_0) # the 25 bits of data
-        source = 0b001
+        source = 0b0001
         dut.raw_src.value = raw_data
         dut.imm_source.value = source
         await Timer(1, units="ns") # let it propagate ...
@@ -62,7 +62,7 @@ async def signext_s_type_test(dut):
         imm_11_5 = imm >> 5
         imm_4_0 = imm & 0b000000011111
         raw_data = (imm_11_5 << 18) | (imm_4_0) # the 25 bits of data
-        source = 0b001
+        source = 0b0001
         await Timer(1, units="ns")
         dut.raw_src.value = raw_data
         dut.imm_source.value = source
@@ -84,7 +84,7 @@ async def signext_b_type_test(dut):
         imm_10_5 = (imm & 0b0011111100000) >> 5
         imm_4_1 = (imm & 0b0000000011110) >> 1
         raw_data = (imm_12 << 24) | (imm_11 << 0) | (imm_10_5 << 18) | (imm_4_1 << 1)
-        source = 0b010
+        source = 0b0010
         await Timer(1, units="ns")
         dut.raw_src.value = raw_data
         dut.imm_source.value = source
@@ -100,7 +100,7 @@ async def signext_b_type_test(dut):
         imm_10_5 = (imm & 0b0011111100000) >> 5
         imm_4_1 = (imm & 0b0000000011110) >> 1
         raw_data = (imm_12 << 24) | (imm_11 << 0) | (imm_10_5 << 18) | (imm_4_1 << 1)
-        source = 0b010
+        source = 0b0010
         await Timer(1, units="ns")
         dut.raw_src.value = raw_data
         dut.imm_source.value = source
@@ -120,7 +120,7 @@ async def signext_j_type_test(dut):
         imm_11 =     (imm & 0b000000000100000000000) >> 11
         imm_10_1 =   (imm & 0b000000000011111111110) >> 1
         raw_data =  (imm_20 << 24) | (imm_19_12 << 5) | (imm_11 << 13) | (imm_10_1 << 14)
-        source = 0b011
+        source = 0b0011
         await Timer(1, units="ns")
         dut.raw_src.value = raw_data
         dut.imm_source.value = source
@@ -136,7 +136,7 @@ async def signext_j_type_test(dut):
         imm_11 =     (imm & 0b000000000100000000000) >> 11
         imm_10_1 =   (imm & 0b000000000011111111110) >> 1
         raw_data =  (imm_20 << 24) | (imm_19_12 << 5) | (imm_11 << 13) | (imm_10_1 << 14)
-        source = 0b011
+        source = 0b0011
         await Timer(1, units="ns")
         dut.raw_src.value = raw_data
         dut.imm_source.value = source
@@ -154,9 +154,25 @@ async def signext_u_type_test(dut):
         # add random junk to the raw_data to see if it is indeed discarded
         random_junk = random.randint(0,0b11111)
         raw_data |= random_junk
-        source = 0b100
+        source = 0b0100
         await Timer(1, units="ns")
         dut.raw_src.value = raw_data
         dut.imm_source.value = source
         await Timer(1, units="ns") # let it propagate ...
         assert int(dut.immediate.value) == imm_31_12 << 12
+
+@cocotb.test()
+async def zero_ext_csr_test(dut):
+    # 100 randomized tests
+    for _ in range(100):
+        imm = random.randint(0b00000, 0b11111)
+        init_imm_value = imm
+        imm <<= (5 + 3) # shift it RD + F3 Spaces
+        source = 0b101
+        random_junk = 0b111111111111_00000_111_11111
+        raw_data = random_junk | imm
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert dut.immediate.value == init_imm_value

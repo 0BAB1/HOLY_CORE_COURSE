@@ -2509,20 +2509,611 @@ Here is what the module would look like :
 
 So, without further ado, let's create a new `csr_file.sv` file !
 
-## 9 : Datapath modifications to add the `Zicsr` and `Zicntr`
+### 8.1.a : HDL Code
 
-Alright so implement this in the *HOLY CORE*, we'll need to :
+The HDL is a bit special here : we are **NOT** going to declare a BRAM block (paccked array or whatever) or 4096 registers sitting there in the CPU. Oh no ! That would be such a waste of space.
 
-- Add a new whole CSR regfile that needs to see
-  - The CSR address (taken directly from the instruction)
-  - Some Write Back data (and the Write Enable signals that comes with it)
-  - The F3 to know how to apply the WB data.
-- Add a new write back path (to write back to these regfiles)
-  - with a new mux to chose between imm and rs1
+What we'll do instead is declare it 1 by 1 ! This can seem tidious bit remember : *we only have 1 CSR so far* ! The logic will be completely separate as well ! This is beacause each CSR does not behave the same, some wil increment without dev intervention, some are meant to bea read only and some meant to be written ! (like out `flush_cach` CSR).
 
-Here is what such a datapth would look like :
+And before moving on to the HDL, some final details on the behavior of the module :
+
+- It outputs control signals / flags (like `flush_cache_flag`)
+- If the address asked is not attributed, then we read 0x0000_0000
+- If the `f3` is not specified (000 or 100) then we write 0x0000_0000 to the CSR
+- `flush_cache` should be immedialty set back to 0 once the **flag** is asserted.
+  - This is because we set the flag for 1 cycle, the cache will see and will transition STATE to write back "instantly", so we can automatically set back to 0, assuming that the cache will execute the order.
+
+Here is the final logic :
+
+```verilog
+// csr_file.sv
+
+module csr_file (
+    // IN
+    input logic clk,
+    input logic rst_n,
+    input logic [2:0] f3,
+    input logic [31:0] write_data,
+    input logic write_enable,
+    input logic [11:0] address,
+
+    // OUT DATA
+    output logic [31:0] read_data,
+
+    // OUT CSR SIGNALS
+    output logic flush_cache_flag
+);
+
+// Declare all CSRs and they next signals here
+logic [31:0] flush_cache, next_flush_cache;
+
+always_ff @(posedge clk) begin
+    if(~rst_n) begin
+        flush_cache <= 32'd0;
+    end
+    else begin
+        flush_cache <= next_flush_cache;
+    end
+end
+
+// Specific CSRs logics
+always_comb begin
+    // Flush cache CSR
+    if(flush_cache_flag) begin
+        next_flush_cache = 32'd0;
+    end
+    else if (write_enable & (address == 12'h7C0))begin
+        case(f3)
+            3'b001, 3'b101 : next_flush_cache = write_data;
+            3'b010, 3'b110 : next_flush_cache = or_result;
+            3'b011, 3'b111 : next_flush_cache = nand_result;
+            default begin
+                 // defined behavior for the HOLY CORE :
+                 // we set to 0 (don't have illegal yet)
+                next_flush_cache = 32'd0;
+            end
+        endcase
+    end
+    else begin
+        next_flush_cache = flush_cache;
+    end
+end
+
+// Always output the CSR data at the given address (or 0)
+always_comb begin
+    case (address)
+        12'h7C0: read_data = flush_cache;
+        default: read_data = '0;
+    endcase
+end
+
+// Compute next CSR possible values
+logic [31:0] or_result;
+logic [31:0] nand_result;
+
+always_comb begin
+    or_result = write_data | read_data;
+    nand_result = read_data & (~write_data);
+end
+
+// Select value using F3
+logic [31:0] write_back_to_csr;
+
+always_comb begin
+    case (f3)
+        3'b001, 3'b101 : write_back_to_csr = write_data;
+
+        3'b010, 3'b110 : write_back_to_csr = or_result;
+
+        3'b011, 3'b111 : write_back_to_csr = nand_result;
+
+        default : begin
+            write_back_to_csr = 0;
+        end
+    endcase
+end
+
+// output control signals
+always_comb begin : control_assignments
+    flush_cache_flag = flush_cache[0];
+end
+
+endmodule
+```
+
+As you can see, the logic behind the CSR is purely comb, which allows for better control on each individual CSR's logic.
+
+We also set the `flush_cache_flag` to only be the LSB of our CSR (flag).
+
+### 8.1.b : Verification
+
+Verification us pretty striaght forward, we check for write behavior, `write_enable` and `reset` as well, we then perform a randomized test and finally check or specific `flush_cache` logic and check if our basic behavior requirements are met :
+
+```python
+# test_csr_file.py
+
+async def test_csr_file(dut):
+    # Start a 10 ns clock
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+    dut.rst_n.value = 1
+    await RisingEdge(dut.clk)
+
+    # ----------------------------------
+    # flush cache is 0 on start
+    assert dut.flush_cache.value == 0x00000000
+
+    # ----------------------------------
+    # test simple write
+    dut.write_enable.value = 1
+    dut.write_data.value = 0xDEADBEEF
+    dut.address.value = 0x7C0
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+    await Timer(5, units="ns")
+    assert dut.flush_cache.value == 0xDEADBEEF
+    assert dut.read_data.value == 0xDEADBEEF
+
+    # ----------------------------------
+    # nothing gets written if we flag is low
+    dut.write_enable.value = 0b0
+    dut.write_data.value = 0x12345678
+    await RisingEdge(dut.clk)
+    assert dut.flush_cache.value == 0xDEADBEEF
+
+    # ----------------------------------
+    # randomized test
+    dut.write_enable.value = 0b1
+    for _ in range(1000):
+        await RisingEdge(dut.clk) #await antoher cycle to let flush cache reset if high
+        await Timer(1, units="ns")
+
+        init_csr_value = dut.flush_cache.value
+        wd = random.randint(0, 0xFFFFFFFF)
+        f3 = random.randint(0b000, 0b111)
+        dut.write_data.value = wd
+        dut.f3.value = f3
+
+        await RisingEdge(dut.clk)
+        await Timer(2, units="ns")
+        if f3 == 0b000 or f3 == 0b100:
+            assert dut.read_data == 0
+        elif f3 == 0b001 or f3 == 0b101:
+            assert (
+                dut.read_data.value
+                == wd
+            )
+        elif f3 == 0b010 or f3 == 0b110:
+            assert (
+                dut.read_data.value
+                == (init_csr_value | wd)
+            )
+        elif f3 == 0b011 or f3 == 0b111:
+            assert (
+                dut.read_data.value
+                == (init_csr_value & (~wd & 0xFFFFFFFF)) #we mask wd to 32 bits
+            )
+    
+    # ----------------------------------
+    # test reset, first write sample data
+    dut.write_enable.value = 1
+    dut.write_data.value = 0xDEADBEEF
+    dut.address.value = 0x7C0
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+
+    # then we release reset and check for 0
+    dut.rst_n.value = 0
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    assert dut.flush_cache.value == 0x00000000
+    dut.rst_n.value = 1
+
+    # ======================================
+    # test registers behavior
+    # ======================================
+
+    # ----------------------------------
+    # FLUSH CACHE CSR BEHAVIOR :
+    # If this CSR's LSB is asserted, the module ouputs 1 on "flush"
+    # order output for 1 cycle. This is automatically deasserted after a clock cycle
+
+    # flush_cache_flag should be 0
+    assert dut.flush_cache_flag.value == 0b0
+
+    # Then we set all bits to 1 excpt LSB, should still be 0
+    dut.write_enable.value = 1
+    dut.write_data.value = 0xFFFFFFFE
+    dut.address.value = 0x7C0
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.flush_cache.value == 0xFFFFFFFE
+    assert dut.flush_cache_flag.value == 0b0
+
+    # Then we write 1, should output 1
+    dut.write_enable.value = 1
+    dut.write_data.value = 0x00000001
+    dut.address.value = 0x7C0
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.flush_cache_flag.value == 0b1
+    assert dut.flush_cache.value == 0x00000001
+
+    # should go back to 0 after a single cycle
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.flush_cache_flag.value == 0b0
+    assert dut.flush_cache.value == 0x00000000
+```
+
+once this is done, we can move on to adding support in our cache !
+
+## 8.2 : Adding manual cache flush support to the `holy_cache`
+
+This part is exaclty xhat it sounds like : us adding a way to recieve the flush order comming from the `CSR_file` and interpret it.
+
+Lucky use,  we manage our cache using a state machine. This means we can simply add an input and switch the FSM's state to `SENDING_WRITE_REQ` which will automaticcaly unroll the whole `write_back / read` AXI procedure (thank god I did this because after a couple of month outside of this project, I was **NOT** in a mood to redo the AXI part haha).
+
+Here is how we're going to update our AXI FSM in the cache :
+
+![New axi fsm to add manual flush](../images/updated_fsm_axi_csr.png)
+
+Now if you want to enforce write back on manual flushes, you czn do that. It's a choice to make. I won't and only add the `| csr_flush_order` statement to get *OUT* of the IDLE state.
+
+### 8.2.a : HDL Code
+
+Here are the couple of modifications made :
+
+```sv
+// holy_cache.sv
+module holy_cache #(
+    parameter CACHE_SIZE = 128
+)(
+    // CPU LOGIC CLOCK & RESET
+    input logic clk,
+    input logic rst_n,
+
+    // AXI Clock, separate necessary as arbitrer can't output it.
+    input logic aclk,
+
+    // CPU Interface
+    input logic [31:0]  address,
+    input logic [31:0]  write_data,
+    input logic         read_enable,
+    input logic         write_enable,
+    input logic [3:0]   byte_enable,
+    input logic         csr_flush_order, // NEW !
+    output logic [31:0] read_data,
+    output logic        cache_stall,
+
+    // AXI Interface for external requests
+    axi_if.master axi,
+
+    // State informations for arbitrer
+    output cache_state_t cache_state,
+
+    // debug signals
+    output logic [6:0] set_ptr_out,
+    output logic [6:0] next_set_ptr_out
+);
+
+
+// (...)
+
+// in the FSM logic to determine next state ...
+    case (state)
+        IDLE: begin
+            // when idling, we simple read and write, no problem !
+            if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
+
+            else if(hit && read_enable) begin
+                // async reads
+                read_data = cache_data[req_index];
+            end
+
+            else if( (~hit && (read_enable ^ actual_write_enable)) | csr_flush_order) begin // NEW !
+                // switch state to handle the MISS, if data is dirty, we have to write first
+                case(cache_dirty)
+                    1'b1 : next_state = SENDING_WRITE_REQ;
+                    1'b0 : next_state = SENDING_READ_REQ;
+                endcase
+            end
+```
+
+### 8.2.b : Verification
+
+Verification is very straight forward :
+
+- We grab our test file where we left it
+- We assert the `csr_flush_order` flag like the user wants to flush
+- And we simply check that the cache initites write_back by checking the AXI FSM states
+
+```python
+# test_holy_cache.py
+
+# ... Other tests (left cache dirty !) ...
+
+    # ==================================
+    # MANUAL FLUSH TEST
+    # ==================================
+
+    # do nothing for a bit
+    await Timer(100, units="ns")
+    await RisingEdge(dut.clk)
+
+    # The user decides to manually fush the core
+    dut.cache_system.csr_flush_order.value = 0b1
+    await Timer(1, units="ns")
+    # cach is dirty so next state shall be WRITE
+    assert dut.cache_system.cache_dirty.value == 0b1
+    assert dut.cache_system.next_state.value == SENDING_WRITE_REQ
+    assert dut.cpu_cache_stall.value == 0b1
+
+    await RisingEdge(dut.aclk) # STATE SWITCH !
+    await Timer(1, units="ns")
+
+    assert dut.cache_system.state.value == SENDING_WRITE_REQ
+    assert dut.axi_awvalid.value == 0b1
+    assert dut.axi_arready.value == 0b1
+
+    # And so on ...
+
+```
+
+## 8.3 : Adapting the `control` module for `Zicsr`
+
+Before moving on the the "plug everython part, there is a couple of things to do : **DECODE** csr instructions ! A little reminder shall we ?
+
+ csr | rs1 / unsigned imm     | f3           | rd      | op |
+ ------------ | ------------ |------------ | ------- | ------- |
+ XXXXXXXXXXXX | XXXXX    | XXX        | XXXXX | 1110011 |
+
+So we just have to decode the op... Yes, indeed but there's more to it. We also have to add the followings signals :
+
+- `csr_write_enable`
+- `csr_write_back_source`
+- add a new `imm_source` (**) to specify the 0 extended uimm from bits [19:16]
+  - and that means we'll have to make a quick update on the sign extender after that
+- add a new `write_back_source` variant, making it a 3 bits wide signal
+  - and yes, that means a handful of changes todo !
+
+So let's go ! there is not time to lose !
+
+### 8.3.a : HDL Code
+
+For the control, life is good, no fancy logic and just some nice case to fill. but **don't forget the default value** of our new sigals ! E.g. we wouln't want `csr_write_enable` to be asseted on an other unrelated instruction !
+
+> Also, don't forget do add the new OP code to the `holy_core_pkg.sv` file ! We'll call it `OPCODE_CSR`
+
+```sv
+// holy_core_pkg.sv
+
+// ...
+
+// INSTRUCTION OP CODES
+  typedef enum logic [6:0] {
+    OPCODE_R_TYPE         = 7'b0110011,
+    OPCODE_I_TYPE_ALU     = 7'b0010011,
+    OPCODE_I_TYPE_LOAD    = 7'b0000011,
+    OPCODE_S_TYPE         = 7'b0100011,
+    OPCODE_B_TYPE         = 7'b1100011,
+    OPCODE_U_TYPE_LUI     = 7'b0110111,
+    OPCODE_U_TYPE_AUIPC   = 7'b0010111,
+    OPCODE_J_TYPE         = 7'b1101111,
+    OPCODE_J_TYPE_JALR    = 7'b1100111,
+    OPCODE_CSR            = 7'b1110011
+  } opcode_t;
+
+// ...
+```
+
+Then we get to modifying control :
+
+```sv
+// control.sv
+
+module control (
+    // IN
+    input logic [6:0] op,
+    input logic [2:0] func3,
+    input logic [6:0] func7,
+    input logic alu_zero,
+    input logic alu_last_bit,
+
+    // OUT
+    output logic [3:0] alu_control,
+    output logic [2:0] imm_source,
+    output logic mem_write,
+    output logic mem_read,
+    output logic reg_write,
+    output logic alu_source,
+    output logic [2:0] write_back_source, // CHANGED !
+    output logic pc_source,
+    output logic [1:0] second_add_source,
+    output logic csr_write_back_source,   // NEW !
+    output logic csr_write_enable         // NEW !
+);
+
+// ...
+
+/**
+* MAIN DECODER
+*/
+
+// ...
+
+    case (op)
+
+        // ...
+
+        // CSR instructions (SYSTEM OPCODE)
+        OPCODE_CSR : begin
+            imm_source = 3'b101;
+            mem_write = 1'b0;
+            reg_write = 1'b1;
+            write_back_source = 3'b100
+            // Determine wb src from MSB of F3
+            // 3'b0xx is for rs value
+            // 3'b1xx is for imm extended value
+            csr_write_back_source = func3[2];
+            csr_write_enable = 1'b1;
+        end
+        // EVERYTHING ELSE
+        default: begin
+            // Don't touch the CPU nor MEMORY state, including CSR
+            reg_write = 1'b0;
+            mem_write = 1'b0;
+            mem_read = 1'b0;
+            jump = 1'b0;
+            branch = 1'b0;
+            csr_write_enable = 1'b0;
+            $display("Unknown/Unsupported OP CODE !");
+        end
+    endcase
+
+// ...
+```
+
+Don't forget we are writing to the main registers as well ! (because we store the old value in a destination register !)
+
+### 8.3.b : Verification
+
+Now, it's only a matter of adapting :
+
+1. Replace old 2bit wite `write_back_source` as 3bits wide
+2. check if all previous tests still passes
+3. add our new simple assetion check test
+
+For clarity, I'll just show the new test here :
+
+```python
+# test_control.py
+
+# Other tests ...
+
+@cocotb.test()
+async def csr_control_test(dut):
+    await set_unknown(dut)
+    # TEST CONTROL SIGNALS FOR CSR Instructions
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b0
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "101"
+    assert dut.mem_read.value == "0"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.pc_source.value == "0"
+    assert dut.write_back_source.value == "100" # to be adapted everywhere !
+    assert dut.csr_write_enable == "1"
+    assert dut.csr_write_back_source.value == "0"
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b100
+    await Timer(1, units="ns")
+    assert dut.csr_write_back_source.value == "1"
+
+```
+
+## 8.4 : Quick update on the `sign_extender` module
+
+To take our new `imm_source` (*0b101*), we shall update out `signext.sv` file.
+
+### 8.4.a : HDL Code
+
+Here is the entire updated module :
+
+```sv
+// signext.sv
+
+module signext (
+    // IN
+    input logic [24:0] raw_src,
+    // ...
+);
+
+always_comb begin
+    case (imm_source)
+
+        // ...
+
+        // CSR instrs
+        3'b101 : immediate = {{27{1'b0}}, raw_src[12:8]}; // NEW !
+
+        default: immediate = 32'd0;
+    endcase
+end
+    
+endmodule
+```
+
+### 8.4.b : Verification
+
+And to verify we shall simply add a test that does as always :
+
+- chosses a random imm
+- shift it to place it in the instruction (with OP excluded because never use for imm => `raw_data`)
+- add noise (`random_junk`) to provoke sign or value errors on fancy logic (we don't have any here but I consider it good practice)
+- tests for expected value.
+  - Here we ONLY zero extend a continuous 5 bits immidiate. So its value should be the same as we started with.
+
+```python
+# test_signext.py
+
+# other tests ...
+
+@cocotb.test()
+async def zero_ext_csr_test(dut):
+    # 100 randomized tests
+    for _ in range(100):
+        imm = random.randint(0b00000, 0b11111)
+        init_imm_value = imm
+        imm <<= (5 + 3) # shift it RD + F3 Spaces
+        source = 0b101
+        random_junk = 0b111111111111_00000_111_11111
+        raw_data = random_junk | imm
+        await Timer(1, units="ns")
+        dut.raw_src.value = raw_data
+        dut.imm_source.value = source
+        await Timer(1, units="ns") # let it propagate ...
+        assert dut.immediate.value == init_imm_value
+
+```
+
+Good, now we have everythin we need to implement our CSR regfile. Next step : implement a new datapath, make the previous tests pass again an write a new test program !
+
+## 8.5 : Datapath modifications to add the `Zicsr`
+
+Alright so here what we aim to implement under the form of a nice scheme :
 
 ![datapath with CSR regfile](../images/added_csr.jpg)
+
+As you can see, there a bit of work to do ! We have to :
+
+- Add the CSR module
+  - and declare all its signals !
+- Route the flush orders correctly the the *HOLY Caches*
+- Adapt `write_back_source`'s width and update the write back MUX logic
+- Add a new csr write back mux
+- And many more little things, but it comes up naturally as we implement it, no worries
+
+Our first objective is to wire up all this and then make the old tests pass again.
+
+Here are the highlights of the updated datapath :
+
+```sv
+// holy_core.sv
+
+
+```
 
 ## Resources
 
