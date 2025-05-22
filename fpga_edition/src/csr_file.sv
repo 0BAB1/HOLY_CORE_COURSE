@@ -36,7 +36,12 @@ module csr_file (
 logic [31:0] flush_cache, next_flush_cache;
 
 always_ff @(posedge clk) begin
-    flush_cache <= next_flush_cache;
+    if(~rst_n) begin
+        flush_cache <= 32'd0;
+    end
+    else begin
+        flush_cache <= next_flush_cache;
+    end
 end
 
 // Specific CSRs logics
@@ -45,8 +50,17 @@ always_comb begin
     if(flush_cache_flag) begin
         next_flush_cache = 32'd0;
     end
-    else if (write_enable & (address == 0x7C0))begin
-        next_flush_cache = write_data;
+    else if (write_enable & (address == 12'h7C0))begin
+        case(f3)
+            3'b001, 3'b101 : next_flush_cache = write_data;
+            3'b010, 3'b110 : next_flush_cache = or_result;
+            3'b011, 3'b111 : next_flush_cache = nand_result;
+            default begin
+                 // defined behavior for the HOLY CORE :
+                 // we set to 0 (don't have illegal yet)
+                next_flush_cache = 32'd0;
+            end
+        endcase
     end
     else begin
         next_flush_cache = flush_cache;

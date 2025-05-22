@@ -1,6 +1,7 @@
 # CACHE TESTBECH
 #
 # BRH 10/24
+# Modif by BRH 05/25 : Verify manual flush support
 #
 # Post for guidance : https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/
 
@@ -365,7 +366,7 @@ async def main_test(dut):
     dut.axi_rlast.value = 0b0 # todo : rlast matter to handle
 
     # ==================================
-    # WRITE CACHE MISS TEST
+    # READ CACHE MISS TEST
     # ==================================
 
     dut.cpu_address.value = 0x008 # NOT IN CACHE
@@ -437,3 +438,28 @@ async def main_test(dut):
     await Timer(1, units="ns")
 
     assert read_cache(dut.cache_system.cache_data,int(8/4)) == 0xFFFFFFFF
+
+    # ==================================
+    # MANUAL FLUSH TEST
+    # ==================================
+
+    # do nothing for a bit
+    await Timer(100, units="ns")
+    await RisingEdge(dut.clk)
+
+    # The user decides to manually fush the core
+    dut.cache_system.csr_flush_order.value = 0b1
+    await Timer(1, units="ns")
+    # cach is dirty so next state shall be WRITE
+    assert dut.cache_system.cache_dirty.value == 0b1
+    assert dut.cache_system.next_state.value == SENDING_WRITE_REQ
+    assert dut.cpu_cache_stall.value == 0b1
+
+    await RisingEdge(dut.aclk) # STATE SWITCH !
+    await Timer(1, units="ns")
+
+    assert dut.cache_system.state.value == SENDING_WRITE_REQ
+    assert dut.axi_awvalid.value == 0b1
+    assert dut.axi_arready.value == 0b1
+
+    # And so on ...

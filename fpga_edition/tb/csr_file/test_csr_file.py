@@ -7,6 +7,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 import random
 import numpy as np
+from copy import deepcopy
 
 @cocotb.test()
 async def test_csr_file(dut):
@@ -41,29 +42,32 @@ async def test_csr_file(dut):
     # randomized test
     dut.write_enable.value = 0b1
     for _ in range(1000):
-        init_csr_value = dut.flush_cache.value
+        await RisingEdge(dut.clk) #await antoher cycle to let flush cache reset if high
+        await Timer(1, units="ns")
+
+        init_csr_value = deepcopy(dut.flush_cache.value)
         wd = random.randint(0, 0xFFFFFFFF)
         f3 = random.randint(0b000, 0b111)
         dut.write_data.value = wd
         dut.f3.value = f3
 
         await RisingEdge(dut.clk)
-        await Timer(5, units="ns")
+        await Timer(2, units="ns")
         if f3 == 0b000 or f3 == 0b100:
             assert dut.read_data == 0
         elif f3 == 0b001 or f3 == 0b101:
             assert (
-                dut.read_data
+                dut.read_data.value
                 == wd
             )
         elif f3 == 0b010 or f3 == 0b110:
             assert (
-                dut.read_data
+                dut.read_data.value
                 == (init_csr_value | wd)
             )
         elif f3 == 0b011 or f3 == 0b111:
             assert (
-                dut.read_data
+                dut.read_data.value
                 == (init_csr_value & (~wd & 0xFFFFFFFF)) #we mask wd to 32 bits
             )
     
@@ -78,7 +82,9 @@ async def test_csr_file(dut):
     # then we release reset and check for 0
     dut.rst_n.value = 0
     await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
     assert dut.flush_cache.value == 0x00000000
+    dut.rst_n.value = 1
 
     # ======================================
     # test registers behavior
@@ -98,8 +104,9 @@ async def test_csr_file(dut):
     dut.address.value = 0x7C0
     dut.f3.value = 0b001
     await RisingEdge(dut.clk)
-    assert dut.flush_cache_flag.value == 0b0
+    await Timer(2, units="ns")
     assert dut.flush_cache.value == 0xFFFFFFFE
+    assert dut.flush_cache_flag.value == 0b0
 
     # Then we write 1, should output 1
     dut.write_enable.value = 1
@@ -107,7 +114,12 @@ async def test_csr_file(dut):
     dut.address.value = 0x7C0
     dut.f3.value = 0b001
     await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
     assert dut.flush_cache_flag.value == 0b1
     assert dut.flush_cache.value == 0x00000001
 
     # should go back to 0 after a single cycle
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.flush_cache_flag.value == 0b0
+    assert dut.flush_cache.value == 0x00000000

@@ -32,9 +32,10 @@ async def loads_control_test(dut):
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "1"
     assert dut.reg_write.value == "1"
+    assert dut.csr_write_enable == "0"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "01"
+    assert dut.write_back_source.value == "001"
     assert dut.pc_source.value == "0"
 
 @cocotb.test()
@@ -52,6 +53,7 @@ async def sw_control_test(dut):
     assert dut.alu_source.value == "1"
     assert dut.pc_source.value == "0"
     assert dut.mem_read.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def add_control_test(dut):
@@ -67,9 +69,10 @@ async def add_control_test(dut):
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
     assert dut.mem_read.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def and_control_test(dut):
@@ -85,8 +88,9 @@ async def and_control_test(dut):
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def or_control_test(dut):
@@ -102,8 +106,9 @@ async def or_control_test(dut):
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def beq_control_test(dut):
@@ -123,6 +128,7 @@ async def beq_control_test(dut):
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
@@ -146,8 +152,9 @@ async def jal_control_test(dut):
     assert dut.branch.value == "0"
     assert dut.jump.value == "1"
     assert dut.pc_source.value == "1"
-    assert dut.write_back_source.value == "10"
+    assert dut.write_back_source.value == "010"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def addi_control_test(dut):
@@ -166,8 +173,9 @@ async def addi_control_test(dut):
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def lui_control_test(dut):
@@ -182,10 +190,11 @@ async def lui_control_test(dut):
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
-    assert dut.write_back_source.value == "11"
+    assert dut.write_back_source.value == "011"
     assert dut.branch.value == "0"
     assert dut.jump.value == "0"
     assert dut.second_add_source.value == "01"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def auipc_control_test(dut):
@@ -200,10 +209,11 @@ async def auipc_control_test(dut):
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
-    assert dut.write_back_source.value == "11"
+    assert dut.write_back_source.value == "011"
     assert dut.branch.value == "0"
     assert dut.jump.value == "0"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def slti_control_test(dut):
@@ -222,8 +232,9 @@ async def slti_control_test(dut):
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def sltiu_control_test(dut):
@@ -242,8 +253,9 @@ async def sltiu_control_test(dut):
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def xori_control_test(dut):
@@ -262,8 +274,9 @@ async def xori_control_test(dut):
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def slli_control_test(dut):
@@ -285,8 +298,9 @@ async def slli_control_test(dut):
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
     # INVALID F7
     for _ in range(1000):
@@ -304,8 +318,9 @@ async def slli_control_test(dut):
         assert dut.reg_write.value == "0"
         # Datapath mux sources
         assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "00"
+        assert dut.write_back_source.value == "000"
         assert dut.pc_source.value == "0"
+        assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def srli_control_test(dut):
@@ -327,8 +342,9 @@ async def srli_control_test(dut):
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
     # INVALID VALID F7
     for _ in range(1000):
@@ -349,8 +365,9 @@ async def srli_control_test(dut):
         assert dut.reg_write.value == "0"
         # Datapath mux sources
         assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "00"
+        assert dut.write_back_source.value == "000"
         assert dut.pc_source.value == "0"
+        assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def srai_control_test(dut):
@@ -372,8 +389,9 @@ async def srai_control_test(dut):
     assert dut.reg_write.value == "1"
     # Datapath mux sources
     assert dut.alu_source.value == "1"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
     # INVALID VALID F7
     for _ in range(1000):
@@ -394,8 +412,9 @@ async def srai_control_test(dut):
         assert dut.reg_write.value == "0"
         # Datapath mux sources
         assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "00"
+        assert dut.write_back_source.value == "000"
         assert dut.pc_source.value == "0"
+        assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def sub_control_test(dut):
@@ -412,8 +431,9 @@ async def sub_control_test(dut):
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
-    assert dut.write_back_source.value == "00"
+    assert dut.write_back_source.value == "000"
     assert dut.pc_source.value == "0"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def blt_control_test(dut):
@@ -434,6 +454,7 @@ async def blt_control_test(dut):
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
@@ -461,6 +482,7 @@ async def bne_control_test(dut):
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
@@ -468,6 +490,7 @@ async def bne_control_test(dut):
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def bge_control_test(dut):
@@ -488,6 +511,7 @@ async def bge_control_test(dut):
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
@@ -495,6 +519,7 @@ async def bge_control_test(dut):
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def bltu_control_test(dut):
@@ -515,6 +540,7 @@ async def bltu_control_test(dut):
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
@@ -522,6 +548,7 @@ async def bltu_control_test(dut):
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def bgeu_control_test(dut):
@@ -542,6 +569,7 @@ async def bgeu_control_test(dut):
     assert dut.branch.value == "1"
     assert dut.pc_source.value == "0"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
@@ -549,6 +577,7 @@ async def bgeu_control_test(dut):
     await Timer(1, units="ns")
     assert dut.pc_source.value == "1"
     assert dut.second_add_source.value == "00"
+    assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def jalr_control_test(dut):
@@ -565,5 +594,35 @@ async def jalr_control_test(dut):
     assert dut.branch.value == "0"
     assert dut.jump.value == "1"
     assert dut.pc_source.value == "1"
-    assert dut.write_back_source.value == "10"
+    assert dut.write_back_source.value == "010"
     assert dut.second_add_source.value == "10"
+    assert dut.csr_write_enable == "0"
+
+@cocotb.test()
+async def csr_control_test(dut):
+    await set_unknown(dut)
+    # TEST CONTROL SIGNALS FOR CSR Instructions
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b0
+    await Timer(1, units="ns")
+
+    assert dut.imm_source.value == "101"
+    assert dut.mem_read.value == "0"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.pc_source.value == "0"
+    assert dut.write_back_source.value == "100"
+    assert dut.csr_write_enable == "1"
+    assert dut.csr_write_back_source.value == "0"
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b100
+    await Timer(1, units="ns")
+    assert dut.csr_write_back_source.value == "1"

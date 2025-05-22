@@ -46,7 +46,10 @@ Add basic utilities in a HOLY LIBRAIRY. (cache hadling, get counters, simplified
 
 Use the sensors, make a drone takeoff and stable (at least on the Z axis).
 
+Update the PDFs, the ref tables (with all csr and new imm signals and csr control signals)
+
 Once everything is done, split the core and PIPELINE it (objective : 80MHz).
+
 
 =======================
 NOT DONE - SIDEQUESTS

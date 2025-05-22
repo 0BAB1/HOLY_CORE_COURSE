@@ -105,7 +105,7 @@ always @(posedge clk) begin
 end
 
 /**
-* INSTRUCTION MEMORY
+* INSTRUCTION CACHE MEMORY
 */
 
 // Acts as a ROM.
@@ -123,6 +123,7 @@ holy_cache instr_cache (
     .read_enable(1'b1),
     .write_enable(1'b0),
     .byte_enable(4'd0),
+    .csr_flush_order(csr_flush_order),
     .read_data(instruction),
     .cache_stall(i_cache_stall),
 
@@ -157,9 +158,10 @@ wire mem_read_enable;
 wire reg_write;
 // out muxes wires
 wire alu_source;
-wire [1:0] write_back_source;
+wire [2:0] write_back_source;
 wire pc_source;
 wire [1:0] second_add_source;
+wire csr_write_back_source;
 
 control control_unit(
     .op(op),
@@ -174,6 +176,8 @@ control control_unit(
     .mem_write(mem_write_enable),
     .mem_read(mem_read_enable),
     .reg_write(reg_write),
+    .csr_write_back_source(csr_write_back_source),
+    .csr_write_enable(csr_write_enable),
     // muxes out
     .alu_source(alu_source),
     .write_back_source(write_back_source),
@@ -198,21 +202,29 @@ logic wb_valid;
 logic [31:0] write_back_data;
 always_comb begin : write_back_source_select
     case (write_back_source)
-        2'b00: begin
+        3'b000: begin
             write_back_data = alu_result;
             wb_valid = 1'b1;
         end
-        2'b01: begin
+        3'b001: begin
             write_back_data = mem_read_write_back_data;
             wb_valid = mem_read_write_back_valid;
         end
-        2'b10: begin
+        3'b010: begin
             write_back_data = pc_plus_four;
             wb_valid = 1'b1;
         end
-        2'b11: begin
+        3'b011: begin
             write_back_data = pc_plus_second_add;
             wb_valid = 1'b1;
+        end
+        3'b100: begin
+            write_back_data = csr_read_data;
+            wb_valid = 1'b1;
+        end
+        default begin
+            write_back_data = 32'hFFFFFFFF;
+            wb_valid = 1'b0;
         end
     endcase
 end
@@ -246,6 +258,39 @@ signext sign_extender(
     .raw_src(raw_imm),
     .imm_source(imm_source),
     .immediate(immediate)
+);
+
+/**
+* CSR REGFILE
+*/
+
+logic [31:0] csr_write_back_data;
+logic [31:0] csr_write_data;
+always_comb begin : csr_wb_mux
+    if(csr_write_back_source) begin
+        csr_write_back_data = read_reg1;
+    end else begin
+        csr_write_back_data = immediate;
+    end
+end
+
+logic [11:0] csr_address;
+assign csr_address = instruction[31:20];
+logic [31:0] csr_read_data;
+logic csr_write_enable;
+logic csr_flush_order;
+
+csr_file holy_csr_file(
+    //in
+    .clk(clk),
+    .rst_n(rst_n),
+    .f3(f3),
+    .write_data(csr_write_back_data),
+    .write_enable(csr_write_enable),
+    .address(csr_address),
+    //out
+    .read_data(csr_read_data),
+    .flush_cache_flag(csr_flush_order)
 );
 
 /**
@@ -305,6 +350,7 @@ holy_cache data_cache (
     .read_enable(mem_read_enable),
     .write_enable(mem_write_enable),
     .byte_enable(mem_byte_enable),
+    .csr_flush_order(csr_flush_order),
     .read_data(mem_read),
     .cache_stall(d_cache_stall),
 

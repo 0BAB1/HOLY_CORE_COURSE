@@ -23,9 +23,11 @@ module control (
     output logic mem_read,
     output logic reg_write,
     output logic alu_source,
-    output logic [1:0] write_back_source,
+    output logic [2:0] write_back_source,
     output logic pc_source,
-    output logic [1:0] second_add_source
+    output logic [1:0] second_add_source,
+    output logic csr_write_back_source,
+    output logic csr_write_enable
 );
 
 import holy_core_pkg::*;
@@ -48,7 +50,7 @@ always_comb begin
             mem_read = 1'b1;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
-            write_back_source =2'b01; //memory_read
+            write_back_source = 3'b001; //memory_read
             branch = 1'b0;
             jump = 1'b0;
         end
@@ -58,7 +60,7 @@ always_comb begin
             alu_source = 1'b1; //imm
             mem_write = 1'b0;
             alu_op = 2'b10;
-            write_back_source = 2'b00; //alu_result
+            write_back_source = 3'b000; //alu_result
             mem_read = 1'b0;
             branch = 1'b0;
             jump = 1'b0;
@@ -97,7 +99,7 @@ always_comb begin
             mem_read = 1'b0;
             alu_op = 2'b10;
             alu_source = 1'b0; //reg2
-            write_back_source = 2'b00; //alu_result
+            write_back_source = 3'b000; //alu_result
             branch = 1'b0;
             jump = 1'b0;
         end
@@ -119,7 +121,7 @@ always_comb begin
             imm_source = 3'b011;
             mem_read = 1'b0;
             mem_write = 1'b0;
-            write_back_source = 2'b10; //pc_+4
+            write_back_source = 3'b010; //pc_+4
             branch = 1'b0;
             jump = 1'b1;
             if(op[3]) begin// jal
@@ -137,7 +139,7 @@ always_comb begin
             mem_write = 1'b0;
             mem_read = 1'b0;
             reg_write = 1'b1;
-            write_back_source = 2'b11;
+            write_back_source = 3'b011;
             branch = 1'b0;
             jump = 1'b0;
             case(op[5])
@@ -145,14 +147,27 @@ always_comb begin
                 1'b0 : second_add_source = 2'b00; // auipc
             endcase
         end
+        // CSR instructions (SYSTEM OPCODE)
+        OPCODE_CSR : begin
+            imm_source = 3'b101;
+            mem_write = 1'b0;
+            reg_write = 1'b1;
+            write_back_source = 3'b100;
+            // Determine wb src from MSB of F3
+            // 3'b0xx is for rs value
+            // 3'b1xx is for imm extended value
+            csr_write_back_source = func3[2];
+            csr_write_enable = 1'b1;
+        end
         // EVERYTHING ELSE
         default: begin
-            // Don't touch the CPU nor MEMORY state
+            // Don't touch the CPU nor MEMORY state, including CSR
             reg_write = 1'b0;
             mem_write = 1'b0;
             mem_read = 1'b0;
             jump = 1'b0;
             branch = 1'b0;
+            csr_write_enable = 1'b0;
             $display("Unknown/Unsupported OP CODE !");
         end
     endcase
