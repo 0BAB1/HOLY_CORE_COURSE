@@ -216,7 +216,7 @@ And here is the integration with the new external request arbitrer :
 
 ![full holy core](../images/HOLY_CORE_FPGA.png)
 
-And that was the full core ! Now that we know the *why*, let's do the *howù shall we ?
+And that was the full core ! Now that we know the *why*, let's do the *how* shall we ?
 
 ## 3 : Actual cache design
 
@@ -2438,7 +2438,7 @@ Yes it's great, but we have to move on because the core is not really usable as 
 
 To handle this problem, we can use multiple techniques :
 
-- Add a cache bypasser to a certain memory range
+- Add a cache bypasser (non cachable ranges) to a certain memory range
   - e.g. 0x4000_0000 to 0x4000_FFFF would bypass the cache by using AXI-LITE to write directly to the destination.
   - means we have to complexify our interface and development (add AXI-LITE, which we'll have to live debug on top of tb)
   - weird user experience (has to know core specific memory ranges)
@@ -2446,9 +2446,9 @@ To handle this problem, we can use multiple techniques :
   - Zicsr allows us to set control registers to allows the user to have direct control on the core behavior (like order a cache flush easily)
   - Zicntr allows us to create useful counters that the user can use (time) and that we can use for performances measurements (number of cycles and instrctions fectched)
 
-Because we're here to learn and make a "real" Risc-V core with "normal" behavior, We'll implement the CSR, it will also be useful to **FLEX** because the core now supports more things, making it -*without any doubt*- automatically better.
+And how about doing both ? Well, doing both may be overwelming. Let's implement CSRs to give a great, classical RISC-V experience to the dev and let's keep the idea of a non-cachble range for later, It may become handy later if we encounter cache coherency or performances problems with our MMIOs ;)
 
-> CSR are not mandatory from what I read, meaning we can create fully custom one in the Zicsr extension, COOL ! So yes, that means the it still requires the user to learn stuff about our core (specific CSR to set to clear cache) but it is **normal** in RISC-V. Later, if we dig more on the softaware side, we can abstract that in a utilities librairy for the core ! :)
+> CSRs are not mandatory from what I read, meaning we can create fully custom one in the Zicsr extension, COOL ! Note tthat the dev will still have to read our docs as CSRs kinda depends on the core (some are standard in privileged mode but still..) BUT non cachable ranges are more on the "SoC" design side and theorically immutable.
 
 **Okay so what really are CSR registers ?**
 
