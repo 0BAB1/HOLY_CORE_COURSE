@@ -4,6 +4,17 @@
 
 An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailed tutorials as a reference.
 
+## Features
+
+This project is a course you can follow to build the HOLY CORE and everything that cames with it, and the final product of your work will feature :
+
+- A single cycle RV32I,Zicsr,Zicntr (holy) Core
+- A fully custom cach system with a full AXI interface to communicate with any MMIO peripherals
+- A working, fully FPGA implementation
+- A basic sofwtware environement to develop basic application for **real-world** use on FPGA.
+
+> You will find quickstart guides in the code case to help you out using the core without having to build it from scratch.
+
 The course is divided in multiple blocks to learn different aspects of digital design. The table below indicates availability of these learning blocks.
 
 | Block Name            | Status            |

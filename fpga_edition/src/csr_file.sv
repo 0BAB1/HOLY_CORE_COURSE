@@ -17,28 +17,39 @@ module csr_file (
     input logic write_enable,
     input logic [11:0] address,
 
-    // OUT
-    output logic flush_cache_flag,
-    output logic [31:0] read_data
+    // OUT DATA
+    output logic [31:0] read_data,
+
+    // OUT CSR SIGNALS
+    output logic flush_cache_flag
 );
 
-/*
+/*  
+========= Message from BRH :
     Design choice : we declare each CSR individually instead of declaring a whole
     addresable BRAM array (4096 regs..) which would waste space. I don't really know
     If that really saves space but I did it so its too late mouhahaha.
+=========
 */
 
-logic [31:0] flush_cache;
+// Declare all CSRs and they next signals here
+logic [31:0] flush_cache, next_flush_cache;
 
 always_ff @(posedge clk) begin
-    if(~rst_n) begin
-        flush_cache <= 32'b0;
+    flush_cache <= next_flush_cache;
+end
+
+// Specific CSRs logics
+always_comb begin
+    // Flush cache CSR
+    if(flush_cache_flag) begin
+        next_flush_cache = 32'd0;
     end
-    else if (write_enable) begin
-        case (address)
-            12'h7C0: flush_cache <= write_back_to_csr;
-            default: ; // do nothing
-        endcase
+    else if (write_enable & (address == 0x7C0))begin
+        next_flush_cache = write_data;
+    end
+    else begin
+        next_flush_cache = flush_cache;
     end
 end
 
