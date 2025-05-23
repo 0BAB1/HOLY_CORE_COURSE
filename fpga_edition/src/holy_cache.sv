@@ -56,10 +56,13 @@ module holy_cache #(
     logic                           cache_valid;  // is the current block valid ?
     logic                           next_cache_valid;
     logic                           cache_dirty;
+    // register to retain info on wether we are writing back because of miss or because of CSR order
+    logic                           csr_flushing, next_csr_flushing;
 
     // INCOMING CACHE REQUEST SIGNALS
     logic [31:9]                    req_block_tag;
     assign req_block_tag = address[31:9];
+    // requested place in cache, written / read if tag hits
     logic [8:2] req_index;
     assign req_index = address[8:2];
 
@@ -85,6 +88,7 @@ module holy_cache #(
             cache_valid <= 1'b0;
             cache_dirty <= 1'b0;
             seq_stall <= 1'b0;
+            csr_flushing <= 1'b0;
         end else begin
             cache_valid <= next_cache_valid;
             seq_stall <= comb_stall;
@@ -100,6 +104,8 @@ module holy_cache #(
                     cache_dirty <= 1'b0;
                 end
             end
+
+            csr_flushing <= next_csr_flushing;
         end
     end
 
@@ -123,6 +129,8 @@ module holy_cache #(
         axi.wdata = cache_data[set_ptr];
         cache_state = state;
         next_set_ptr = set_ptr;
+        // csr flushing keeps value by default, only set at beginning of flush and deset a end of flush
+        next_csr_flushing = csr_flushing;
 
         case (state)
             IDLE: begin
@@ -134,7 +142,15 @@ module holy_cache #(
                     read_data = cache_data[req_index];
                 end
 
-                else if( (~hit && (read_enable ^ actual_write_enable)) | csr_flush_order) begin
+                else if( csr_flush_order ) begin
+                    // don't forget to keep in mind that we are flushing from order
+                    // which will bypass reading back
+                    next_csr_flushing = 1'b1;
+                    // also, we force write back state next
+                    next_state = SENDING_WRITE_REQ;
+                end
+
+                else if( (~hit && (read_enable ^ actual_write_enable)) & ~csr_flush_order) begin
                     // switch state to handle the MISS, if data is dirty, we have to write first
                     case(cache_dirty)
                         1'b1 : next_state = SENDING_WRITE_REQ;
@@ -196,7 +212,15 @@ module holy_cache #(
 
             WAITING_WRITE_RES: begin
                 if(axi.bvalid && (axi.bresp == 2'b00)) begin// if response is OKAY
-                    next_state = SENDING_READ_REQ;
+                    // END THE WRITE TRANSACTION
+                    if(csr_flushing) begin
+                        // if the wb was CSR order, we reset csr flushing and go back to IDLE
+                        next_state = IDLE;
+                        next_csr_flushing = 0'b0;
+                    end else begin
+                        // if it was miss wb, we go on with read...
+                        next_state = SENDING_READ_REQ;
+                    end
                 end else if(axi.bvalid && (axi.bresp != 2'b00)) begin
                     $display("ERROR WRTING TO MAIN MEMORY !");
                 end

@@ -19,6 +19,7 @@ module holy_core (
     // OUTGOING DEBUG SIGNALS
     output logic [31:0] debug_pc,  
     output logic [31:0] debug_pc_next,
+    output logic debug_pc_source,
     output logic [31:0] debug_instruction,  
     output logic [2:0] debug_i_cache_state,  
     output logic [2:0] debug_d_cache_state,
@@ -27,7 +28,8 @@ module holy_core (
     output logic [6:0] debug_d_set_ptr,  
     output logic [6:0] debug_d_next_set_ptr,  
     output logic debug_i_cache_stall,  
-    output logic debug_d_cache_stall  
+    output logic debug_d_cache_stall,
+    output logic debug_csr_flush_order
 );
 
 import holy_core_pkg::*;
@@ -43,6 +45,8 @@ assign debug_i_cache_state = i_cache_state;
 assign debug_d_cache_state = d_cache_state;  
 assign debug_i_cache_stall = i_cache_stall;  
 assign debug_d_cache_stall  = d_cache_stall; 
+assign debug_csr_flush_order = csr_flush_order;
+assign debug_pc_source = pc_source;
 
 // others are assign directly to submodules outputs
 
@@ -123,7 +127,7 @@ holy_cache instr_cache (
     .read_enable(1'b1),
     .write_enable(1'b0),
     .byte_enable(4'd0),
-    .csr_flush_order(csr_flush_order),
+    .csr_flush_order(1'b0),
     .read_data(instruction),
     .cache_stall(i_cache_stall),
 
@@ -267,7 +271,7 @@ signext sign_extender(
 logic [31:0] csr_write_back_data;
 logic [31:0] csr_write_data;
 always_comb begin : csr_wb_mux
-    if(csr_write_back_source) begin
+    if(~csr_write_back_source) begin
         csr_write_back_data = read_reg1;
     end else begin
         csr_write_back_data = immediate;

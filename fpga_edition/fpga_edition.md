@@ -2945,7 +2945,8 @@ module control (
 
     case (op)
 
-        // ...
+        // ... with added :
+        // csr_write_enable = 1'b0; (NEW !)
 
         // CSR instructions (SYSTEM OPCODE)
         OPCODE_CSR : begin
@@ -3107,13 +3108,192 @@ As you can see, there a bit of work to do ! We have to :
 
 Our first objective is to wire up all this and then make the old tests pass again.
 
+### 8.5.a : HDL Code
+
 Here are the highlights of the updated datapath :
 
 ```sv
 // holy_core.sv
 
+module holy_core (
+    // ...
+);
+/**
+* CONTROL
+*/
+
+// ... already existing signals declarations
+wire csr_write_back_source;  // NEW !
+
+control control_unit(
+    // ... NEw !
+    .csr_write_back_source(csr_write_back_source),
+    .csr_write_enable(csr_write_enable),
+    // ...
+);
+
+/// ... (Regfile with updated write_back source width) ...
+
+/**
+* SIGN EXTEND
+*/
+
+// ...
+
+/**
+* CSR REGFILE (NEW !)
+*/
+
+logic [31:0] csr_write_back_data;
+logic [31:0] csr_write_data;
+always_comb begin : csr_wb_mux
+    if(~csr_write_back_source) begin
+        csr_write_back_data = read_reg1;
+    end else begin
+        csr_write_back_data = immediate;
+    end
+end
+
+logic [11:0] csr_address;
+assign csr_address = instruction[31:20];
+logic [31:0] csr_read_data;
+logic csr_write_enable;
+logic csr_flush_order;
+
+csr_file holy_csr_file(
+    //in
+    .clk(clk),
+    .rst_n(rst_n),
+    .f3(f3),
+    .write_data(csr_write_back_data),
+    .write_enable(csr_write_enable),
+    .address(csr_address),
+    //out
+    .read_data(csr_read_data),
+    .flush_cache_flag(csr_flush_order)
+);
+
+// ...
+    
+endmodule
+```
+
+And it's not shown here but don't forget to add an input the the data and intrsction cache module cache module for `flush_cache_order` and wire them accordignly to the `flush_cache_flag` CSR file's output.
+
+### 8.5.b : Verification
+
+To verify, we'll create a simple test program that will check the behavior of the CSR cache flush and the core's reaction to such an order (*asserted to be an initation of the write back / read sequence depending on cache state*)
+
+The test program is extremely simple :
+
+```txt
+// test_imemory.hex
+
+// other tests...
+
+00100A13  //CSR FLUSH TEST :    addi x20 x0 0x1     | x20 <= 00000001
+7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 / flush_cache <= 00000001 / + WRITE BACK + RELOAD !
+
+// NOPs...
+```
+
+What we do is simply load the value : `x20 <= 0x1`  and then use the `csrrw` instruction to do `x21 <= CSR <= x20`.
+
+And you guessed it, after that, `flush_cache` CSR will be 1, thus flushing the cache and x21 should be 0 as this was the `flush_cache` CSR's value before the test.
+
+> Nota : I chose x21 because its value was non 0 before (*it was 0x0000DEAD from the partial loads tests*).
+
+Here is the tb, which is pretty much what we just described :
+
+```python
+# test_holy_core.py
+
+# others tests ...
+
+    ################
+    # CSR TESTS (FLUSH_CACHE)
+    # 00100A13  //CSR FLUSH TEST :    addi x20 x0 0x1     | x20 <= 00000001
+    # 7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 / flush_cache <= 00000001 / + WRITE BACK + RELOAD !
+    ##################
+
+    # Check test init's state
+    assert binary_to_hex(dut.core.regfile.registers[21].value) == "0000DEAD"
+    assert binary_to_hex(dut.core.instruction.value) == "00100A13"
+
+    await RisingEdge(dut.clk) # addi x20 x0 0x1
+    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00000001"
+    
+    await RisingEdge(dut.clk) # csrrw x21 0x7C0 x20
+    await Timer(2,units="ns") # csrrw x21 0x7C0 x20
+    assert binary_to_hex(dut.core.regfile.registers[21].value) == "00000000" # value in CSR was 0...
+    
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.state.value == SENDING_READ_REQ
+
+    # Wait for the cache to retrieve data
+    while(dut.core.stall.value == 0b1) :
+        await RisingEdge(dut.clk)
+
+    # At the end of the stall, CSR should be back to 0
+    assert dut.core.stall.value == 0b0
+    assert binary_to_hex(dut.core.holy_csr_file.flush_cache.value) == "00000000"
 
 ```
+
+note the `while(dut.core.stall.value == 0b1)` which waits fot the end of the flush
+
+## 9 : Testing our new CSR functionnality live on FPGA
+
+Okay, before adding the counters for `Zicntr`, we'll test our CSR live on the FPGA.
+
+Remember our old `test.s` program to blink leds ?
+
+```asm
+
+.section .text
+.align 2
+.global _start
+
+start:
+    # Initialization
+    lui x6, 0x2                 # Load GPIO base address
+    addi x19, x0, 0x0           # Set offset to 0
+    addi x20, x0, 0x80          # Set offset limit to 128 (i.e., cache size) 
+    addi x18, x0, 0
+    j loop
+
+loop:
+    # reset offsets
+    addi x6, x0, 0
+    lui x6, 0x2                 # Load GPIO base address 
+    addi x19, x0, 0x0           # Set offset to 0 
+
+    addi x18, x18, 0x1
+    j sub_loop
+
+sub_loop:
+    sw x18, 0(x6)
+    addi x6, x6, 0x4            
+    addi x19, x19, 0x1         
+    bne x19, x20, sub_loop         
+
+    lw x23, 0(x0)               # Done! Create a cache miss to write back.
+
+    # Delay loop: Wait for ~50,000,000 clock cycles
+    li x21, 50000000      # Load 50,000,000 into x21
+    
+delay_loop:
+    addi x21, x21, -1           # Decrement x21
+    bnez x21, delay_loop        # If x21 != 0, continue looping
+
+    j loop                      # Restart the loop
+```
+
+Well, it was kinda chatic because of the fact we have to manually provoke a cache miss to update the MMIO components of the SoC, which is *very unprofessional* to say the least...
+
+But now, we can see if our efforts were worth it to offer a better dev experience !
+
+
 
 ## Resources
 

@@ -729,3 +729,34 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # lw x20 0x0(x7)
     assert binary_to_hex(dut.core.regfile.registers[20].value) == "00000000"
     assert axi_ram_slave.read(0x00001004, 4) == 0xFFEE0000.to_bytes(4,'little')
+
+    #################
+    # CSR TESTS (FLUSH_CACHE)
+    # 00100A13  //CSR FLUSH TEST :    addi x20 x0 0x1     | x20 <= 00000001
+    # 7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 / flush_cache <= 00000001 / + WRITE BACK + RELOAD !
+    ##################
+
+    # Check test init's state
+    assert binary_to_hex(dut.core.regfile.registers[21].value) == "0000DEAD"
+    assert binary_to_hex(dut.core.instruction.value) == "00100A13"
+    assert binary_to_hex(dut.core.pc) == "0000015C"
+
+    await RisingEdge(dut.clk) # addi x20 x0 0x1
+    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00000001"
+    assert binary_to_hex(dut.core.pc) == "00000160"
+    
+    await RisingEdge(dut.clk) # csrrw x21 0x7C0 x20
+    await Timer(2,units="ns") # csrrw x21 0x7C0 x20
+    assert binary_to_hex(dut.core.regfile.registers[21].value) == "00000000" # value in CSR was 0...
+    
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.state.value == SENDING_WRITE_REQ
+
+    # Wait for the cache to retrieve data
+    while(dut.core.stall.value == 0b1) :
+        await RisingEdge(dut.clk)
+
+    # At the end of the stall, CSR should be back to 0
+    assert dut.core.stall.value == 0b0
+    assert binary_to_hex(dut.core.holy_csr_file.flush_cache.value) == "00000000"
+    assert binary_to_hex(dut.core.pc) == "00000164"

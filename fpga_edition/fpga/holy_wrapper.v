@@ -44,6 +44,7 @@ module holy_wrapper (
     // Debug OUT
     output wire [31:0]              pc,
     output wire [31:0]              pc_next,
+    output wire                     pc_source,
     output wire [31:0]              instruction,
     output wire [2:0]               i_cache_state,
     output wire [2:0]               d_cache_state,
@@ -52,7 +53,8 @@ module holy_wrapper (
     output wire [6:0]               i_cache_set_ptr,
     output wire [6:0]               d_cache_set_ptr,
     output wire [6:0]               i_next_set_ptr,
-    output wire [6:0]               d_next_set_ptr
+    output wire [6:0]               d_next_set_ptr,
+    output wire                     csr_flush_order
 );
 
 // Explicit interface wires
@@ -92,6 +94,7 @@ wire        m_axi_rready;
 // Debug signal wires
 wire [31:0] pc;
 wire [31:0] pc_d;
+wire pc_source;
 wire [31:0] instruction;
 wire [2:0]  i_cache_state;
 wire [2:0]  d_cache_state;
@@ -101,6 +104,7 @@ wire [6:0]  i_cache_set_ptr;
 wire [6:0]  d_cache_set_ptr;
 wire [6:0]  i_next_set_ptr;
 wire [6:0]  d_next_set_ptr;
+wire csr_flush_order;
 
 // Explicit connection to holy_test_harness module
 axi_details wrapped (
@@ -141,7 +145,8 @@ axi_details wrapped (
     .m_axi_rready(m_axi_rready),
     // DEBUG SIGNALS
     .pc(pc),  
-    .pc_next(pc_next),  
+    .pc_next(pc_next),
+    .pc_source(pc_source),
     .instruction(instruction),  
     .i_cache_state(i_cache_state),  
     .d_cache_state(d_cache_state),
@@ -150,7 +155,8 @@ axi_details wrapped (
     .i_cache_stall(i_cache_stall),  
     .i_next_set_ptr(i_next_set_ptr),
     .d_cache_stall(d_cache_stall),
-    .d_next_set_ptr(d_next_set_ptr)
+    .d_next_set_ptr(d_next_set_ptr),
+    .csr_flush_order(csr_flush_order)
 );
 
 endmodule
