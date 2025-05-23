@@ -85,8 +85,8 @@ FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x2
 FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
 20018393  //CACHE WB TEST :     addi x7 x3 0x200    | x7  <= 00001200 (just above 128*4=512B cache size)
 0003AA03  //                    lw x20 0x0(x7)      | x20 <= 00000000 + MISS + WRITE BACK + RELOAD !
-00000013  //NOP
-00000013  //NOP
+00100A13  //CSR FLUSH TEST :    addi x20 x0 0x1     | x20 <= 00000001
+7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 / flush_cache <= 00000001 / + WRITE BACK + RELOAD !
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

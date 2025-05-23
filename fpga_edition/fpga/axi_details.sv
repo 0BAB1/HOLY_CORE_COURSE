@@ -66,6 +66,7 @@ module axi_details (
     output logic [31:0] instruction,
     output logic [31:0] pc,
     output logic [31:0] pc_next,
+    output logic pc_source,
 
     // Cache debug signals
     output logic [2:0] i_cache_state,
@@ -75,7 +76,8 @@ module axi_details (
     output logic [6:0] i_cache_set_ptr,
     output logic [6:0] i_next_set_ptr,
     output logic [6:0] d_cache_set_ptr,
-    output logic [6:0] d_next_set_ptr
+    output logic [6:0] d_next_set_ptr,
+    output logic csr_flush_order
 );
 
 // INTERFACES DECLARATION
@@ -90,7 +92,8 @@ holy_core core(
 
     // Debug out interface
     .debug_pc(pc),  
-    .debug_pc_next(pc_next),  
+    .debug_pc_next(pc_next),
+    .debug_pc_source(pc_source),
     .debug_instruction(instruction),  
     .debug_i_cache_state(i_cache_state),  
     .debug_d_cache_state(d_cache_state),
@@ -99,7 +102,8 @@ holy_core core(
     .debug_d_set_ptr(d_cache_set_ptr),  
     .debug_d_next_set_ptr(d_next_set_ptr),
     .debug_i_cache_stall(i_cache_stall),  
-    .debug_d_cache_stall(d_cache_stall)
+    .debug_d_cache_stall(d_cache_stall),
+    .debug_csr_flush_order(csr_flush_order)
 );
 
 // Connect the discrete AXI signals to the m_axi

@@ -32,7 +32,7 @@ sub_loop:
     addi x19, x19, 0x1         
     bne x19, x20, sub_loop         
 
-    lw x23, 0(x0)               # Done! Create a cache miss to write back.
+    csrrwi x0, 0x7C0, 0x1               # Done! Create a cache miss to write back.
 
     # Delay loop: Wait for ~50,000,000 clock cycles
     li x21, 50000000      # Load 50,000,000 into x21

@@ -8,6 +8,7 @@
 # Please run it from the ROOT of the repo
 #
 # BRH 12/24
+# Updated 05/25 by BRH : added csr support
 
 # Create a new project
 create_project holy_soc_project ./HOLY_SOC -part xc7z020clg400-1 -force
@@ -31,6 +32,7 @@ add_files -norecurse {
     ./fpga_edition/src/holy_core.sv
     ./fpga_edition/src/signext.sv
     ./fpga_edition/src/load_store_decoder.sv
+    ./fpga_edition/src/csr_file.sv
 }
 
 # Update compile order
@@ -115,8 +117,9 @@ startgroup
 set_property -dict [list \
   CONFIG.C_MON_TYPE {MIX} \
   CONFIG.C_NUM_MONITOR_SLOTS {2} \
-  CONFIG.C_NUM_OF_PROBES {11} \
+  CONFIG.C_NUM_OF_PROBES {14} \
 ] [get_bd_cells system_ila_0]
+set_property CONFIG.C_DATA_DEPTH {4096} [get_bd_cells system_ila_0]
 endgroup
 
 
@@ -134,6 +137,9 @@ connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_set_ptr] [get_bd_pins system_
 connect_bd_net [get_bd_pins holy_wrapper_0/i_next_set_ptr] [get_bd_pins system_ila_0/probe8]
 connect_bd_net [get_bd_pins holy_wrapper_0/d_next_set_ptr] [get_bd_pins system_ila_0/probe9]
 connect_bd_net [get_bd_ports cpu_reset] [get_bd_pins system_ila_0/probe10]
+connect_bd_net [get_bd_pins holy_wrapper_0/csr_flush_order] [get_bd_pins system_ila_0/probe11]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_state] [get_bd_pins system_ila_0/probe12]
+connect_bd_net [get_bd_pins holy_wrapper_0/pc_source] [get_bd_pins system_ila_0/probe13]
 
 # Add axi converted for gpio
 

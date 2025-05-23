@@ -53,6 +53,7 @@ always_comb begin
             write_back_source = 3'b001; //memory_read
             branch = 1'b0;
             jump = 1'b0;
+            csr_write_enable = 1'b0;
         end
         // ALU I-type
         OPCODE_I_TYPE_ALU : begin
@@ -80,6 +81,7 @@ always_comb begin
             end else begin
                 reg_write = 1'b1;
             end
+            csr_write_enable = 1'b0;
         end
         // S-Type
         OPCODE_S_TYPE : begin
@@ -91,6 +93,7 @@ always_comb begin
             alu_source = 1'b1; //imm
             branch = 1'b0;
             jump = 1'b0;
+            csr_write_enable = 1'b0;
         end
         // R-Type
         OPCODE_R_TYPE : begin
@@ -102,6 +105,7 @@ always_comb begin
             write_back_source = 3'b000; //alu_result
             branch = 1'b0;
             jump = 1'b0;
+            csr_write_enable = 1'b0;
         end
         // B-type
         OPCODE_B_TYPE : begin
@@ -114,6 +118,7 @@ always_comb begin
             branch = 1'b1;
             jump = 1'b0;
             second_add_source = 2'b00;
+            csr_write_enable = 1'b0;
         end
         // J-type + JALR weird Hybrib
         OPCODE_J_TYPE, OPCODE_J_TYPE_JALR : begin
@@ -132,6 +137,7 @@ always_comb begin
                 second_add_source = 2'b10;
                 imm_source = 3'b000;
             end
+            csr_write_enable = 1'b0;
         end
         // U-type
         OPCODE_U_TYPE_LUI, OPCODE_U_TYPE_AUIPC : begin
@@ -146,12 +152,14 @@ always_comb begin
                 1'b1 : second_add_source = 2'b01; // lui
                 1'b0 : second_add_source = 2'b00; // auipc
             endcase
+            csr_write_enable = 1'b0;
         end
         // CSR instructions (SYSTEM OPCODE)
         OPCODE_CSR : begin
             imm_source = 3'b101;
             mem_write = 1'b0;
             reg_write = 1'b1;
+            jump = 1'b0;
             write_back_source = 3'b100;
             // Determine wb src from MSB of F3
             // 3'b0xx is for rs value
@@ -253,6 +261,6 @@ always_comb begin : branch_logic_decode
     endcase
 end
 
-assign pc_source = assert_branch | jump;
+assign pc_source = (assert_branch & (alu_op == ALU_OP_BRANCHES)) | jump;
     
 endmodule

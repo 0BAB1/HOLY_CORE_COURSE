@@ -253,6 +253,7 @@ async def main_test(dut):
     await Timer(1, units="ns")
 
     assert dut.cache_system.state.value == SENDING_WRITE_REQ
+    assert dut.cache_system.csr_flushing.value == 0b0
 
     assert dut.axi_awvalid.value == 0b1
     # awaddr writes back the current cached tag, i.e. 0x000
@@ -301,6 +302,7 @@ async def main_test(dut):
     await Timer(1, units="ns")
 
     assert dut.cache_system.state.value == WAITING_WRITE_RES
+    assert dut.cache_system.csr_flushing.value == 0b0
     assert dut.axi_wvalid.value == 0b0
     assert dut.axi_bready.value == 0b1
 
@@ -459,7 +461,25 @@ async def main_test(dut):
     await Timer(1, units="ns")
 
     assert dut.cache_system.state.value == SENDING_WRITE_REQ
+    assert dut.cache_system.csr_flushing.value == 0b1
     assert dut.axi_awvalid.value == 0b1
     assert dut.axi_arready.value == 0b1
 
-    # And so on ...
+    while not dut.cache_system.state.value == WAITING_WRITE_RES:
+        # wait for next IDLE state
+        await RisingEdge(dut.aclk)
+        await Timer(1, units="ns")
+
+    await RisingEdge(dut.aclk)
+    await Timer(1, units="ns")
+    # after WB flush, we go straight to IDLE and bypass read
+    assert dut.axi_bvalid.value == 0b1
+    assert dut.axi_bresp.value == 0b00
+    assert dut.cache_system.csr_flushing.value == 0b1
+    assert dut.cache_system.next_csr_flushing.value == 0b0
+    assert dut.cache_system.next_state.value == IDLE
+    
+    # csr flushin should be low again
+    await RisingEdge(dut.aclk)
+    await Timer(1, units="ns")
+    assert dut.cache_system.csr_flushing.value == 0b0
