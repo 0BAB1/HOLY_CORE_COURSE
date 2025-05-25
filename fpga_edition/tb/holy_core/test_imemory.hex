@@ -87,17 +87,17 @@ FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
 0003AA03  //                    lw x20 0x0(x7)      | x20 <= 00000000 + MISS + WRITE BACK + RELOAD !
 00100A13  //CSR FLUSH TEST :    addi x20 x0 0x1     | x20 <= 00000001
 7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 / flush_cache <= 00000001 / + WRITE BACK + RELOAD !
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
-00000013  //NOP
+00000A13  //CSR $ RANGE TEST :  addi x20 x0 0x0     | x20 <= 00000000
+00002A37  //                    lui x20 0x2         | x20 <= 00002000
+200A0A93  //                    addi x21 x20 0x200  | x21 <= 00002200
+7C1A1073  //                    csrrw x0 0x7C1 x20  | non_cachable_base <= 00002000
+7C2A9073  //                    csrrw x0 0x7C2 x21  | non_cachable_limit <= 00002200
+004A0A13  //                    addi x20 x20 0x4    | x20 <= 00002004
+ABCD1B37  //                    lui x22 0xABCD1     | x22 <= ABCD1000
+111B0B13  //                    addi x22 x22 0x111  | x22 <= ABCD1111
+016A2023  //                    sw x22 0(x20)       | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
+004A2B03  //                    lw x22 4(x20)       | x22 <= 00000000 / AXI LITE TX
+000A2B03  //                    lw x22 0(x20)       | x22 <= ABCD1111 / AXI LITE TX
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

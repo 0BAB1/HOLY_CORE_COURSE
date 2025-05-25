@@ -5,7 +5,7 @@
 *
 * holy_core cpu. A simple core to solve simple problems. Thus the holyness ;)
 *
-* Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.
+* Yea, though I walk through the valley of the shadow of death,I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.
 */
 
 `timescale 1ns/1ps
@@ -15,14 +15,15 @@ module holy_core (
     input logic rst_n,
     // AXI Interface for external requests
     axi_if.master m_axi,
+    axi_lite_if.master m_axi_lite,
 
     // OUTGOING DEBUG SIGNALS
     output logic [31:0] debug_pc,  
     output logic [31:0] debug_pc_next,
     output logic debug_pc_source,
     output logic [31:0] debug_instruction,  
-    output logic [2:0] debug_i_cache_state,  
-    output logic [2:0] debug_d_cache_state,
+    output logic [3:0] debug_i_cache_state,  
+    output logic [3:0] debug_d_cache_state,
     output logic [6:0] debug_i_set_ptr,  
     output logic [6:0] debug_i_next_set_ptr,  
     output logic [6:0] debug_d_set_ptr,  
@@ -54,6 +55,7 @@ assign debug_pc_source = pc_source;
 * M_AXI_ARBITRER, aka "mr l'arbitre"
 */
 
+// note : AXI_LITE if is declared directly as output
 axi_if m_axi_data();
 axi_if m_axi_instr();
 
@@ -116,6 +118,7 @@ end
 wire [31:0] instruction;
 cache_state_t i_cache_state;
 
+// holy_cache =/=  holy_data_cache !
 holy_cache instr_cache (
     .clk(clk),
     .rst_n(rst_n),
@@ -282,7 +285,11 @@ logic [11:0] csr_address;
 assign csr_address = instruction[31:20];
 logic [31:0] csr_read_data;
 logic csr_write_enable;
+
+// csr orders
 logic csr_flush_order;
+logic [31:0] csr_non_cachable_base;
+logic [31:0] csr_non_cachable_limit;
 
 csr_file holy_csr_file(
     //in
@@ -294,7 +301,9 @@ csr_file holy_csr_file(
     .address(csr_address),
     //out
     .read_data(csr_read_data),
-    .flush_cache_flag(csr_flush_order)
+    .flush_cache_flag(csr_flush_order),
+    .non_cachable_base_addr(csr_non_cachable_base),
+    .non_cachable_limit_addr(csr_non_cachable_limit)
 );
 
 /**
@@ -342,7 +351,7 @@ load_store_decoder ls_decode(
 wire [31:0] mem_read;
 cache_state_t d_cache_state;
 
-holy_cache data_cache (
+holy_data_cache data_cache (
     .clk(clk),
     .rst_n(rst_n),
 
@@ -354,12 +363,17 @@ holy_cache data_cache (
     .read_enable(mem_read_enable),
     .write_enable(mem_write_enable),
     .byte_enable(mem_byte_enable),
-    .csr_flush_order(csr_flush_order),
     .read_data(mem_read),
     .cache_stall(d_cache_stall),
 
+    // Incomming CSR orders
+    .csr_flush_order(csr_flush_order),
+    .non_cachable_base(csr_non_cachable_base),
+    .non_cachable_limit(csr_non_cachable_limit),
+
     // M_AXI EXERNAL REQ IF
     .axi(m_axi_data),
+    .axi_lite(m_axi_lite),
     .cache_state(d_cache_state),
 
     //debug

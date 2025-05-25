@@ -3760,6 +3760,8 @@ The choice is easy, **let's go for the struggle**, as this is what makes this co
 
 ### 12.2.a : HDL Code
 
+<!-- TODO : Update with new ay of validating axi lite result (or maybe not as i may talk about it in the datapath section to make it easier to follow) -->
+
 First, we have to create a whole new `holy_data_cache.sv` file and the tb that goes with it by copy pasting the "old" cache (mostly renaming stuff and modules).
 
 Let's start by declaring the `axi_lite_if.sv` interface in the `pkg/` folder :
@@ -4593,6 +4595,465 @@ The reason ? Chceck that using the non cachable range does not interfere with so
 And it works ! Great !
 
 ## 12.3 : Updating the datapath for the uncachable range
+
+### 12.3.a : HDL Code
+
+As always, we simply wire things up for the data path, so I am not going to give the code to you this time ;) **BUT** be assured that its *"business as usual"*, even though it's not trivial.
+
+Here is a list of thing you have to watch out for for this specific datapath implementation :
+
+- Declare the `axi_lite_if`
+  - In the data path (just like the full axi)
+  - And in the test harnesses
+- Don't forget to update cache state to 4 bits
+  - for the testbench files
+  - but also for the actual FPGA debug wire (*if you have your own*)
+- Link address ranges from `csr_file` to `data_cache`.
+- Don't forget rename the data cache module `holy_cache` -> `holy_data_cache` in the datapath HDL
+- Add `axi_lite_if` import to the tb's make file
+
+But that's not it ! We have to make a final modification to our cache for it to work with our datapath !
+
+> But... Why ?
+
+Great question, glad you asked.
+
+Our data ccache works great and as expected but for it to work with our code, we'll need to tweak it slighly.
+
+The reason why is that when we fetch a `sw` for example, the cache will **STALL** because the next state is not going to be
+IDLE and the  fetch the data. Once it's back at IDLE, the core does not behave like our tb : **The `sw` instruction is still being fetched** as the core was stalled the whole time, waiting for the cache to sop being busy.
+
+What does that mean ? well the cache now want to restart all over again to get the data through AXI LITE and it keeps stalling... forevermore.
+
+How do we solve this problem ? Well we'll add a `axi_lite_tx_done` flag to our cache to validate the data and allow the cache to know the requested data is good to go and de-assert stall.
+
+In a nutshell :
+
+- Add `axi_lite_tx_done` flage to cache and use it to :
+  - cancel stall
+  - stop cache from transitionning into LITE states for 1 clock cycle
+
+Here is an updated scheme for our cache :
+
+![data cache with done flag scheme](../images/data_cache_with_done_flag.JPG.jpg)
+
+Now let's implement it in the cache logic :
+
+```sv
+// holy_data_cache.sv
+
+module holy_data_cache #(
+    parameter CACHE_SIZE = 128
+)(
+    // I/Os ...
+);
+    // ...
+
+    // IMPORTANT : axi_lite_tx_done is flag used to determinen if R or W tx has been completed
+    // it is set to 1 after a successful AXI LITE TX to avoid going into a NON IDLE state right away
+    // and let the core fetch a new instruction.
+    // This also means it stays high for 1 clock cycle only before going low again, thus allwing the cache
+    // to go NON-IDLE again on the non cachable range.
+    logic                           axi_lite_tx_done, next_axi_lite_tx_done; // NEW !
+
+    // ...
+
+    // STALL LOGIC
+    // ...
+    assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done; // CHANGED !
+
+    // =======================
+    // CACHE LOGIC
+    // =======================
+    cache_state_t state, next_state;
+
+    // MAIN CLOCK DRIVEN SEQ LOGIC
+    always_ff @(posedge clk) begin
+        if (~rst_n) begin
+            // ...
+            axi_lite_tx_done <= 1'b0; // NEW !
+        end else begin
+            //...
+            axi_lite_tx_done <= next_axi_lite_tx_done; // NEW !
+        end
+    end
+
+    // AXI CLOCK DRIVEN SEQ LOGIC...
+
+    // =======================
+    // READ & MAIN FSM LOGIC
+    // =======================
+    always_comb begin
+        // State transition 
+        // ...
+        next_axi_lite_tx_done = axi_lite_tx_done; // NEW !
+
+        case (state)
+            IDLE: begin
+
+                // ...
+
+                // NEW ! autoreset
+                if(axi_lite_tx_done) begin
+                    // axi lite done flag auto reset
+                    next_axi_lite_tx_done = 1'b0;
+                end
+            end
+            
+
+            // ... AXI FULL states defs ...
+
+            LITE_SENDING_WRITE_REQ : begin
+                // ...
+            end
+
+            LITE_SENDING_WRITE_DATA : begin
+                // ...
+
+            end
+
+            LITE_WAITING_WRITE_RES : begin
+                if(axi_lite.bvalid && (axi_lite.bresp == 2'b00)) begin
+                    next_state = IDLE;
+                    // flag tx as done as well
+                    next_axi_lite_tx_done = 1'b1; // NEW§
+                end else if(axi_lite.bvalid && (axi_lite.bresp != 2'b00)) begin
+                    $display("ERROR WRTING TO MAIN MEMORY !");
+                    next_state = IDLE;
+                end
+
+                // ...
+            end
+
+            LITE_SENDING_READ_REQ : begin
+                // ...
+            end
+
+            LITE_RECEIVING_READ_DATA : begin
+                if (axi_lite.rvalid) begin
+                    next_state = IDLE;
+                    // flag tx as done as well
+                    next_axi_lite_tx_done = 1'b1; // NEW !
+                end
+            
+                // AXI LITE Signals ...
+            end
+            
+            default : begin
+                $display("CACHE FSM SATETE ERROR");
+            end
+        endcase
+    end
+    //...
+endmodule
+```
+
+We verify that old tests still passes well (may have to make 1 adjustment on a timing issue by simply waiting an addition clock cycle for `axi_lite_tx_done` to auto reset and also add a few assertions to verify its behavior... But I'll let you handle that :-} )
+
+ANd now we're all set to move on to verifying this !
+
+### 12.3.b : Verification
+
+The test is once agin pretty straight forward, we'll follow olong with a test program and assertion, hoping everything goes "according to plan".
+
+Before hoping to the tb additions and modifications, let's agree on a test program :
+
+```txt
+// test_imemory.hex
+
+// .. other tests ...
+
+00000A13  //CSR $ RANGE TEST :  addi x20 x0 0x0     | x20 <= 00000000
+00002A37  //                    lui x20 0x2         | x20 <= 00002000
+200A0A93  //                    addi x21 x20 0x200  | x21 <= 00002200
+7C1A1073  //                    csrrw x0 0x7C1 x20  | non_cachable_base <= 00002000
+7C2A9073  //                    csrrw x0 0x7C2 x21  | non_cachable_limit <= 00002200
+004A0A13  //                    addi x20 x20 0x4    | x20 <= 00002004
+ABCD1B37  //                    lui x22 0xABCD1     | x22 <= ABCD1000
+111B0B13  //                    addi x22 x22 0x111  | x22 <= ABCD1111
+016A2023  //                    sw x22 0(x20)       | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
+004A2B03  //                    lw x22 4(x20)       | x22 <= 00000000 / AXI LITE TX
+000A2B03  //                    lw x22 0(x20)       | x22 <= ABCD1111 / AXI LITE TX
+
+// .. NOPs ...
+```
+
+So as you can see, we :
+
+1. Prepare some constants (non cachable range)
+2. Write these to the CSRs
+3. Execute store / loads on this new non cachable range.
+
+The goal will be to verify that everython behaves smoothly on the CPU side.
+
+Here is the associated tb code :
+
+```python
+# test_holy_core.py
+
+# update imports
+from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
+
+@cocotb.test()
+async def cpu_insrt_test(dut):
+
+    # ...
+
+    SIZE = 2**14 # Change this (larger memory)
+
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False) # Declare this !
+
+    # OTHER TESTS ...
+
+    #################
+    # CSR & CACHE TESTS (UNCACHABLE RANGE SETTING)
+    # 00000A13  //CSR $ RANGE TEST :  addi x20 x0 0x0     | x20 <= 00000000
+    # 00002A37  //                    lui x20 0x2         | x20 <= 00002000
+    # 200A0A93  //                    addi x21 x20 0x200  | x21 <= 00002200
+    # 7C1A1073  //                    csrrw x0 0x7C1 x20  | non_cachable_base <= 00002000
+    # 7C2A9073  //                    csrrw x0 0x7C2 x21  | non_cachable_limit <= 00002200
+    # 004A0A13  //                    addi x20 x20 0x4    | x20 <= 00002004
+    # ABCD1B37  //                    lui x22 0xABCD1     | x22 <= ABCD1000
+    # 111B0B13  //                    addi x22 x22 0x111  | x22 <= ABCD1111
+    # 016A2023  //                    sw x22 0(x20)       | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
+    # 004A2B03  //                    lw x22 4(x20)       | x22 <= 00000000 / AXI LITE TX
+    # 000A2B03  //                    lw x22 0(x20)       | x22 <= ABCD1111 / AXI LITE TX
+    ##################
+
+    # check init state
+    assert binary_to_hex(dut.core.instruction.value) == "00000A13"
+
+    # generate constants
+    await RisingEdge(dut.clk) # addi x20 x0 0x0
+    await RisingEdge(dut.clk) # lui x20 0x2
+    await RisingEdge(dut.clk) # addi x21 x20 0x200
+    await Timer(1, units="ns")
+
+    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00002000"
+    assert binary_to_hex(dut.core.regfile.registers[21].value) == "00002200"
+
+    # write the CRSs
+    await RisingEdge(dut.clk) # csrrw x0 0x7C1 x20
+    await RisingEdge(dut.clk) # csrrw x0 0x7C2 x21
+    await Timer(1, units="ns")
+
+    assert binary_to_hex(dut.core.holy_csr_file.non_cachable_base.value) == "00002000"
+    assert binary_to_hex(dut.core.holy_csr_file.non_cachable_limit.value) == "00002200"
+
+    # generate addr & write data constant
+    await RisingEdge(dut.clk) # addi x20 x20 0x4
+    await RisingEdge(dut.clk) # lui x22 0xABCD1
+    await RisingEdge(dut.clk) # addi x22 x22 0x111
+
+    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00002004"
+    assert binary_to_hex(dut.core.regfile.registers[22].value) == "ABCD1111"
+
+    # make sure data is initialy 0 where we'll test
+    axi_lite_ram_slave.write(0x0000_2004, int(0x0000_0000).to_bytes(4, 'little'))
+    axi_lite_ram_slave.write(0x0000_2008, int(0x0000_0000).to_bytes(4, 'little'))
+
+    # -----------------------------------
+    # WRITE TO MMIO SLAVE USING AXI LITE
+
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.non_cachable.value == 0b1
+    await RisingEdge(dut.clk) # do not execute...
+
+    # core shouls be in  AXI_LITE TRANSACTION
+    assert dut.core.data_cache.state.value == LITE_SENDING_WRITE_REQ
+
+    # we wait until its done
+    while dut.core.stall.value == 0b1:
+        await RisingEdge(dut.clk)
+
+    # check that data has been written
+    assert axi_lite_ram_slave.read(0x0000_2004, 4) == (0xABCD1111).to_bytes(4, "little")
+    assert dut.core.stall.value == 0b0
+
+    # -----------------------------------
+    # READ MMIO SLAVE USING AXI LITE
+
+    await RisingEdge(dut.clk) # EXECUTED sw x22 0(x20), FETCHING lw x22 4(x20)
+
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.non_cachable.value == 0b1
+
+    # core should be about to go to AXI_LITE TRANSACTION
+    assert dut.core.data_cache.next_state.value == LITE_SENDING_READ_REQ
+
+    # we wait until its done
+    while dut.core.stall.value == 0b1:
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk) # EXECUTED lw x22 4(x20), FETCHING lw x22 0(x20)
+
+    assert binary_to_hex(dut.core.regfile.registers[22].value) == "00000000"
+
+
+    # -----------------------------------
+    # READ MMIO SLAVE USING AXI LITE
+
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.non_cachable.value == 0b1
+
+    # core should be about to go to AXI_LITE TRANSACTION
+    assert dut.core.data_cache.next_state.value == LITE_SENDING_READ_REQ
+
+    # we wait until its done
+    while dut.core.stall.value == 0b1:
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk) # EXECUTED lw x22 0(x20)
+
+    assert binary_to_hex(dut.core.regfile.registers[22].value) == "ABCD1111"
+```
+
+And voila ! we tested our feature and it *kinda* works ! Great ! Now let's test it on real FPGA.
+
+## 13 : Testing the non cachable ranges on FPGA (LEDs)
+
+Okay so to test in out on FPGA, it all depends on your FPGA and board. Because I have a zybo z7-20, it might not work for you but here is what my SoC looks like :
+
+![new soc for design with axi lite if](../images/axi_soc2.png)
+
+As you can see, **AXI LITE** and and **AXI FULL** are somwhat co exsting on the SoC, the use the same interconnect (had to add axi lite manually though) and thus axi lite can access any range (peripheral) as well as axi full can.
+
+I do'nt know the limits of such a solution yet but so far, the following works pretty well :
+
+- Old manual cache miss still works
+- Old csr cach flush design still works fine
+
+And last but not least :
+
+- **New non cachable range works fine and with expected behavior !**
+
+Here is the test program I then compiled and loaded in memory using, as always, the **JTAG to AXI-M** IP :
+
+```assembly
+.section .text
+.align 2
+.global _start
+
+start:
+    # Initialization
+    lui x6, 0x2                 # 00002337 Load GPIO base address x6 <= 0x00002000
+    lui x7, 0x2                 # same for x7 <= 0x00002000
+    ori x7, x7, -1              # FFF3E393 set GPIO address limit x7 <= 0x00002FFF
+    csrrw x0, 0x7C1, x6         # set base in csr
+    csrrw x0, 0x7C2, x7         # set limit in csr
+    addi x18, x0, 0             # 00000913 main counter, set to 0
+    j loop                      # 0040006f
+
+loop:
+    addi x18, x18, 0x1          # 00190913 increment counter
+    sw x18, 0(x6)               # 01232023 write new counter value to GPIO based address
+
+    # Delay loop: Wait for 50,000,000 clock cycles = 1s @ 50Mhz
+    li x21, 50000000            # 02fafab7 / 080a8a93 Load 50,000,000 into x21
+    
+delay_loop:
+    addi x21, x21, -1           # fffa8a93 Decrement x21
+    bnez x21, delay_loop        # fe0a9ee3 If x21 != 0, continue looping
+
+    j loop                      # fd9ff06f Restart the loop
+```
+
+**And finally, after so many struglle, we finally have a clean way to make LEDs blink !**
+
+Let's take a moment to celebrate and think about the future of this project...
+
+What comes to mind.. Rest ? Taking a break ?
+
+**WRONG !**
+
+Let's make it, finally, print "**hello world**" ! We are this close !
+
+## 14 : Hello, World !
+
+How does one make a cpu say hello world ? We'll use UART to send text data to a terminal on a host computer !
+
+Well, we'll use an ip for that of course because I don't wanna drive an output pin though pure software and drivers (maybe later, but not now), nor I want to make my own IP for this as vido already has one :
+
+=> **The UART-LITE IP !**
+
+So let's drag and drop it to our SoC, while begin careful to map the addresses well and note them down to make sure we can set it as non cachable.
+
+==================== TODO , ADD SOC SCHEME AND ADDRESSES
+
+By running connection automation, vivado fills the uart pins with a weird "`uart_rtl`" port.
+
+Don't be like me, a fool, who though that meant my CPU would magically use the UART embedded in the power cable that the Zynq processing system uses. **Turns out it doesn't** so instead of looking around on how do do that, I'll just use this :
+
+==================== TODO , ADD PHOTO OF PMOD UART
+
+[*(clickable link to the docs)*](https://digilent.com/reference/pmod/pmodusbuart/reference-manual?redirect=1)
+
+[*(clickable link to the schematics)*](https://digilent.com/reference/_media/reference/pmod/pmodusbuart/pmodusbuart_sch.pdf)
+
+[*(clickable link to the digilent shop)*](https://digilent.com/shop/pmod-usbuart-usb-to-uart-interface/)
+
+> TODO : add this small module to prerequisites and add link to z7-20 schematics.
+
+Alright so we'll say we'll plug this nice little PCB in the JE PMOD upper female connector. Let's see which pin is which using the schematics :
+
+![alt text](../images/pmod_schemes.png)
+
+We can see that pins 1 to 4 of the PMOD are linked to pins JE1 to JE4 of the board.
+
+And here is what the pins do on the PMOD Uart to USB pcb :
+
+ Pin | Signal | Description                                 |
+-----|--------|---------------------------------------------|
+ 1   | `~RTS`   | Request to Send Output (active low)         |
+ 2   | `RXD`   | Receive data from host to Pmod              |
+ 3   | `TXD`   | Transmit data from Pmod to host             |
+ 4   | `~CTS`   | Clear to Send Input (active low)            |
+ 5   | `GND`   | Power Supply Ground                         |
+ 6   | `VCC`   | Power Supply                                |
+
+Note that `~RTS` & `~CTS` are optional so we won't use it. And we can't anyway so let's dicard their existence.
+
+Alright, we have all the information wee need ! only 2 pins to bind to be exact and we can move on to the sofware side of things.
+
+Here is ho I improve the `constraints.xdc` file to line the `uart_rtl` outpouts generated by connection automation to the real, physical pin of the *"PMOD UART to USB"*.
+
+> Small tip, in vivado, double click on the block design generated wrapper to get the detailled names of the `uart_rtl` output. for me its *uart_rtl_rxd* and *uart_rtl_txd*.
+
+```tcl
+# constraints.xcd
+
+# CONSTRAINT FILE FOR TARGET BOARD : ZYBO Z7-20 ONLY
+
+# old constriants
+
+set_property PACKAGE_PIN T16 [get_ports cpu_reset]
+set_property IOSTANDARD LVCMOS33 [get_ports cpu_reset]
+
+set_property PACKAGE_PIN W13 [get_ports axi_reset]
+set_property IOSTANDARD LVCMOS33 [get_ports axi_reset]
+
+# UART Constraints (NEW !)
+
+# JE1 = RX input from host (USB-UART TX → FPGA RX)
+set_property PACKAGE_PIN V12 [get_ports uart_rtl_rxd]
+set_property IOSTANDARD LVCMOS33 [get_ports uart_rtl_rxd]
+
+# JE2 = TX output to host (FPGA TX → USB-UART RX)
+set_property PACKAGE_PIN W16 [get_ports uart_rtl_txd]
+set_property IOSTANDARD LVCMOS33 [get_ports uart_rtl_txd]
+```
+
+As you can see, JE1 is not really JE1 and same for JE2. You'll need to check your boards schematics to know the REAL FPGA pin name on the IO bank. Example :
+
+![alt text](../images/io_bank_pin.png)
+
+Looks like we are all set ! once you have a bitstream, we can
+
+1. Check if our LED program still works *(did we break anything ?)*
+2. Move on to writing our ***hello world*** program !
+
+> Note : My JE PMOD did not work for some reason so I moved it to JB (the one on the picture above as I take pictures once things work). But the idea stays the same for your board / FPGA.
 
 
 

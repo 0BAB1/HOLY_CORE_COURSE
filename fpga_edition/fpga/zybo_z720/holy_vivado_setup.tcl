@@ -9,6 +9,7 @@
 #
 # BRH 12/24
 # Updated 05/25 by BRH : added csr support
+# Updated 05/25 by BRH : added axi_lite
 
 # Create a new project
 create_project holy_soc_project ./HOLY_SOC -part xc7z020clg400-1 -force
@@ -20,10 +21,12 @@ add_files -fileset constrs_1 -norecurse ./fpga_edition/fpga/zybo_z720/constraint
 # Add source files
 add_files -norecurse {
     ./fpga_edition/fpga/holy_wrapper.v
+    ./fpga_edition/src/holy_data_cache.sv
     ./fpga_edition/src/holy_cache.sv
     ./fpga_edition/src/control.sv
     ./fpga_edition/src/reader.sv
     ./fpga_edition/packages/axi_if.sv
+    ./fpga_edition/packages/axi_lite_if.sv
     ./fpga_edition/packages/holy_core_pkg.sv
     ./fpga_edition/src/regfile.sv
     ./fpga_edition/src/external_req_arbitrer.sv

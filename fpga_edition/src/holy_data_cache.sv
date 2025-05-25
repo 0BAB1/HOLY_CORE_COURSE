@@ -29,11 +29,11 @@ module holy_data_cache #(
     input logic         read_enable,
     input logic         write_enable,
     input logic [3:0]   byte_enable,
-    input logic         csr_flush_order,
     output logic [31:0] read_data,
     output logic        cache_stall,
 
-    // incomming cachable range from CSRs
+    // incomming CSR Orders
+    input logic         csr_flush_order,
     input logic [31:0] non_cachable_base,
     input logic [31:0] non_cachable_limit,
 
@@ -70,7 +70,14 @@ module holy_data_cache #(
     // meaning the end user (dev) has to be aware that low range resolution eg 0x00000000 to 0x000000000F will not be considered.
     logic                           non_cachable;
     assign non_cachable = ((req_block_tag >= non_cachable_base[31:9]) && (req_block_tag < non_cachable_limit[31:9]));
+
     logic [31:0]                    axi_lite_read_result; // axi lite's only data reg for non cachable data
+    // IMPORTANT : axi_lite_tx_done is flag used to determinen if R or W tx has been completed
+    // it is set to 1 after a successful AXI LITE TX to avoid going into a NON IDLE state right away
+    // and let the core fetch a new instruction.
+    // This also means it stays high for 1 clock cycle only before going low again, thus allwing the cache
+    // to go NON-IDLE again on the non cachable range.
+    logic                           axi_lite_tx_done, next_axi_lite_tx_done;
 
     // INCOMING CACHE REQUEST SIGNALS
     logic [31:9]                    req_block_tag;
@@ -88,7 +95,7 @@ module holy_data_cache #(
     assign actual_write_enable = write_enable & |byte_enable;
     logic comb_stall, seq_stall;
     assign comb_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
-    assign cache_stall = comb_stall | seq_stall;
+    assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done;
 
     // =======================
     // CACHE LOGIC
@@ -102,6 +109,7 @@ module holy_data_cache #(
             cache_dirty <= 1'b0;
             seq_stall <= 1'b0;
             csr_flushing <= 1'b0;
+            axi_lite_tx_done <= 1'b0;
         end else begin
             cache_valid <= next_cache_valid;
             seq_stall <= comb_stall;
@@ -122,6 +130,7 @@ module holy_data_cache #(
             end
 
             csr_flushing <= next_csr_flushing;
+            axi_lite_tx_done <= next_axi_lite_tx_done;
         end
     end
 
@@ -143,6 +152,7 @@ module holy_data_cache #(
         // State transition 
         next_state = state; // Default
         next_cache_valid = cache_valid;
+        next_axi_lite_tx_done = axi_lite_tx_done;
 
         // AXI DEFAULT
         axi.wlast = 1'b0;
@@ -179,11 +189,11 @@ module holy_data_cache #(
                     endcase
                 end
                 
-                else if ( read_enable & non_cachable ) begin
+                else if ( read_enable & non_cachable & ~axi_lite_tx_done ) begin
                     next_state = LITE_SENDING_READ_REQ;
                 end
 
-                else if ( write_enable & non_cachable ) begin
+                else if ( write_enable & non_cachable & ~axi_lite_tx_done ) begin
                     next_state = LITE_SENDING_WRITE_REQ;
                 end
 
@@ -220,6 +230,10 @@ module holy_data_cache #(
                 axi_lite.arvalid = 1'b0;
                 axi_lite.rready = 1'b0;
 
+                if(axi_lite_tx_done) begin
+                    // axi lite done flag auto reset
+                    next_axi_lite_tx_done = 1'b0;
+                end
             end
             SENDING_WRITE_REQ: begin
                 // HANDLE MISS WITH DIRTY CACHE : Update main memory first
@@ -363,6 +377,8 @@ module holy_data_cache #(
             LITE_WAITING_WRITE_RES : begin
                 if(axi_lite.bvalid && (axi_lite.bresp == 2'b00)) begin
                     next_state = IDLE;
+                    // flag tx as done as well
+                    next_axi_lite_tx_done = 1'b1;
                 end else if(axi_lite.bvalid && (axi_lite.bresp != 2'b00)) begin
                     $display("ERROR WRTING TO MAIN MEMORY !");
                     next_state = IDLE;
@@ -399,6 +415,8 @@ module holy_data_cache #(
             LITE_RECEIVING_READ_DATA : begin
                 if (axi_lite.rvalid) begin
                     next_state = IDLE;
+                    // flag tx as done as well
+                    next_axi_lite_tx_done = 1'b1;
                 end
             
                 // AXI LITE Signals

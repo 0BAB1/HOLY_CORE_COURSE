@@ -261,6 +261,6 @@ always_comb begin : branch_logic_decode
     endcase
 end
 
-assign pc_source = (assert_branch & (alu_op == ALU_OP_BRANCHES)) | jump;
+assign pc_source = (assert_branch & (op == OPCODE_B_TYPE)) | jump;
     
 endmodule

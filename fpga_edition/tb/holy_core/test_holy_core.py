@@ -8,7 +8,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 import random
-from cocotbext.axi import AxiBus, AxiRam
+from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 import numpy as np
 
 # WARNING : Passing test on async cloks does not mean CDC timing sync is met !
@@ -16,12 +16,18 @@ AXI_PERIOD = 10
 CPU_PERIOD = 10
 
 # CACHE STATES CST
-IDLE                = 0b000
-SENDING_WRITE_REQ   = 0b001
-SENDING_WRITE_DATA  = 0b010
-WAITING_WRITE_RES   = 0b011
-SENDING_READ_REQ    = 0b100
-RECEIVING_READ_DATA = 0b101
+IDLE                        = 0b0000
+SENDING_WRITE_REQ           = 0b0001
+SENDING_WRITE_DATA          = 0b0010
+WAITING_WRITE_RES           = 0b0011
+SENDING_READ_REQ            = 0b0100
+RECEIVING_READ_DATA         = 0b0101
+# LITE states, only for data cache
+LITE_SENDING_WRITE_REQ      = 0b0110
+LITE_SENDING_WRITE_DATA     = 0b0111
+LITE_WAITING_WRITE_RES      = 0b1000
+LITE_SENDING_READ_REQ       = 0b1001
+LITE_RECEIVING_READ_DATA    = 0b1010
 
 def binary_to_hex(bin_str):
     # Convert binary string to hexadecimal
@@ -86,8 +92,9 @@ async def cpu_insrt_test(dut):
     # 0x0000
     #===============
 
-    SIZE = 2**13
+    SIZE = 2**14
     axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
 
     await cpu_reset(dut)
     await init_memory(axi_ram_slave, "./test_imemory.hex", 0x0000)
@@ -760,3 +767,105 @@ async def cpu_insrt_test(dut):
     assert dut.core.stall.value == 0b0
     assert binary_to_hex(dut.core.holy_csr_file.flush_cache.value) == "00000000"
     assert binary_to_hex(dut.core.pc) == "00000164"
+
+    #################
+    # CSR & CACHE TESTS (UNCACHABLE RANGE SETTING)
+    # 00000A13  //CSR $ RANGE TEST :  addi x20 x0 0x0     | x20 <= 00000000
+    # 00002A37  //                    lui x20 0x2         | x20 <= 00002000
+    # 200A0A93  //                    addi x21 x20 0x200  | x21 <= 00002200
+    # 7C1A1073  //                    csrrw x0 0x7C1 x20  | non_cachable_base <= 00002000
+    # 7C2A9073  //                    csrrw x0 0x7C2 x21  | non_cachable_limit <= 00002200
+    # 004A0A13  //                    addi x20 x20 0x4    | x20 <= 00002004
+    # ABCD1B37  //                    lui x22 0xABCD1     | x22 <= ABCD1000
+    # 111B0B13  //                    addi x22 x22 0x111  | x22 <= ABCD1111
+    # 016A2023  //                    sw x22 0(x20)       | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
+    # 004A2B03  //                    lw x22 4(x20)       | x22 <= 00000000 / AXI LITE TX
+    # 000A2B03  //                    lw x22 0(x20)       | x22 <= ABCD1111 / AXI LITE TX
+    ##################
+
+    # check init state
+    assert binary_to_hex(dut.core.instruction.value) == "00000A13"
+
+    # generate constants
+    await RisingEdge(dut.clk) # addi x20 x0 0x0
+    await RisingEdge(dut.clk) # lui x20 0x2
+    await RisingEdge(dut.clk) # addi x21 x20 0x200
+    await Timer(1, units="ns")
+
+    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00002000"
+    assert binary_to_hex(dut.core.regfile.registers[21].value) == "00002200"
+
+    # write the CRSs
+    await RisingEdge(dut.clk) # csrrw x0 0x7C1 x20
+    await RisingEdge(dut.clk) # csrrw x0 0x7C2 x21
+    await Timer(1, units="ns")
+
+    assert binary_to_hex(dut.core.holy_csr_file.non_cachable_base.value) == "00002000"
+    assert binary_to_hex(dut.core.holy_csr_file.non_cachable_limit.value) == "00002200"
+
+    # generate addr & write data constant
+    await RisingEdge(dut.clk) # addi x20 x20 0x4
+    await RisingEdge(dut.clk) # lui x22 0xABCD1
+    await RisingEdge(dut.clk) # addi x22 x22 0x111
+
+    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00002004"
+    assert binary_to_hex(dut.core.regfile.registers[22].value) == "ABCD1111"
+
+    # make sure data is initialy 0 where we'll test
+    axi_lite_ram_slave.write(0x0000_2004, int(0x0000_0000).to_bytes(4, 'little'))
+    axi_lite_ram_slave.write(0x0000_2008, int(0x0000_0000).to_bytes(4, 'little'))
+
+    # -----------------------------------
+    # WRITE TO MMIO SLAVE USING AXI LITE
+
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.non_cachable.value == 0b1
+    await RisingEdge(dut.clk) # do not execute...
+
+    # core shouls be in  AXI_LITE TRANSACTION
+    assert dut.core.data_cache.state.value == LITE_SENDING_WRITE_REQ
+
+    # we wait until its done
+    while dut.core.stall.value == 0b1:
+        await RisingEdge(dut.clk)
+
+    # check that data has been written
+    assert axi_lite_ram_slave.read(0x0000_2004, 4) == (0xABCD1111).to_bytes(4, "little")
+    assert dut.core.stall.value == 0b0
+
+    # -----------------------------------
+    # READ MMIO SLAVE USING AXI LITE
+
+    await RisingEdge(dut.clk) # EXECUTED sw x22 0(x20), FETCHING lw x22 4(x20)
+
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.non_cachable.value == 0b1
+
+    # core should be about to go to AXI_LITE TRANSACTION
+    assert dut.core.data_cache.next_state.value == LITE_SENDING_READ_REQ
+
+    # we wait until its done
+    while dut.core.stall.value == 0b1:
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk) # EXECUTED lw x22 4(x20), FETCHING lw x22 0(x20)
+
+    assert binary_to_hex(dut.core.regfile.registers[22].value) == "00000000"
+
+
+    # -----------------------------------
+    # READ MMIO SLAVE USING AXI LITE
+
+    assert dut.core.stall.value == 0b1
+    assert dut.core.data_cache.non_cachable.value == 0b1
+
+    # core should be about to go to AXI_LITE TRANSACTION
+    assert dut.core.data_cache.next_state.value == LITE_SENDING_READ_REQ
+
+    # we wait until its done
+    while dut.core.stall.value == 0b1:
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk) # EXECUTED lw x22 0(x20)
+
+    assert binary_to_hex(dut.core.regfile.registers[22].value) == "ABCD1111"
