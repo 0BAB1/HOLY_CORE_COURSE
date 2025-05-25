@@ -11,13 +11,13 @@ module holy_test_harness (
     input logic clk,
     input logic rst_n,
 
-    // ================================
-    // Detailled AXI IF for tb purpose
-    // ================================
-
     // axi clock
     input logic aclk,
     input logic aresetn,
+
+    //=======================
+    // AXI FULL Interface
+    //=======================
     
     // Write Address Channel
     output logic [3:0]               m_axi_awid,
@@ -56,10 +56,36 @@ module holy_test_harness (
     input  logic [1:0]               m_axi_rresp,
     input  logic                     m_axi_rlast,
     input  logic                     m_axi_rvalid,
-    output logic                     m_axi_rready
+    output logic                     m_axi_rready,
+
+    //=======================
+    // AXI-Lite Interface
+    //=======================
+    output logic [31:0] m_axi_lite_awaddr,
+    output logic        m_axi_lite_awvalid,
+    input  logic        m_axi_lite_awready,
+
+    output logic [31:0] m_axi_lite_wdata,
+    output logic [3:0]  m_axi_lite_wstrb,
+    output logic        m_axi_lite_wvalid,
+    input  logic        m_axi_lite_wready,
+
+    input  logic [1:0]  m_axi_lite_bresp,
+    input  logic        m_axi_lite_bvalid,
+    output logic        m_axi_lite_bready,
+
+    output logic [31:0] m_axi_lite_araddr,
+    output logic        m_axi_lite_arvalid,
+    input  logic        m_axi_lite_arready,
+
+    input  logic [31:0] m_axi_lite_rdata,
+    input  logic [1:0]  m_axi_lite_rresp,
+    input  logic        m_axi_lite_rvalid,
+    output logic        m_axi_lite_rready
 );
 
 axi_if m_axi();
+axi_lite_if m_axi_lite();
 
 /* verilator lint_off PINMISSING */
 holy_core core(
@@ -67,12 +93,17 @@ holy_core core(
     .rst_n(rst_n),
 
     // AXI Master Interface
-    .m_axi(m_axi)
+    .m_axi(m_axi),
+    .m_axi_lite(m_axi_lite)
 
     // We don't use debug signals in tb
     // ...
 );
 /* verilator lint_on PINMISSING */
+
+//=======================
+// AXI FULL Interface
+//=======================
 
 // Connect the discrete AXI signals to the m_axi
 assign m_axi.aclk       = aclk;
@@ -117,5 +148,32 @@ assign m_axi.rresp  = m_axi_rresp;
 assign m_axi.rlast  = m_axi_rlast;
 assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
+
+//=======================
+// AXI-Lite Interface
+//=======================
+
+// Connect AXI-Lite signals
+assign m_axi_lite_awaddr  = m_axi_lite.awaddr;
+assign m_axi_lite_awvalid = m_axi_lite.awvalid;
+assign m_axi_lite.awready = m_axi_lite_awready;
+
+assign m_axi_lite_wdata   = m_axi_lite.wdata;
+assign m_axi_lite_wstrb   = m_axi_lite.wstrb;
+assign m_axi_lite_wvalid  = m_axi_lite.wvalid;
+assign m_axi_lite.wready  = m_axi_lite_wready;
+
+assign m_axi_lite.bresp   = m_axi_lite_bresp;
+assign m_axi_lite.bvalid  = m_axi_lite_bvalid;
+assign m_axi_lite_bready  = m_axi_lite.bready;
+
+assign m_axi_lite_araddr  = m_axi_lite.araddr;
+assign m_axi_lite_arvalid = m_axi_lite.arvalid;
+assign m_axi_lite.arready = m_axi_lite_arready;
+
+assign m_axi_lite.rdata   = m_axi_lite_rdata;
+assign m_axi_lite.rresp   = m_axi_lite_rresp;
+assign m_axi_lite.rvalid  = m_axi_lite_rvalid;
+assign m_axi_lite_rready  = m_axi_lite.rready;
 
 endmodule

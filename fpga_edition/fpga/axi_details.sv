@@ -59,6 +59,37 @@ module axi_details (
     output logic                     m_axi_rready,
 
     // ========================
+    // AXI LITE INTERFACE
+    // ========================
+
+    // AXI Lite Write Address Channel
+    output logic [31:0]              m_axi_lite_awaddr,
+    output logic                     m_axi_lite_awvalid,
+    input  logic                     m_axi_lite_awready,
+
+    // AXI Lite Write Data Channel
+    output logic [31:0]              m_axi_lite_wdata,
+    output logic [3:0]               m_axi_lite_wstrb,
+    output logic                     m_axi_lite_wvalid,
+    input  logic                     m_axi_lite_wready,
+
+    // AXI Lite Write Response Channel
+    input  logic [1:0]               m_axi_lite_bresp,
+    input  logic                     m_axi_lite_bvalid,
+    output logic                     m_axi_lite_bready,
+
+    // AXI Lite Read Address Channel
+    output logic [31:0]              m_axi_lite_araddr,
+    output logic                     m_axi_lite_arvalid,
+    input  logic                     m_axi_lite_arready,
+
+    // AXI Lite Read Data Channel
+    input  logic [31:0]              m_axi_lite_rdata,
+    input  logic [1:0]               m_axi_lite_rresp,
+    input  logic                     m_axi_lite_rvalid,
+    output logic                     m_axi_lite_rready,
+
+    // ========================
     // Detailled DEBUG SIGNALS
     // ========================
 
@@ -69,8 +100,8 @@ module axi_details (
     output logic pc_source,
 
     // Cache debug signals
-    output logic [2:0] i_cache_state,
-    output logic [2:0] d_cache_state, 
+    output logic [3:0] i_cache_state,
+    output logic [3:0] d_cache_state, 
     output logic i_cache_stall,
     output logic d_cache_stall, 
     output logic [6:0] i_cache_set_ptr,
@@ -82,6 +113,7 @@ module axi_details (
 
 // INTERFACES DECLARATION
 axi_if m_axi(); // axi master
+axi_lite_if m_axi_lite(); // axi lite master
 
 holy_core core(
     .clk(clk), 
@@ -89,6 +121,7 @@ holy_core core(
 
     // AXI Master Interface
     .m_axi(m_axi),
+    .m_axi_lite(m_axi_lite),
 
     // Debug out interface
     .debug_pc(pc),  
@@ -109,6 +142,8 @@ holy_core core(
 // Connect the discrete AXI signals to the m_axi
 assign m_axi.aclk       = aclk;
 assign m_axi.aresetn    = aresetn;
+
+// ========== AXI FULL BINDINGS ==========
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;
@@ -149,5 +184,34 @@ assign m_axi.rresp  = m_axi_rresp;
 assign m_axi.rlast  = m_axi_rlast;
 assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
+
+// ========== AXI LITE BINDINGS ==========
+
+// Write Address Channel
+assign m_axi_lite_awaddr   = m_axi_lite.awaddr;
+assign m_axi_lite_awvalid  = m_axi_lite.awvalid;
+assign m_axi_lite.awready  = m_axi_lite_awready;
+
+// Write Data Channel
+assign m_axi_lite_wdata    = m_axi_lite.wdata;
+assign m_axi_lite_wstrb    = m_axi_lite.wstrb;
+assign m_axi_lite_wvalid   = m_axi_lite.wvalid;
+assign m_axi_lite.wready   = m_axi_lite_wready;
+
+// Write Response Channel
+assign m_axi_lite.bresp    = m_axi_lite_bresp;
+assign m_axi_lite.bvalid   = m_axi_lite_bvalid;
+assign m_axi_lite_bready   = m_axi_lite.bready;
+
+// Read Address Channel
+assign m_axi_lite_araddr   = m_axi_lite.araddr;
+assign m_axi_lite_arvalid  = m_axi_lite.arvalid;
+assign m_axi_lite.arready  = m_axi_lite_arready;
+
+// Read Data Channel
+assign m_axi_lite.rdata    = m_axi_lite_rdata;
+assign m_axi_lite.rresp    = m_axi_lite_rresp;
+assign m_axi_lite.rvalid   = m_axi_lite_rvalid;
+assign m_axi_lite_rready   = m_axi_lite.rready;
 
 endmodule

@@ -4555,12 +4555,10 @@ always_comb begin : branch_logic_decode
     endcase
 end
 
-assign pc_source = (assert_branch & (alu_op == ALU_OP_BRANCHES)) | jump;
+assign pc_source = (assert_branch & (op == OPCODE_B_TYPE)) | jump; // bug fixed 05/25 BRH
 ```
 
-You can see I used an intermediate "*assert_branch*" signal. There are **many** ways to implement this logic, some are more efficient if you concatenate the branch logic in the other decoders, **but who cares** ? (*coping again*)
-
-> **BUG FIX NOTE** : went from `assign pc_source = assert_branch | jump;` to `assign pc_source = (assert_branch & (alu_op == ALU_OP_BRANCHES)) | jump;`. I do not know by what miracle this bug did not manifest itself before, but here we are ! better later than never as we say in french.
+You can see I used an intermediate "*assert_branch*" signal. There are **many** ways to implement this logic, some are more efficient if you concatenate the branch logic in the other decoders, **but who cares** ? (*coping again*)h.
 
 ### 10.1.b : Verification
 

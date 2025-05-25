@@ -14,19 +14,19 @@ set bram_address 0x00000000
 set wt axi_bram_wt
 create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address -len 14 -data {
     00002337
+    000023b7
+    fff3e393
+    7c131073
+    7c239073
     00000913
     0040006f
-    00000313
-    00002337
     00190913
-    0040006f
     01232023
-    7c00d073
     02fafab7
     080a8a93
     fffa8a93
     fe0a9ee3
-    fd9ff06f
+    fe9ff06f
 }
 
 run_hw_axi [get_hw_axi_txns $wt]

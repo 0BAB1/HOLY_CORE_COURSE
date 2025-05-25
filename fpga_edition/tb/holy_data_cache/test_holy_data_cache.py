@@ -603,6 +603,14 @@ async def main_test(dut):
         # r
         assert dut.axi_lite_rready.value == 0b0
 
+        # Also, the cache should flag its axi_result as done to prevent next_state leanving IDLE instantly..
+        assert dut.cache_system.axi_lite_tx_done.value == 0b1
+        assert dut.cache_system.next_axi_lite_tx_done.value == 0b0 # and it should auto reset ...
+
+
+        await RisingEdge(dut.aclk) # let the tx_done flag go low ...
+        await Timer(1, units="ns")
+
         # we have to test the exactitude of the read and that the actual output data is the right one
         # memory r slave is init to random values, we pick an arbitrary address whithing the non cachable range.
         addr = 0x0000_000C

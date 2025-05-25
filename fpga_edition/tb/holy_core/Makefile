@@ -9,6 +9,7 @@ WAVES = 1
 VERILOG_SOURCES += $(wildcard $(PWD)/../../src/*.sv)
 EXTRA_ARGS += $(PWD)/../../packages/holy_core_pkg.sv
 EXTRA_ARGS += $(PWD)/../../packages/axi_if.sv
+EXTRA_ARGS += $(PWD)/../../packages/axi_lite_if.sv
 EXTRA_ARGS += $(PWD)/holy_test_harness.sv
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
