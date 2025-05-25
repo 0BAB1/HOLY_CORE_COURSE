@@ -50,10 +50,13 @@ Update the PDFs, the ref tables (with all csr and new imm signals and csr contro
 
 Once everything is done, split the core and PIPELINE it (objective : 80MHz).
 
+MAKE user docs (next logical step after quick start guides)
 
 =======================
 NOT DONE - SIDEQUESTS
 =======================
+
+add halfword / byte writes / reads to non cachable range !
 
 figure out this tlast bug in simulation
 

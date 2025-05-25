@@ -21,7 +21,9 @@ module csr_file (
     output logic [31:0] read_data,
 
     // OUT CSR SIGNALS
-    output logic flush_cache_flag
+    output logic flush_cache_flag,
+    output logic [31:0]  non_cachable_base_addr,
+    output logic [31:0]  non_cachable_limit_addr
 );
 
 /*  
@@ -33,37 +35,49 @@ module csr_file (
 */
 
 // Declare all CSRs and they next signals here
-logic [31:0] flush_cache, next_flush_cache;
+logic [31:0] flush_cache, next_flush_cache;                 // 0x7C0
+logic [31:0] non_cachable_base, next_non_cachable_base;     // 0x7C1
+logic [31:0] non_cachable_limit, next_non_cachable_limit;   // 0x7C2
 
 always_ff @(posedge clk) begin
     if(~rst_n) begin
         flush_cache <= 32'd0;
+        non_cachable_base <= 32'd0;
+        non_cachable_limit <= 32'd0;
     end
     else begin
         flush_cache <= next_flush_cache;
+        non_cachable_base <= next_non_cachable_base;
+        non_cachable_limit <= next_non_cachable_limit;
     end
 end
 
 // Specific CSRs logics
 always_comb begin
+    // ----------------------------
     // Flush cache CSR
+
     if(flush_cache_flag) begin
-        next_flush_cache = 32'd0;
+        next_flush_cache = 32'd0; // if we sent the flush flag, reset on the next cycle
     end
     else if (write_enable & (address == 12'h7C0))begin
-        case(f3)
-            3'b001, 3'b101 : next_flush_cache = write_data;
-            3'b010, 3'b110 : next_flush_cache = or_result;
-            3'b011, 3'b111 : next_flush_cache = nand_result;
-            default begin
-                 // defined behavior for the HOLY CORE :
-                 // we set to 0 (don't have illegal yet)
-                next_flush_cache = 32'd0;
-            end
-        endcase
+        next_flush_cache = write_back_to_csr;
     end
     else begin
         next_flush_cache = flush_cache;
+    end
+
+    // ----------------------------
+    // cachable base and limit CSR
+
+    next_non_cachable_base = non_cachable_base;
+    if (write_enable & (address == 12'h7C1)) begin
+        next_non_cachable_base = write_back_to_csr;
+    end
+
+    next_non_cachable_limit = non_cachable_limit;
+    if (write_enable & (address == 12'h7C2)) begin
+        next_non_cachable_limit = write_back_to_csr;
     end
 end
 
@@ -71,7 +85,9 @@ end
 always_comb begin
     case (address)
         12'h7C0: read_data = flush_cache;
-        default: read_data = '0;
+        12'h7C1: read_data = non_cachable_base;
+        12'h7C2: read_data = non_cachable_limit;
+        default: read_data = 32'd0;
     endcase
 end
 
@@ -96,7 +112,7 @@ always_comb begin
         3'b011, 3'b111 : write_back_to_csr = nand_result;
 
         default : begin
-            write_back_to_csr = 0;
+            write_back_to_csr = 32'd0;
         end
     endcase
 end
@@ -104,6 +120,8 @@ end
 // output control signals
 always_comb begin : control_assignments
     flush_cache_flag = flush_cache[0];
+    non_cachable_base_addr = non_cachable_base;
+    non_cachable_limit_addr = non_cachable_limit;
 end
 
 endmodule
