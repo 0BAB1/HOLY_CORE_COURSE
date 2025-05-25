@@ -2751,19 +2751,22 @@ once this is done, we can move on to adding support in our cache !
 
 ## 8.2 : Adding manual cache flush support to the `holy_cache`
 
-This part is exaclty xhat it sounds like : us adding a way to recieve the flush order comming from the `CSR_file` and interpret it.
+This part is exaclty what it sounds like : us adding a way to recieve the flush order comming from the `CSR_file` and interpret it.
 
-Lucky use,  we manage our cache using a state machine. This means we can simply add an input and switch the FSM's state to `SENDING_WRITE_REQ` which will automaticcaly unroll the whole `write_back / read` AXI procedure (thank god I did this because after a couple of month outside of this project, I was **NOT** in a mood to redo the AXI part haha).
+Lucky us,  we manage our cache using a state machine. This means we can simply add an input and switch the FSM's state to `SENDING_WRITE_REQ` which will automaticcaly unroll the whole `write_back / read` AXI procedure.
 
 Here is how we're going to update our AXI FSM in the cache :
 
-![New axi fsm to add manual flush](../images/updated_fsm_axi_csr.png)
+![New axi fsm to add manual flush](../images/updated_fsm_axi_csr.jpg)
 
-Now if you want to enforce write back on manual flushes, you czn do that. It's a choice to make. I won't and only add the `| csr_flush_order` statement to get *OUT* of the IDLE state.
+As you can see, we are going to make some choices here but the idea is pretty simple :
+
+- We now shall switch to write-back is we recieve `cs_flush_order`
+- We have to **remember** somehow that the flush originated from manual order, **why ?**, well this way we can *bypass* the re-read which would be useless and broken anyway for various reasons that I painfully had to *slowly* understand while debugging this :)
 
 ### 8.2.a : HDL Code
 
-Here are the couple of modifications made :
+Here are the modifications made :
 
 ```sv
 // holy_cache.sv
@@ -2801,25 +2804,100 @@ module holy_cache #(
 
 // (...)
 
-// in the FSM logic to determine next state ...
-    case (state)
-        IDLE: begin
-            // when idling, we simple read and write, no problem !
-            if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
+// CACHE TABLE DECLARATION
+    logic [CACHE_SIZE-1:0][31:0]    cache_data;
+    logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
+    logic                           cache_valid;  // is the current block valid ?
+    logic                           next_cache_valid;
+    logic                           cache_dirty;
+    // register to retain info on wether we are writing back because of miss or because of CSR order
+    logic                           csr_flushing, next_csr_flushing; // NEW !
 
-            else if(hit && read_enable) begin
-                // async reads
-                read_data = cache_data[req_index];
+// ...
+
+// MAIN CLOCK DRIVEN SEQ LOGIC
+    always_ff @(posedge clk) begin
+        if (~rst_n) begin
+            // ...
+            csr_flushing <= 1'b0; // NEW !
+        end else begin
+            // ...
+
+            csr_flushing <= next_csr_flushing; // NEW !
+        end
+    end
+
+
+
+// Async Read logic & AXI SIGNALS declaration !
+    always_comb begin
+        next_state = state; // Default
+        next_cache_valid = cache_valid;
+        axi.wlast = 1'b0;
+        // the data being send is always set, "ready to go"
+        axi.wdata = cache_data[set_ptr];
+        cache_state = state;
+        next_set_ptr = set_ptr;
+        // csr flushing keeps value by default, only set at beginning of flush and deset a end of flush
+        next_csr_flushing = csr_flushing;
+
+        case (state)
+            IDLE: begin
+                // when idling, we simple read and write, no problem !
+                if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
+
+                else if(hit && read_enable) begin
+                    // async reads
+                    read_data = cache_data[req_index];
+                end
+
+                else if( csr_flush_order ) begin
+                    // NEW !
+                    // don't forget to keep in mind that we are flushing from order
+                    // which will bypass reading back
+                    next_csr_flushing = 1'b1;
+                    // also, we force write back state next
+                    next_state = SENDING_WRITE_REQ;
+                end
+
+                else if( (~hit && (read_enable ^ actual_write_enable)) & ~csr_flush_order) begin
+                    // switch state to handle the MISS, if data is dirty, we have to write first
+                    case(cache_dirty)
+                        1'b1 : next_state = SENDING_WRITE_REQ;
+                        1'b0 : next_state = SENDING_READ_REQ;
+                    endcase
+                end
+
+                // ...
+            end
+            SENDING_WRITE_REQ: begin
+                // ...
             end
 
-            else if( (~hit && (read_enable ^ actual_write_enable)) | csr_flush_order) begin // NEW !
-                // switch state to handle the MISS, if data is dirty, we have to write first
-                case(cache_dirty)
-                    1'b1 : next_state = SENDING_WRITE_REQ;
-                    1'b0 : next_state = SENDING_READ_REQ;
-                endcase
+            SENDING_WRITE_DATA : begin
+                // ...
             end
+
+            WAITING_WRITE_RES: begin
+                if(axi.bvalid && (axi.bresp == 2'b00)) begin// if response is OKAY
+                    // END THE WRITE TRANSACTION
+                    // NEW !
+                    if(csr_flushing) begin
+                        // if the wb was CSR order, we reset csr flushing and go back to IDLE
+                        next_state = IDLE;
+                        next_csr_flushing = 0'b0;
+                    end else begin
+                        // if it was miss wb, we go on with read...
+                        next_state = SENDING_READ_REQ;
+                    end
+
+                // ...
+            end
+        endcase
+    end
 ```
+
+As you can see, we use the `next_csr_flushing / csr_flushing` pair to remember where the write back is comming from.
 
 ### 8.2.b : Verification
 
@@ -2828,6 +2906,7 @@ Verification is very straight forward :
 - We grab our test file where we left it
 - We assert the `csr_flush_order` flag like the user wants to flush
 - And we simply check that the cache initites write_back by checking the AXI FSM states
+- Also check the `csr_flushing` register bahvior and read bypass system.
 
 ```python
 # test_holy_cache.py
@@ -2854,8 +2933,28 @@ Verification is very straight forward :
     await Timer(1, units="ns")
 
     assert dut.cache_system.state.value == SENDING_WRITE_REQ
+    assert dut.cache_system.csr_flushing.value == 0b1
     assert dut.axi_awvalid.value == 0b1
     assert dut.axi_arready.value == 0b1
+
+    while not dut.cache_system.state.value == WAITING_WRITE_RES:
+        # wait for next IDLE state
+        await RisingEdge(dut.aclk)
+        await Timer(1, units="ns")
+
+    await RisingEdge(dut.aclk)
+    await Timer(1, units="ns")
+    # after WB flush, we go straight to IDLE and bypass read
+    assert dut.axi_bvalid.value == 0b1
+    assert dut.axi_bresp.value == 0b00
+    assert dut.cache_system.csr_flushing.value == 0b1
+    assert dut.cache_system.next_csr_flushing.value == 0b0
+    assert dut.cache_system.next_state.value == IDLE
+    
+    # csr flushin should be low again
+    await RisingEdge(dut.aclk)
+    await Timer(1, units="ns")
+    assert dut.cache_system.csr_flushing.value == 0b0
 
     # And so on ...
 
@@ -2946,7 +3045,7 @@ module control (
     case (op)
 
         // ... with added :
-        // csr_write_enable = 1'b0; (NEW !)
+        // csr_write_enable = 1'b0 everywhere else; (NEW !)
 
         // CSR instructions (SYSTEM OPCODE)
         OPCODE_CSR : begin
@@ -3089,7 +3188,7 @@ async def zero_ext_csr_test(dut):
 
 ```
 
-Good, now we have everythin we need to implement our CSR regfile. Next step : implement a new datapath, make the previous tests pass again an write a new test program !
+Good, now we have everything we need to implement our CSR regfile. Next step : implement a new datapath, make the previous tests pass again an write a new test program !
 
 ## 8.5 : Datapath modifications to add the `Zicsr`
 
@@ -3249,6 +3348,7 @@ Okay, before adding the counters for `Zicntr`, we'll test our CSR live on the FP
 Remember our old `test.s` program to blink leds ?
 
 ```asm
+# test.S
 
 .section .text
 .align 2
@@ -3289,9 +3389,1210 @@ delay_loop:
     j loop                      # Restart the loop
 ```
 
-Well, it was kinda chatic because of the fact we have to manually provoke a cache miss to update the MMIO components of the SoC, which is *very unprofessional* to say the least...
+Well, it was kinda chaotic because of the fact we had to write the whole cache baceause of weird AXI_LITE address wrap side effects (thus the `sub_loop`) and we also have this lonely `lw x23, 0(x0)` that served as a "manual cache miss provoker".
 
-But now, we can see if our efforts were worth it to offer a better dev experience !
+Fixing the AxiLite stuff is SoC matter, for now, we can just replace `lw x23, 0(x0)` by `csrrwi x0, 0x7C0, 0x1` which write a 1 into the CSR dedicated to this !
+
+Now, we can run the `make` command in `fpga_edition/fpga/test_programs/` which will translate `test.s` into a `test.hex` hexdump, copy paste that hex program into a tcl custom program loader :
+
+```tcl
+# blink_led_csr.tcl
+
+reset_hw_axi [get_hw_axis hw_axi_1]
+set bram_address 0x00000000
+set wt axi_bram_wt
+create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address -len 20 -data {
+    00002337
+    00000993
+    08000a13
+    00000913
+    0040006f
+    00000313
+    00002337
+    00000993
+    00190913
+    0040006f
+    01232023
+    00430313
+    00198993
+    ff499ae3
+    7c00d073
+    02fafab7
+    080a8a93
+    fffa8a93
+    fe0a9ee3
+    fc9ff06f
+}
+
+run_hw_axi [get_hw_axi_txns $wt]
+
+set rt axi_bram_rt
+create_hw_axi_txn $rt [get_hw_axis hw_axi_1] -type read -address $bram_address -len 20
+run_hw_axi [get_hw_axi_txns $rt]
+```
+
+and run `vivado -source fpga_edition/fpga/zybo_z720/holy_vivado_setup.tcl` to create the project, flash the board, run the tcl loader and release rest to see that our LEDs are bliking like before !
+
+## 10 : Solving the MMIO issue... A second time ! (Adding non cachable ranges)
+
+Okay, now let's talk about another problem we talked about and chose to forget : MMIO interaction.
+
+Yes, offering the possibility to the user to clear cache manually technically helps with interact with MMIO peripherals but in reality, when we write to MMIO stuff, we often prefer to write a single bit or register, meaning we are asking for a single small data transactions with relatively fast sub systems (controller often using AXI Lite).
+
+These fast subsystems (faster than a DRAM for example) will not require caching as it does not really hurts perfomances that badly AND using cache means we write back an **ENTIRE** block (regardless of the cache architecture we chose btw, they almort work by blocks of data) which can leas to unexpected behavior.
+
+So, yes, the best idea here is to just bypass the cache using AXI LITE for a specific range. And we can use CSRs to set that said range ! The CSRs would look like this :
+
+- `non_cachable_base`
+- `non_cachable_limit`
+
+And we would determine wether or not the asked data shall be cached or not using logic that looks like this : `wire mmio_hit = (addr >= mmio_base) && (addr < mmio_limit);`
+
+And regardles of what we do on this range (`lw`, `sw`, etc...), the cache will
+
+1. Stall the cpu
+2. Require data though AXI Lite
+3. Return data once it's there
+
+And all this even before thinking about pulling anythng from the regular AXI we did until now.
+
+So let's also think about the changes we'll have to do to make this happen :
+
+- Add the CSRs in the `csr_file`, and output the ranges values
+- Change the whole `holy_cache` logic to really separate both regular cache and non cachable stuff, add inputs to gather the ranges from CSRs
+- Implement the `AXI_LITE` protocol to pull the data
+- Make sure old tb still passes and implement new AXI_LITE tb
+- Implement changes in datapath
+- Add a test program for tb and test the functionalities
+- Adapt the soc by adding debug signals and connecting the new interface to MMIOs
+- test live on the FPGA chip with a blinking LED programs
+
+It's quite a bit of work, but without supporting this, talking ith MMIO will be counter intuitive and buggy from the dev's perspective... So... Let's get to work !!
+
+## 10.1 : Updating the `csr_file`
+
+First of all, les't add our couple of new CSRs to the CSR file and test their behavior.
+
+### 10.1.a : HDL Code
+
+Adding simple R/W CSRs is pretty straightforward (yes I always write that I know but it's true). But we gotta make sure the logic is well pllied everywhere because rember : we declare each CSR **individually**, and we detailled the logic to the maximum to get good control over the CSRs behavior :
+
+```sv
+module csr_file (
+    // IN
+    input logic clk,
+    input logic rst_n,
+    input logic [2:0] f3,
+    input logic [31:0] write_data,
+    input logic write_enable,
+    input logic [11:0] address,
+
+    // OUT DATA
+    output logic [31:0] read_data,
+
+    // OUT CSR SIGNALS
+    output logic flush_cache_flag,
+    output logic [31:0]  non_cachable_base_addr,
+    output logic [31:0]  non_cachable_limit_addr
+);
+
+// Declare all CSRs and they next signals here
+logic [31:0] flush_cache, next_flush_cache;                 // 0x7C0
+logic [31:0] non_cachable_base, next_non_cachable_base;     // 0x7C1 NEW !
+logic [31:0] non_cachable_limit, next_non_cachable_limit;   // 0x7C2 NEW !
+
+always_ff @(posedge clk) begin
+    if(~rst_n) begin
+        // CHANGED !
+        flush_cache <= 32'd0;
+        non_cachable_base <= 32'd0;
+        non_cachable_limit <= 32'd0;
+    end
+    else begin
+        // CHANGED !
+        flush_cache <= next_flush_cache;
+        non_cachable_base <= next_non_cachable_base;
+        non_cachable_limit <= next_non_cachable_limit;
+    end
+end
+
+// Specific CSRs logics
+always_comb begin
+    // ----------------------------
+    // Flush cache CSR
+
+    if(flush_cache_flag) begin
+        next_flush_cache = 32'd0; // if we sent the flush flag, reset on the next cycle
+    end
+    else if (write_enable & (address == 12'h7C0))begin
+        next_flush_cache = write_back_to_csr;
+    end
+    else begin
+        next_flush_cache = flush_cache;
+    end
+
+    // ----------------------------
+    // cachable base and limit CSR (NEW !)
+
+    next_non_cachable_base = non_cachable_base;
+    if (write_enable & (address == 12'h7C1)) begin
+        next_non_cachable_base = write_back_to_csr;
+    end
+
+    next_non_cachable_limit = non_cachable_limit;
+    if (write_enable & (address == 12'h7C2)) begin
+        next_non_cachable_limit = write_back_to_csr;
+    end
+end
+
+// Always output the CSR data at the given address (or 0)
+always_comb begin
+    case (address)
+        12'h7C0: read_data = flush_cache;
+        12'h7C1: read_data = non_cachable_base; // NEW !
+        12'h7C2: read_data = non_cachable_limit; // NEW !
+        default: read_data = 32'd0;
+    endcase
+end
+
+// Compute next CSR possible values
+logic [31:0] or_result;
+logic [31:0] nand_result;
+
+always_comb begin
+    // TODO side quest : we could use the already existing ALU to save space here...
+    // ... mais j'ai la flemme là...
+    or_result = write_data | read_data;
+    nand_result = read_data & (~write_data);
+end
+
+// Select value using F3
+logic [31:0] write_back_to_csr; // NEW !
+
+always_comb begin
+    case (f3)
+        3'b001, 3'b101 : write_back_to_csr = write_data;
+        3'b010, 3'b110 : write_back_to_csr = or_result;
+        3'b011, 3'b111 : write_back_to_csr = nand_result;
+        default : begin
+            write_back_to_csr = 32'd0;
+        end
+    endcase
+end
+
+// output control signals
+always_comb begin : control_assignments
+    flush_cache_flag = flush_cache[0];
+    non_cachable_base_addr = non_cachable_base; // NEW !
+    non_cachable_limit_addr = non_cachable_limit; // NEW !
+end
+
+endmodule
+```
+
+### 10.1.b : Verification
+
+Our new CSRs are simple R/W CSRs, that a linked to an output ! So we have to test :
+
+- The R/W logic (which we already have and simply have in out tb to adapt)
+- And the output that has to be linked to their inner values
+
+So here is the adapted logic using a llop and lookup function to get the values, plus a small test at the end for the output link :
+
+```python
+# test_csr_file.py
+
+cocotb.test()
+async def test_csr_file(dut):
+    # Start a 10 ns clock
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+
+    # map each address to a register
+    def get_csr_value(addr):
+        if(addr == 0x7C0):
+            return dut.flush_cache.value
+        elif(addr == 0x7C1):
+            return dut.non_cachable_base.value
+        elif(addr == 0x7C2):
+            return dut.non_cachable_limit.value
+        else:
+            return 0
+
+    for addr in [0x7C0, 0x7C1, 0x7C2]:
+        # ==================
+        # BASIC R/W TESTS
+        # ==================
+
+        dut.rst_n.value = 1
+        await RisingEdge(dut.clk)
+
+        # ----------------------------------
+        # flush cache is 0 on start
+        assert get_csr_value(addr) == 0x00000000
+
+        # ----------------------------------
+        # test simple write
+        dut.write_enable.value = 1
+        dut.write_data.value = 0xDEADBEEF
+        dut.address.value = addr
+        dut.f3.value = 0b001
+        await RisingEdge(dut.clk)
+        await Timer(2, units="ns")
+        assert get_csr_value(addr) == 0xDEADBEEF
+        assert dut.read_data.value == 0xDEADBEEF
+
+        # ----------------------------------
+        # nothing gets written if we flag is low
+        dut.write_enable.value = 0b0
+        dut.write_data.value = 0x12345678
+        await RisingEdge(dut.clk)
+        assert get_csr_value(addr) == 0xDEADBEEF
+
+        # ----------------------------------
+        # randomized test
+        dut.write_enable.value = 0b1
+        for _ in range(1000):
+            await RisingEdge(dut.clk) #await antoher cycle to let flush cache reset if high
+            await Timer(1, units="ns")
+
+            init_csr_value = deepcopy(get_csr_value(addr))
+            wd = random.randint(0, 0xFFFFFFFF)
+            f3 = random.randint(0b000, 0b111)
+            dut.write_data.value = wd
+            dut.f3.value = f3
+
+            await RisingEdge(dut.clk)
+            await Timer(2, units="ns")
+            if f3 == 0b000 or f3 == 0b100:
+                assert dut.read_data == 0
+            elif f3 == 0b001 or f3 == 0b101:
+                assert (
+                    dut.read_data.value
+                    == wd
+                )
+            elif f3 == 0b010 or f3 == 0b110:
+                assert (
+                    dut.read_data.value
+                    == (init_csr_value | wd)
+                )
+            elif f3 == 0b011 or f3 == 0b111:
+                assert (
+                    dut.read_data.value
+                    == (init_csr_value & (~wd & 0xFFFFFFFF)) #we mask wd to 32 bits
+                )
+        
+        # ----------------------------------
+        # test reset, first write sample data
+        dut.write_enable.value = 1
+        dut.write_data.value = 0xDEADBEEF
+        dut.address.value = addr
+        dut.f3.value = 0b001
+        await RisingEdge(dut.clk)
+
+        # then we release reset and check for 0
+        dut.rst_n.value = 0
+        await RisingEdge(dut.clk)
+        await RisingEdge(dut.clk)
+        assert get_csr_value(addr) == 0x00000000
+        dut.rst_n.value = 1
+
+        dut.write_enable.value = 0
+        await Timer(1, units="ns")
+
+    # ...
+
+    # ------------------------------
+    # CACHE BASE
+
+    await RisingEdge(dut.clk)
+    # write stuff to the cache base
+    dut.write_enable.value = 1
+    dut.address.value = 0x7C1
+    dut.write_data.value = 0xAEAEAEAE
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    # check the output towards cache indicates good value
+    assert dut.non_cachable_base_addr.value == 0xAEAEAEAE
+
+    # ------------------------------
+    # CACHE LIMIT
+
+    await RisingEdge(dut.clk)
+    # write stuff to the cache base
+    dut.write_enable.value = 1
+    dut.address.value = 0x7C2
+    dut.write_data.value = 0xAEAEAEAE
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    # check the output towards cache indicates good value
+    assert dut.non_cachable_limit_addr.value == 0xAEAEAEAE
+```
+
+## 12.2 Updating the cache to add a bypassing interface
+
+Well, here is the core of the work we'll have to perform to make this improvement a reality... So let's setlle our logic on a nice scheme first...
+
+![holy data cache scheme](../images/data_cache.jpg)
+
+A bit of explaination : Here are the point of attetion that will chage compared to the last cache subystem :
+
+- We compare the requested address to CSRs to determine "cachability" of the data
+  - side note : we compare the TAG of the CSR addresses, meaning the user cannot specify a range lower that a 128 words block or misaligned on 128 words. If the dev ignres that well the data may be cached anyway. We assumer the end user will know. On our side, the implementation will be easy : we simply compare the upper bits, ignoring the lower.
+- We add an **AXI LITE** dimension to our FSM *(new states but shared IDLE)*
+- For non cachable data, we declare a single register used to return the read result from **AXI_LITE**
+- we use the `non_cachable` signal to select the `read_data` we want to return.
+- stalling mecanism is "already implemented : **because we share the same FSM**, the cache will stall as soon as the next decided state is not IDLE (eg going into AXI LITE transaction states)
+
+> More of the FSM modifications later.
+
+### 12.2.0 A a bit of reflection on this design
+
+As we can see, this is quite bit of work, and it adds a bit of complexity. At this point, we have two choices :
+
+- Dump the CSRs and complexity and go full AXI LITE for the data cache (would not be a cache anymore)
+- Or go for this design, more complex for us BUT we get to **flex** that we have a feature rich and applicaiton customizable data cache.
+
+> And yes, we'll separate data cache from instruction cache if we do that as instruction cache will NOT need AXI_LITE to fetch anything.
+
+The choice is easy, **let's go for the struggle**, as this is what makes this core a *HOLY CORE* after all !
+
+### 12.2.a : HDL Code
+
+First, we have to create a whole new `holy_data_cache.sv` file and the tb that goes with it by copy pasting the "old" cache (mostly renaming stuff and modules).
+
+Let's start by declaring the `axi_lite_if.sv` interface in the `pkg/` folder :
+
+```sv
+// axi_lite_if.sv
+
+interface axi_lite_if #(
+    parameter ADDR_WIDTH = 32,
+    parameter DATA_WIDTH = 32
+);
+
+    // Global signals
+    logic aclk;
+    logic aresetn;
+
+    // Write Address Channel
+    logic [ADDR_WIDTH-1:0] awaddr;
+    logic awvalid;
+    logic awready;
+
+    // Write Data Channel
+    logic [DATA_WIDTH-1:0] wdata;
+    logic [(DATA_WIDTH/8)-1:0] wstrb;
+    logic wvalid;
+    logic wready;
+
+    // Write Response Channel
+    logic [1:0] bresp;
+    logic bvalid;
+    logic bready;
+
+    // Read Address Channel
+    logic [ADDR_WIDTH-1:0] araddr;
+    logic arvalid;
+    logic arready;
+
+    // Read Data Channel
+    logic [DATA_WIDTH-1:0] rdata;
+    logic [1:0] rresp;
+    logic rvalid;
+    logic rready;
+
+    // Master modport
+    modport master (
+        input  aclk,
+        input  aresetn,
+
+        output awaddr,
+        output awvalid,
+        input  awready,
+
+        output wdata,
+        output wstrb,
+        output wvalid,
+        input  wready,
+
+        input  bresp,
+        input  bvalid,
+        output bready,
+
+        output araddr,
+        output arvalid,
+        input  arready,
+
+        input  rdata,
+        input  rresp,
+        input  rvalid,
+        output rready
+    );
+
+    // Slave modport
+    modport slave (
+        input  aclk,
+        input  aresetn,
+
+        input  awaddr,
+        input  awvalid,
+        output awready,
+
+        input  wdata,
+        input  wstrb,
+        input  wvalid,
+        output wready,
+
+        output bresp,
+        output bvalid,
+        input  bready,
+
+        input  araddr,
+        input  arvalid,
+        output arready,
+
+        output rdata,
+        output rresp,
+        output rvalid,
+        input  rready
+    );
+
+endinterface
+```
+
+> Don't forget to include it the `tb/holy_data_cache/make` file (and test runner if you have one) !
+
+And then start declaring the basic signals we'll need to make our new cache work according to our scheme (we keep the FSM for later for now):
+
+> Don't forget, we now work in a copied version of the `holy_cache` that we named `holy_data_cache.sv` !
+
+```sv
+// holy_data_cache.sv
+
+import holy_core_pkg::*;
+
+module holy_data_cache #(
+    parameter CACHE_SIZE = 128
+)(
+    // ...
+    
+    // incomming cachable range from CSRs (NEW !)
+    input logic [31:0] non_cachable_base,
+    input logic [31:0] non_cachable_limit,
+
+    // AXI Interface for external requests
+    axi_if.master axi,
+
+    // AXI LITE Interface for external requests (NEW !)
+    axi_lite_if.master axi_lite,
+
+    // ...
+);
+    assign set_ptr_out = set_ptr;
+    assign next_set_ptr_out = next_set_ptr;
+
+    // ...
+
+    // non_cashable ? is the reaquested address *NOT* cachable
+    // WARNING : because the cache works by block, only the TAG from the addresses is taken in cosideration to determine cachability.
+    // meaning the end user (dev) has to be aware that low range resolution eg 0x00000000 to 0x000000000F will not be considered.
+    logic                           non_cachable;
+    assign non_cachable = ((req_block_tag >= non_cachable_base[31:9]) && (req_block_tag < non_cachable_limit[31:9]));
+    logic [31:0]                    axi_lite_read_result; // axi lite's only data reg for non cachable data
+
+    // (UNCHANGED !)
+
+        // INCOMING CACHE REQUEST SIGNALS
+        logic [31:9]                    req_block_tag;
+        assign req_block_tag = address[31:9];
+        // requested place in cache, written / read if tag hits
+        logic [8:2] req_index;
+        assign req_index = address[8:2];
+
+        // HIT LOGIC
+        logic hit;
+        assign hit = (req_block_tag == cache_block_tag) && cache_valid;
+
+        // STALL LOGIC
+        logic actual_write_enable;
+        assign actual_write_enable = write_enable & |byte_enable;
+        logic comb_stall, seq_stall;
+        assign comb_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
+        assign cache_stall = comb_stall | seq_stall;
+
+    // =======================
+    // CACHE LOGIC
+    // =======================
+    cache_state_t state, next_state;
+
+    // MAIN CLOCK DRIVEN SEQ LOGIC
+    always_ff @(posedge clk) begin
+        if (~rst_n) begin
+            cache_valid <= 1'b0;
+            cache_dirty <= 1'b0;
+            seq_stall <= 1'b0;
+            csr_flushing <= 1'b0;
+        end else begin
+            // ...
+
+            // NEW ! : axi liste write logic to our single result register !
+            end else if(axi_lite.rvalid & state == LITE_RECEIVING_READ_DATA & axi_lite.rready) begin
+                // Write incomming axi lite read
+                axi_lite_read_result <= axi_lite.rdata;
+            end
+
+            csr_flushing <= next_csr_flushing;
+        end
+    end
+
+    // AXI CLOCK DRIVEN SEQ LOGIC
+    // ...
+
+    // =======================
+    // READ & MAIN FSM LOGIC
+    // =======================
+    
+
+    // STILL_T0DO !
+
+endmodule
+```
+
+Now let's think about how all of this is going to come together. How ? Well, most of it relies in our FSM design ! Let's detail our vision for how it would work :
+
+![NEW FSM with axi lite scheme](../images/axi_lite_fsm.jpg)
+
+As you can see, this logic got added to the previous FSM, which makes way more sense. Lookin at this new FSM, the cache logic becomes way clearer and now it's mostly a matter of nailing the muxes and RTL right to makes all these ideas go smoothly.
+
+So let's declare these new FSM states in the `holy_core_pkg.sv` file :
+
+```
+
+```
+
+And now, we use our FSM andAXI Lite knowledge to builf the FSM STATES LOGIC in RTL and use our sceheme to setup the different signals to make our logic work smoothly :
+
+> NOTE : I strongly recommend you get yourself up to speed on AXI LITE. But at this point, we should all be all set on this subject ;)
+
+```sv
+// holy_core_pkg.sv
+
+package holy_core_pkg;
+
+  typedef enum logic [3:0] { 
+      IDLE, // Acts as simple BRAM array
+      // AXI FULL STATES
+      SENDING_WRITE_REQ,
+      SENDING_WRITE_DATA,
+      WAITING_WRITE_RES,
+      SENDING_READ_REQ,
+      RECEIVING_READ_DATA,
+      // AXI LITE VERSIONS (NEW !)
+      LITE_SENDING_WRITE_REQ,
+      LITE_SENDING_WRITE_DATA,
+      LITE_WAITING_WRITE_RES,
+      LITE_SENDING_READ_REQ,
+      LITE_RECEIVING_READ_DATA
+  } cache_state_t;
+
+  // ...
+```
+
+And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
+
+```sv
+// holy_data_cache.sv
+
+// ... all the rest
+
+// =======================
+    // READ & MAIN FSM LOGIC
+    // =======================
+    always_comb begin
+        // State transition 
+        next_state = state; // Default
+        next_cache_valid = cache_valid;
+
+        // AXI DEFAULT
+        axi.wlast = 1'b0;
+        // the data being send is always set, "ready to go"
+        axi.wdata = cache_data[set_ptr];
+        cache_state = state;
+        next_set_ptr = set_ptr;
+
+        // AXI LITE DEFAULT
+        axi_lite.wstrb = 4'b1111; // we write all by default.
+
+        // csr flushing keeps value by default, only set at beginning of flush and deset a end of flush
+        next_csr_flushing = csr_flushing;
+
+        case (state)
+            IDLE: begin
+                // when idling, we simply read and write, no problem !
+                // but let's be carefull and notif in case of error (no traps yet to handle that)
+                if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
+
+                else if(csr_flush_order) begin
+                    // don't forget to keep in mind that we are flushing from order
+                    // which will bypass reading back
+                    next_csr_flushing = 1'b1;
+                    // also, we force write back state next
+                    next_state = SENDING_WRITE_REQ;
+                end
+
+                else if( (~hit && (read_enable ^ actual_write_enable)) & ~csr_flush_order & ~non_cachable) begin
+                    // switch state to handle the MISS, if data is dirty, we have to write first
+                    case(cache_dirty)
+                        1'b1 : next_state = SENDING_WRITE_REQ;
+                        1'b0 : next_state = SENDING_READ_REQ;
+                    endcase
+                end
+                
+                else if ( read_enable & non_cachable ) begin
+                    next_state = LITE_SENDING_READ_REQ;
+                end
+
+                else if ( write_enable & non_cachable ) begin
+                    next_state = LITE_SENDING_WRITE_REQ;
+                end
+
+                // READ DATA OUT COMB LOGIC AND SOURCE MUX (cachable or not ?)
+                if(hit && read_enable && ~non_cachable) begin
+                    // async reads
+                    read_data = cache_data[req_index];
+                end else if ( non_cachable && read_enable ) begin
+                    read_data = axi_lite_read_result;
+                end
+
+                // -----------------------------------
+                // IDLE AXI SIGNALS : no request
+
+                // No write
+                axi.awvalid = 1'b0;
+                axi.wvalid = 1'b0;
+                axi.bready = 1'b0;
+                // No read
+                axi.arvalid = 1'b0;
+                axi.rready = 1'b0;
+
+                // Defaults to 0
+                next_set_ptr = 7'd0;
+
+                // -----------------------------------
+                // IDLE AXI LITE SIGNALS : no request
+
+                // no write
+                axi_lite.awvalid = 1'b0;
+                axi_lite.wvalid = 1'b0;
+                axi_lite.bready = 1'b0;
+                // no read
+                axi_lite.arvalid = 1'b0;
+                axi_lite.rready = 1'b0;
+
+            end
+
+            // ...
+            // AXI STATES UNCHAGED
+            // ...
+
+            LITE_SENDING_WRITE_REQ : begin
+                // NON CACHED DATA, WE WRITE DIRECTLY TO REQ ADDRESS
+                axi_lite.awaddr = address;
+                
+                if(axi_lite.awready) next_state = LITE_SENDING_WRITE_DATA;
+
+                // SENDING_WRITE_REQ AXI SIGNALS : address request
+                // No write
+                axi_lite.awvalid = 1'b1;
+                axi_lite.wvalid = 1'b0;
+                axi_lite.bready = 1'b0;
+                // No read
+                axi_lite.arvalid = 1'b0;
+                axi_lite.rready = 1'b0;
+            end
+
+            LITE_SENDING_WRITE_DATA : begin
+                // Data to write is the regular write data
+                if(axi_lite.wready) begin
+                    next_state = LITE_WAITING_WRITE_RES;
+                end
+
+                axi_lite.wdata = write_data;
+
+                // SENDING_WRITE_DATA AXI SIGNALS : sending data
+                // Write stuff
+                axi_lite.awvalid = 1'b0;
+                axi_lite.wvalid = 1'b1;
+                axi_lite.bready = 1'b0;
+                // No read
+                axi_lite.arvalid = 1'b0;
+                axi_lite.rready = 1'b0;
+
+            end
+
+            LITE_WAITING_WRITE_RES : begin
+                if(axi_lite.bvalid && (axi_lite.bresp == 2'b00)) begin
+                    next_state = IDLE;
+                end else if(axi_lite.bvalid && (axi_lite.bresp != 2'b00)) begin
+                    $display("ERROR WRTING TO MAIN MEMORY !");
+                    next_state = IDLE;
+                end
+
+                // SENDING_WRITE_DATA AXI SIGNALS : ready for response
+                // No write
+                axi_lite.awvalid = 1'b0;
+                axi_lite.wvalid = 1'b0;
+                axi_lite.bready = 1'b1;
+                // No read
+                axi_lite.arvalid = 1'b0;
+                axi_lite.rready = 1'b0;
+            end
+
+            LITE_SENDING_READ_REQ : begin
+                // HANDLE MISS : Read
+                axi_lite.araddr = address;
+                
+                if(axi_lite.arready) begin
+                    next_state = LITE_RECEIVING_READ_DATA;
+                end
+
+                // SENDING_READ_REQ axi_lite SIGNALS : address request
+                // No write
+                axi_lite.awvalid = 1'b0;
+                axi_lite.wvalid = 1'b0;
+                axi_lite.bready = 1'b0;
+                // No read but address is okay
+                axi_lite.arvalid = 1'b1;
+                axi_lite.rready = 1'b0;
+            end
+
+            LITE_RECEIVING_READ_DATA : begin
+                if (axi_lite.rvalid) begin
+                    next_state = IDLE;
+                end
+            
+                // AXI LITE Signals
+                axi_lite.awvalid = 1'b0;
+                axi_lite.wvalid = 1'b0;
+                axi_lite.bready = 1'b0;
+                axi_lite.arvalid = 1'b0;
+                axi_lite.rready = 1'b1;
+            end
+            
+            default : begin
+                $display("CACHE FSM SATETE ERROR");
+            end
+        endcase
+    end
+```
+
+So we improved our `IDLE LOGIC` to take into account the new type of transition towards the `LITE` states and implemented the `LITE` states by simply copy-pasting the old `AXI` states and adapting to `AXI_LITE` as both are pretty much the same except for bursts.
+
+We also adapted the address source we send an the `aw`and `ar` channels as now, the cache block is pretty much irrelevant.
+
+This results in a data cache where cacheble and uncachable logic are well separated  by handling the transaction via completely defferent states.
+
+### 12.2.b : Verification
+
+To verify this, the test follow the same logic as previous cache states. We provoke R/W transaction and follow along with assetions on the expected behavior and hopefully the tests passes.
+
+**BUT** before writting any test... we need ta *adapt* our test bench to :
+
+1. Add the new axi_lite interface to our `axi_translator.sv` test harness for cocotb
+2. In cocotb, using the `cocotbext.axi` python package, we have to declare a new `AXI_LITE` RAM Slave
+
+```sv
+// test_holy_cache/axi_translator.sv
+
+module axi_translator (
+    // ==========
+    // AXI FULL
+    // ==========
+    
+    // unchanged ...
+
+    // ==========
+    // AXI LITE
+    // ==========
+
+    // AXI-Lite Write Address Channel
+    output logic [31:0]              axi_lite_awaddr,
+    output logic                     axi_lite_awvalid,
+    input  logic                     axi_lite_awready,
+
+    // AXI-Lite Write Data Channel
+    output logic [31:0]              axi_lite_wdata,
+    output logic [3:0]               axi_lite_wstrb,
+    output logic                     axi_lite_wvalid,
+    input  logic                     axi_lite_wready,
+
+    // AXI-Lite Write Response Channel
+    input  logic [1:0]               axi_lite_bresp,
+    input  logic                     axi_lite_bvalid,
+    output logic                     axi_lite_bready,
+
+    // AXI-Lite Read Address Channel
+    output logic [31:0]              axi_lite_araddr,
+    output logic                     axi_lite_arvalid,
+    input  logic                     axi_lite_arready,
+
+    // AXI-Lite Read Data Channel
+    input  logic [31:0]              axi_lite_rdata,
+    input  logic [1:0]               axi_lite_rresp,
+    input  logic                     axi_lite_rvalid,
+    output logic                     axi_lite_rready,
+
+    // ==========
+    // CPU Interface
+    // ==========
+    input logic [31:0]               cpu_address,
+    input logic [31:0]               cpu_write_data,
+    input logic                      cpu_read_enable,
+    input logic                      cpu_write_enable,
+    input logic [3:0]                cpu_byte_enable,
+    output logic [31:0]              cpu_read_data,
+    output logic                     cpu_cache_stall
+);
+
+    import holy_core_pkg::*;
+
+    // ==========
+    // AXI FULL
+    // ==========
+
+    //  unchaged
+
+    // ==========
+    // AXI LITE
+    // ==========
+
+    // Declare AXI Lite interface
+    axi_lite_if axi_lite_master_intf();
+
+    // Clock and Reset
+    assign axi_lite_master_intf.aclk    = clk;
+    assign axi_lite_master_intf.aresetn = rst_n;
+
+    // Write Address Channel
+    assign axi_lite_awaddr  = axi_lite_master_intf.awaddr;
+    assign axi_lite_awvalid = axi_lite_master_intf.awvalid;
+    assign axi_lite_master_intf.awready = axi_lite_awready;
+
+    // Write Data Channel
+    assign axi_lite_wdata  = axi_lite_master_intf.wdata;
+    assign axi_lite_wstrb  = axi_lite_master_intf.wstrb;
+    assign axi_lite_wvalid = axi_lite_master_intf.wvalid;
+    assign axi_lite_master_intf.wready = axi_lite_wready;
+
+    // Write Response Channel
+    assign axi_lite_master_intf.bresp  = axi_lite_bresp;
+    assign axi_lite_master_intf.bvalid = axi_lite_bvalid;
+    assign axi_lite_bready             = axi_lite_master_intf.bready;
+
+    // Read Address Channel
+    assign axi_lite_araddr  = axi_lite_master_intf.araddr;
+    assign axi_lite_arvalid = axi_lite_master_intf.arvalid;
+    assign axi_lite_master_intf.arready = axi_lite_arready;
+
+    // Read Data Channel
+    assign axi_lite_master_intf.rdata  = axi_lite_rdata;
+    assign axi_lite_master_intf.rresp  = axi_lite_rresp;
+    assign axi_lite_master_intf.rvalid = axi_lite_rvalid;
+    assign axi_lite_rready             = axi_lite_master_intf.rready;
+
+    // dummy wireto shut verilator down
+    cache_state_t cache_state;
+
+    // Instantiate the cache module
+    /* verilator lint_off PINMISSING */
+    holy_data_cache #(
+    ) cache_system (
+        .clk(clk), 
+        .rst_n(rst_n),
+
+        .aclk(aclk),
+
+        // AXI Master Interface
+        .axi(axi_master_intf),
+
+        // AXI LITE Master Interface (NEW !)
+        .axi_lite(axi_lite_master_intf),
+
+        // CPU Interface
+        .address(cpu_address),
+        .write_data(cpu_write_data),
+        .read_enable(cpu_read_enable),
+        .write_enable(cpu_write_enable),
+        .byte_enable(cpu_byte_enable),
+        .read_data(cpu_read_data),
+        .cache_stall(cpu_cache_stall),
+        .cache_state(cache_state),
+
+        // debug interface
+        .set_ptr_out(set_ptr_out)
+    );
+    /* verilator lint_on PINMISSING */
+
+endmodule
+```
+
+> Remember naming is important ! add the right `axi_lite_` prefix so `cocotbext.axi` can recognise it in the tb.
+
+Now we declare our `AXI_LITE` slave, and like for the previous cache tests, init it with random data and declare a golden reference for smotther "testing experience".
+
+```python
+# test_holy_data_cache.py
+
+    # ==================================
+    # CLOCKS & RAM DECLARATION
+    # ==================================
+
+    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+    await RisingEdge(dut.clk)
+    await reset(dut)
+
+    # ==================================
+    # MEMORY INIT WITH RANDOM VALUES
+    # ==================================
+
+    # We create a golden reference where we'll apply our changes as well and then compare
+    mem_golden_ref = []
+    for address in range(0,SIZE,4):
+        word = generate_random_bytes(4)
+        axi_ram_slave.write(address, word)
+        mem_golden_ref.append(word)
+
+    for address in range(0,SIZE,4):
+        assert mem_golden_ref[int(address/4)] == axi_ram_slave.read(address, 4)
+
+    # Do the same for the AXI LITE RAM
+    lite_mem_golden_ref = []
+    for address in range(0,SIZE,4):
+        word = generate_random_bytes(4)
+        axi_lite_ram_slave.write(address, word)
+        lite_mem_golden_ref.append(word)
+
+    for address in range(0,SIZE,4):
+        assert lite_mem_golden_ref[int(address/4)] == axi_lite_ram_slave.read(address, 4)
+```
+
+And now, at the end of the file, we can write our tests :
+
+```python
+# test_holy_data_cache.py
+
+# ==================================
+        # NON CACHABLE RANGE WRITE TEST
+        # ==================================
+
+        # Set the non cachable range that will use AXI LITE for communication with axi_lite_ram tb slave
+        # Set cachable range to 0 for now to fully test the cache
+        dut.cache_system.non_cachable_base.value = 0x0000_0000
+        dut.cache_system.non_cachable_limit.value = 0x0000_0200 # minimum admissible value !!
+        dut.cpu_byte_enable.value = 0b1111 # We fix write to full words for now. TODO : set axi_lite.wstrb to siupport this ! 10min job !
+        await Timer(1, units="ns")
+
+        # Now prepare a write request from the CPU, state should go towards LITE_SENDING_WRITE_REQ
+        dut.cpu_address.value = 0x4 # in the non cachable range !
+        dut.cpu_write_enable.value = 0b1
+        dut.cpu_read_enable.value = 0b0
+        dut.cpu_write_data.value = 0xABCDABCD # data we are looking to write ...
+        await Timer(1, units="ns") # propagate ...
+
+        # whithout a clock cycle, the core should stall and next state should be LITE_SENDING_WRITE_REQ
+        assert dut.cpu_cache_stall.value == 0b1
+        assert dut.cache_system.non_cachable.value == 0b1
+        assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_REQ
+
+        # Then we switch to AXI LITE write
+        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await Timer(1, units="ns")
+        
+        assert dut.cpu_cache_stall.value == 0b1
+        assert dut.cache_system.non_cachable.value == 0b1
+        assert dut.cache_system.state.value == LITE_SENDING_WRITE_REQ
+
+        # Assuming memory is ready, request is acknowledged and we are about to sed data
+        assert dut.axi_lite_arready.value == 1
+        assert dut.cache_system.state.value == LITE_SENDING_WRITE_REQ
+        assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_DATA
+
+        # Then we switch to sending the data...
+        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await Timer(1, units="ns")
+
+        # assume memory is ready, check the data is the one expected and state is about to switch..
+        assert dut.axi_lite_wvalid.value == 0b1
+        assert dut.axi_lite_wready.value == 0b1
+        assert dut.cache_system.state.value == LITE_SENDING_WRITE_DATA
+        assert dut.cache_system.next_state.value == LITE_WAITING_WRITE_RES
+        assert dut.axi_lite_wdata.value == 0xABCDABCD
+
+        # Then we switch to sending the data...
+        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await Timer(1, units="ns")
+        await RisingEdge(dut.aclk) # wait for bvalid manually...
+        await Timer(1, units="ns")
+
+        # We are now waiting for a response from the memory... we assume it is instantly given
+        assert dut.axi_lite_bready.value == 0b1
+        assert dut.axi_lite_bvalid.value == 0b1
+        assert dut.axi_lite_bresp.value == 0b00 # "OKAY" code
+        assert dut.cache_system.next_state.value == IDLE
+
+        # Check that the data was written correctly to the axi lite ram slave
+        assert axi_lite_ram_slave.read(0x0000_0004, 4) == 0xABCDABCD.to_bytes(4, 'little')
+        # update the golden ref
+        lite_mem_golden_ref[int(0x0000_0004/4)] = 0xABCDABCD
+
+        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await Timer(1, units="ns")
+
+        # ==================================
+        # NON CACHABLE RANGE READ TEST
+        # ==================================
+
+        # check init state after a write sequence... everythin should be back to default !
+        assert dut.cache_system.state.value == IDLE
+        # aw
+        assert dut.axi_lite_awvalid.value == 0b0
+        # w
+        assert dut.axi_lite_wvalid.value == 0b0
+        # b
+        assert dut.axi_lite_bready.value == 0b0
+        # ar
+        assert dut.axi_lite_arvalid.value == 0b0
+        # r
+        assert dut.axi_lite_rready.value == 0b0
+
+        # we have to test the exactitude of the read and that the actual output data is the right one
+        # memory r slave is init to random values, we pick an arbitrary address whithing the non cachable range.
+        addr = 0x0000_000C
+
+        dut.cpu_write_enable.value = 0b0
+        dut.cpu_read_enable.value = 0b1
+        dut.cpu_address.value = addr
+        await Timer(1, units="ns") # propagate
+
+        # cpu should stall immediatly and prepare to switch state to LITE_SENDING_READ_REQ
+        assert dut.cpu_cache_stall.value == 0b1
+        assert dut.cache_system.non_cachable.value == 0b1
+        assert dut.cache_system.next_state.value == LITE_SENDING_READ_REQ
+        # should immediatly start outputtin the data in axi_read_result,(even if its outdated)
+        old_data_in_axi_read_result = dut.cache_system.axi_lite_read_result.value
+        assert dut.cache_system.read_data.value == old_data_in_axi_read_result
+
+        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await Timer(1, units="ns")
+
+        # assuming memory is ready... req is ack and we switch to recieving the data
+        assert dut.axi_lite_arready == 0b1
+        assert dut.axi_lite_arvalid == 0b1
+        assert dut.axi_lite_araddr == addr
+        assert dut.cache_system.state.value == LITE_SENDING_READ_REQ
+        assert dut.cache_system.next_state.value == LITE_RECEIVING_READ_DATA
+
+        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await Timer(1, units="ns")
+        await RisingEdge(dut.aclk) # wait for rvalid manually
+        await Timer(1, units="ns")
+
+        # We are recieving the incomming data, asuming memory sends valid data
+        assert dut.cache_system.state.value == LITE_RECEIVING_READ_DATA
+        assert dut.axi_lite_rready.value == 0b1
+        assert dut.axi_lite_rvalid.value == 0b1
+        # check that we recieve the expected data form the right addr ...
+        assert int(dut.axi_lite_rdata.value).to_bytes(4,'little') == lite_mem_golden_ref[int(0x0000_000C/4)]
+        expected_axi_result = dut.axi_lite_rdata.value
+        assert dut.cache_system.next_state.value == IDLE
+        
+        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await Timer(1, units="ns")
+
+        # check that we are in IDLE, not stalling anymore and sending the right data to the cpu !
+        assert dut.cache_system.state.value == IDLE
+        assert dut.cache_system.axi_lite_read_result.value == expected_axi_result
+        assert dut.cpu_read_data.value == expected_axi_result
+        dut.cpu_read_enable.value = 0b0
+        await Timer(1, units="ns")
+
+        assert dut.cpu_cache_stall.value == 0b0
+
+        # everythin should be back to default !
+        assert dut.cache_system.state.value == IDLE
+        # aw
+        assert dut.axi_lite_awvalid.value == 0b0
+        # w
+        assert dut.axi_lite_wvalid.value == 0b0
+        # b
+        assert dut.axi_lite_bready.value == 0b0
+        # ar
+        assert dut.axi_lite_arvalid.value == 0b0
+        # r
+        assert dut.axi_lite_rready.value == 0b0
+
+        # And now we create a cache miss to a large address
+        # (next looped tests nedd to miss)
+        # FOR TUTORIAL : MORE ON THIS BELOW
+
+        dut.cpu_read_enable.value = 0b1
+        dut.cpu_address.value = 0xAEAE_AEA0
+        await Timer(1, units="ns")
+        await RisingEdge(dut.clk)
+        await Timer(1, units="ns")
+        assert dut.cache_system.state.value == SENDING_WRITE_REQ
+
+        while not dut.cache_system.state.value == IDLE:
+            await RisingEdge(dut.clk)
+            await Timer(1, units="ns")
+
+        # seq stall de assert
+        await RisingEdge(dut.clk)
+        await Timer(1, units="ns")
+```
+
+> Great, but why provoke a cache miss at the end ??
+
+=> Great question ! Well this will allow to start on a fresh base to LOOP the tests by seeting a weird cached tag so so first test misses.
+
+But why am I saying that ? Well we are going to put our tests in a big loop we'l execute ... let's say 10 time (2 is enough techniaclly) :
+
+```python
+# test_holy_data_cache.py
+
+ # ==================================
+    # CLOCKS & RAM DECLARATION
+    # ==================================
+
+    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+    await RisingEdge(dut.clk)
+    await reset(dut)
+
+    # ----------------------
+    # we run these test multiple times with no resets, to check that going through states does
+    # not affect default bahavior. e.g :  forgor to reset some AXI / AX LITE flags to default
+    for _ in range(10) :
+        # Set cachable range to 0 for now to fully test the cache
+        dut.cache_system.non_cachable_base.value = 0x0000_0000
+        dut.cache_system.non_cachable_limit.value = 0x0000_0000
+
+
+        # and we go on ...
+```
+
+The reason ? Chceck that using the non cachable range does not interfere with some forgotten state, flag or signal that could compromise the regular `AXI FULL` transactions.
+
+And it works ! Great !
+
+## 12.3 : Updating the datapath for the uncachable range
 
 
 
