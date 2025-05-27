@@ -75,7 +75,14 @@ module holy_wrapper (
     output wire [6:0]               d_cache_set_ptr,
     output wire [6:0]               i_next_set_ptr,
     output wire [6:0]               d_next_set_ptr,
-    output wire                     csr_flush_order
+    output wire                     csr_flush_order,
+
+    output wire                     d_cache_seq_stall,
+    output wire                     d_cache_comb_stall,
+    output wire [3:0]               d_cache_next_state,
+    output wire                     mem_read,
+    output wire [3:0]               mem_byte_en,
+    output wire [31:0]              wb_data
 );
 
 // Internal wiring
@@ -150,7 +157,15 @@ axi_details wrapped (
     .i_next_set_ptr(i_next_set_ptr),
     .d_cache_stall(d_cache_stall),
     .d_next_set_ptr(d_next_set_ptr),
-    .csr_flush_order(csr_flush_order)
+    .csr_flush_order(csr_flush_order),
+
+    .d_cache_seq_stall(d_cache_seq_stall),
+    .d_cache_comb_stall(d_cache_comb_stall),
+    .d_cache_next_state(d_cache_next_state),
+    .mem_read(mem_read),
+    .mem_byte_en(mem_byte_en),
+    .wb_data(wb_data)
+
 );
 
 endmodule

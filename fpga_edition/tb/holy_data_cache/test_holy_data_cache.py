@@ -34,7 +34,7 @@ AXI_PERIOD = 10
 CPU_PERIOD = 10
 
 # Cach stuff
-SIZE = 4096 # 4kB adressable by 3B/12b
+SIZE = 2**13 # adressable by 3B/12b
 CACHE_SIZE = 128 #7 b addressable, SYNC IT WITH THE ACTUAL TB CACHE SIZE
 
 def generate_random_bytes(length):
@@ -526,12 +526,13 @@ async def main_test(dut):
         # Set the non cachable range that will use AXI LITE for communication with axi_lite_ram tb slave
         # Set cachable range to 0 for now to fully test the cache
         dut.cache_system.non_cachable_base.value = 0x0000_0000
-        dut.cache_system.non_cachable_limit.value = 0x0000_0200 # minimum admissible value !!
+        dut.cache_system.non_cachable_limit.value = 0x0000_0800
         dut.cpu_byte_enable.value = 0b1111 # We fix write to full words for now. TODO : set axi_lite.wstrb to siupport this ! 10min job !
         await Timer(1, units="ns")
 
         # Now prepare a write request from the CPU, state should go towards LITE_SENDING_WRITE_REQ
-        dut.cpu_address.value = 0x4 # in the non cachable range !
+        # TEST CORRECTION BRH : also get addres out ouf cached to test edge case on hit signal...
+        dut.cpu_address.value = 0x404 # in the non cachable range ! AND not cached as well
         dut.cpu_write_enable.value = 0b1
         dut.cpu_read_enable.value = 0b0
         dut.cpu_write_data.value = 0xABCDABCD # data we are looking to write ...
@@ -579,9 +580,9 @@ async def main_test(dut):
         assert dut.cache_system.next_state.value == IDLE
 
         # Check that the data was written correctly to the axi lite ram slave
-        assert axi_lite_ram_slave.read(0x0000_0004, 4) == 0xABCDABCD.to_bytes(4, 'little')
+        assert axi_lite_ram_slave.read(0x0000_0404, 4) == 0xABCDABCD.to_bytes(4, 'little')
         # update the golden ref
-        lite_mem_golden_ref[int(0x0000_0004/4)] = 0xABCDABCD
+        lite_mem_golden_ref[int(0x0000_0404/4)] = 0xABCDABCD
 
         await RisingEdge(dut.aclk) # STATE SWITCH !
         await Timer(1, units="ns")
@@ -610,6 +611,15 @@ async def main_test(dut):
 
         await RisingEdge(dut.aclk) # let the tx_done flag go low ...
         await Timer(1, units="ns")
+
+        # stop interracting, wait a bit and check for stall to stay low !
+        dut.cpu_write_enable.value = 0b0
+        dut.cpu_read_enable.value = 0b0
+        await Timer(1, units="ns")
+
+        for _ in range(10):
+            await RisingEdge(dut.aclk)
+            assert dut.cpu_cache_stall.value == 0b0
 
         # we have to test the exactitude of the read and that the actual output data is the right one
         # memory r slave is init to random values, we pick an arbitrary address whithing the non cachable range.
@@ -676,6 +686,15 @@ async def main_test(dut):
         assert dut.axi_lite_arvalid.value == 0b0
         # r
         assert dut.axi_lite_rready.value == 0b0
+
+        # stop interracting, wait a bit and check for stall to stay low !
+        dut.cpu_write_enable.value = 0b0
+        dut.cpu_read_enable.value = 0b0
+        await Timer(1, units="ns")
+
+        for _ in range(10):
+            await RisingEdge(dut.aclk)
+            assert dut.cpu_cache_stall.value == 0b0
 
         # And now we create a cache miss to a large address
         # (next looped tests nedd to miss)

@@ -108,7 +108,13 @@ module axi_details (
     output logic [6:0] i_next_set_ptr,
     output logic [6:0] d_cache_set_ptr,
     output logic [6:0] d_next_set_ptr,
-    output logic csr_flush_order
+    output logic csr_flush_order,
+    output logic       d_cache_seq_stall,
+    output logic       d_cache_comb_stall,
+    output logic [3:0] d_cache_next_state,
+    output logic [31:0] mem_read,
+    output logic [3:0] mem_byte_en,
+    output logic [31:0] wb_data 
 );
 
 // INTERFACES DECLARATION
@@ -136,7 +142,13 @@ holy_core core(
     .debug_d_next_set_ptr(d_next_set_ptr),
     .debug_i_cache_stall(i_cache_stall),  
     .debug_d_cache_stall(d_cache_stall),
-    .debug_csr_flush_order(csr_flush_order)
+    .debug_csr_flush_order(csr_flush_order),
+    .debug_d_cache_seq_stall(d_cache_seq_stall),
+    .debug_d_cache_comb_stall(d_cache_comb_stall),
+    .debug_d_cache_next_state(d_cache_next_state),
+    .debug_mem_read(mem_read),
+    .debug_mem_byte_en(mem_byte_en),
+    .debug_wb_data(wb_data) 
 );
 
 // Connect the discrete AXI signals to the m_axi

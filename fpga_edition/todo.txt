@@ -25,20 +25,20 @@ REDO ALL TESTS with better seq logic on next cahce dirty...
 Check how low can the timing can close (50, 75 ,100 , ... ?) => 50 will do it for now.
 prepare tutorials (md) and pdfs (clean)
 Compile actual assembly for the cpu mem files
+Implement CSR for better dev experience (cache flush Zicsr)
 
 ===================
 DOING
 ===================
 
-Implement CSR for better dev experience (cache flush Zicsr)
-
 Implement CSR counters (Zicntr)
+
+Compile programs from C.
 
 =======================
 NOT DONE - TODO MILESTONES
 =======================
 
-Compile programs from C.
 
 Add an SD card controller in the SoC, make a bootloader.
 

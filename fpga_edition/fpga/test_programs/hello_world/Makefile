@@ -1,22 +1,15 @@
-# Makefile for hello programs
-#
-# Takes "hello.s" and turns it into "hello.hex", an hex dump ready for use
-# in a tcl script for being loaded in BRAM (running "build_hello_hex").
-# you can also run "make build_hello" to get all the objdump details with debug hints
-#
-# BRH 11/12
+# Makefile for hello world program
+# BRH 05/25
 
-build_hello_hex: hello.o
-	riscv64-unknown-elf-objdump -d -j .text -j .rodata hello.o | sed -n 's/^[ \t]*[0-9a-f]\+:[ \t]*\([0-9a-f]\+\).*/\1/p' > hello.hex
-	rm -rf hello.o
+hello.hex: hello.elf
+	riscv64-unknown-elf-objcopy -O binary hello.elf hello.bin
+	hexdump -v -e '1/4 "%08x\n"' hello.bin > hello.hex
+	rm -rf *.o *.elf *.bin
 
-build_hello: hello.o
-	riscv64-unknown-elf-objdump -d hello.o > hello.hex
-	rm -rf hello.o
-
-hello.o: hello.s
+hello.elf: hello.s
 	riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -g hello.s -o hello.o
+	riscv64-unknown-elf-ld -m elf32lriscv -T linker.ld -o hello.elf hello.o
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.hex
+	rm -rf *.o *.hex *.elf

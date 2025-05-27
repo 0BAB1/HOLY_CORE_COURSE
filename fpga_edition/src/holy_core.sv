@@ -30,7 +30,13 @@ module holy_core (
     output logic [6:0] debug_d_next_set_ptr,  
     output logic debug_i_cache_stall,  
     output logic debug_d_cache_stall,
-    output logic debug_csr_flush_order
+    output logic debug_csr_flush_order,
+    output logic       debug_d_cache_seq_stall,
+    output logic       debug_d_cache_comb_stall,
+    output logic [3:0] debug_d_cache_next_state,
+    output logic [31:0] debug_mem_read,
+    output logic [3:0] debug_mem_byte_en,
+    output logic [31:0] debug_wb_data 
 );
 
 import holy_core_pkg::*;
@@ -378,7 +384,10 @@ holy_data_cache data_cache (
 
     //debug
     .set_ptr_out(debug_d_set_ptr),
-    .next_set_ptr_out(debug_d_next_set_ptr)
+    .next_set_ptr_out(debug_d_next_set_ptr),
+    .debug_seq_stall(debug_d_cache_seq_stall),
+    .debug_comb_stall(debug_d_cache_comb_stall),
+    .debug_next_cache_state(debug_d_cache_next_state)
 );
 
 /**
@@ -387,6 +396,10 @@ holy_data_cache data_cache (
 
 wire [31:0] mem_read_write_back_data;
 wire mem_read_write_back_valid;
+
+assign debug_mem_read = mem_read;
+assign debug_mem_byte_en = mem_byte_enable;
+assign debug_wb_data = mem_read_write_back_data;
 
 reader reader_inst(
     .mem_data(mem_read),
