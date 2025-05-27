@@ -4,7 +4,7 @@
 
 _start:
     # Setup uncached MMIO region from 0x2000 to 0x2FFF
-    lui x6, 0x0                 # x6 = 0x0000 => makes everything non cachable
+    lui x6, 0x2                 # x6 = 0x2000
     lui x7, 0x2
     ori x7, x7, -1              # x7 = 0x2FFF
     csrrw x0, 0x7C1, x6         # MMIO base

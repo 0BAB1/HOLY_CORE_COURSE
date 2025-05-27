@@ -6,7 +6,7 @@ reset_hw_axi [get_hw_axis hw_axi_1]
 set bram_address 0x00000000
 set wt axi_bram_wt
 create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address -len 22 -data {
-    00000337
+    00002337
     000023b7
     fff3e393
     7c131073
