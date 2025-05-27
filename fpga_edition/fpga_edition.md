@@ -4635,7 +4635,9 @@ In a nutshell :
 
 Here is an updated scheme for our cache :
 
-![data cache with done flag scheme](../images/data_cache_with_done_flag.JPG.jpg)
+![data cache with done flag scheme](../images/data_cache_with_done_flag.jpg)
+
+As you can see, we also bring our `non_cachable` to the hit logic to avoid side effects where the cache thinks we are missing and stalls the core after `axi_lite_tx_done` goes low because of `seq_stall`, which, *if you remember correctly*, have a 1 cycle delay. Keeping hit high on non cachable operation prevents such behavior. (Note the *holy_cache*'stest has been slightly modified for this bug fix by adding assertions on the `cache_stall` signal and changing the requested address on the non cachble data transactions tests, nothing fancy.)
 
 Now let's implement it in the cache logic :
 
@@ -4661,6 +4663,10 @@ module holy_data_cache #(
     // STALL LOGIC
     // ...
     assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done; // CHANGED !
+
+    // HIT LOGIC
+    logic hit;
+    assign hit = ((req_block_tag == cache_block_tag) && cache_valid) | non_cachable; // CHANGED ! (BRH BUG FIX)
 
     // =======================
     // CACHE LOGIC
@@ -4979,13 +4985,19 @@ Well, we'll use an ip for that of course because I don't wanna drive an output p
 
 So let's drag and drop it to our SoC, while begin careful to map the addresses well and note them down to make sure we can set it as non cachable.
 
-==================== TODO , ADD SOC SCHEME AND ADDRESSES
+![SoC block design](../images/soc_hello.png)
+
+![SoC addresses](../images/soc_hello_addr.png)
+
+> Note : you can perfecly connect an AXI LITE master to an AXI FULL slave (contrary not possible). Connection automation will not do it for you though so you'll have to mannually add interfaces to the `smart_connect` block (you need that to assign addresses) and simply connect your devices as usual !
 
 By running connection automation, vivado fills the uart pins with a weird "`uart_rtl`" port.
 
-Don't be like me, a fool, who though that meant my CPU would magically use the UART embedded in the power cable that the Zynq processing system uses. **Turns out it doesn't** so instead of looking around on how do do that, I'll just use this :
+Don't be like me: *a fool*... Who though that "`uart_rtl`" meant my CPU would *magically* use the UART embedded in the power cable that the Zynq processing system uses.
 
-==================== TODO , ADD PHOTO OF PMOD UART
+**Turns out it doesn't**, so instead of looking around on how do do that, I'll just use this :
+
+![pmod uart to usb](../images/uart_usb_being_used.png)
 
 [*(clickable link to the docs)*](https://digilent.com/reference/pmod/pmodusbuart/reference-manual?redirect=1)
 
@@ -5055,7 +5067,132 @@ Looks like we are all set ! once you have a bitstream, we can
 
 > Note : My JE PMOD did not work for some reason so I moved it to JB (the one on the picture above as I take pictures once things work). But the idea stays the same for your board / FPGA.
 
+## 14 bis : Hello world... Software
 
+Okay, now we need to write **software** (*eww*) to make our hello world work.
+
+To do so, we simply read our **AXI UART-LITE* IP's datasheet to figure out :
+
+- What register to write the data we want to send (tx reg is `0x4` from base address and we only have acces to a byte)
+- What register we can check to see if we can actually send data (status reg is `0x8` from base address and `tx_full` is the 4th bit flag / bit 3)
+
+So here is the resulting assembly code :
+
+```assembly
+# hello.s
+
+.section .text
+.align 1
+.global _start
+
+_start:
+    # Setup uncached MMIO region from 0x2000 to 0x2FFF
+    lui x6, 0x0                 # x6 = 0x0000 => makes everything non cachable
+    lui x7, 0x2
+    ori x7, x7, -1              # x7 = 0x2FFF
+    csrrw x0, 0x7C1, x6         # MMIO base
+    csrrw x0, 0x7C2, x7         # MMIO limit
+
+    # UARTLite base at 0x2800
+    li x10, 0x2800              # x10 = UART base
+    la x11, string              # x11 = address of string
+    li x12, 13                  # x12 = length of string
+
+loop:
+    lb x13, 0(x11)              # load byte from string
+wait:
+    lw x14, 8(x10)              # read UART status (8h)
+    andi x14, x14, 0x8          # test bit n°3 (TX FIFO not full)
+    bnez x14, wait              # if not ready, spin
+    sb x13, 4(x10)              # write byte to TX register (4h)
+
+    addi x11, x11, 0x1          # next char
+    addi x12, x12, -1           # decrement counter
+    bnez x12, loop              # loop until done
+
+    # Done
+    j .
+
+.section .rodata
+.align 1
+string:
+    .asciz "Hello, World\n"
+```
+
+As you can see, our program gained in complexity as it now has a `.rodata` memory section. This is just a "high level" way to place data elements in memory. As we'll load this program in the BRAM, the data will also be included and the instruction will know where to look for it as its address will be hardcoded at compile time.
+
+**BUT** to make a program that is not weird or anything (*compliant with our SoC architecture*), we need to tell the compiler:
+
+- How our memory is organized in our embedded system.
+- Where does the sections (e.g. `.text` and `.data`) belong in this memory.
+
+To do this we'll use a linker script, this way the hexdump will be compliant with our memory architecture :
+
+```ld
+// linker.ld
+
+MEMORY {
+    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 0x2000
+}
+
+SECTIONS {
+    .text : {
+        *(.text*)
+    } > RAM
+    .data : {
+        *(.data*)
+    } > RAM
+    .bss : {
+        *(.bss*)
+    } > RAM
+}
+```
+
+Now, we'll change our method a little to get our HEX dump. Before we used a disassemble version of the .text section. Which worked "*fine*" for **very** simple programs but not for this. Here we'll use our linker file alongside hexdump.
+
+Here is a makefile that generates the `hello.hex` dump automatically :
+
+```make
+# test_programs/hello_world/Makefile
+
+hello.hex: hello.elf
+    riscv64-unknown-elf-objcopy -O binary hello.elf hello.bin
+    hexdump -v -e '1/4 "%08x\n"' hello.bin > hello.hex
+    rm -rf *.o *.elf *.bin
+
+hello.elf: hello.s
+    riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -g hello.s -o hello.o
+    riscv64-unknown-elf-ld -m elf32lriscv -T linker.ld -o hello.elf hello.o
+
+.PHONY: clean
+clean:
+    rm -rf *.o *.hex *.elf
+```
+
+And of course, as always, I use `riscv64-unknown-elf-XX` but using the right arguments, I can say tell the complier to interpret it as RV32I.
+
+## 14 bis bis : loading the program and testing
+
+Now, as always, we can program the board and load the program in the BRAM.
+
+Expected behavior :
+
+- The programs writes chars in the TX reg of the `UART LITE` ip
+- The `UART LITE` ip sends UART signals to The **UART to USB** adapter
+- The **UART to USB** adapter send this data to the host pc to which he's plugged in through USB
+- Via a `tty` terminal, the host pc can see what the program was initially sending (we should see "**Hello, world**" and a newline)
+
+To connect to the `tty` terminal via the host pc, multiple solution exists. I personnaly use **Putty** as I have a config for each `/dev/ttyUSBX` ready to go, as linux assigns it to whatever is available each time.
+
+> Don't forget to set your baud rate ! `UART LITE` ip's default is 9 600.
+
+Once the `tty` terminal is open, you can load the program in the BRAM using a `.tcl` script (Leveraging the JTAG to AXI MASTER IP as a bootloader once again) and realease the reset. Here is the result :
+
+![hello world from HOLY CORE](../images/hello.png)
+
+And finally, after all this work, after all this struggle, after all this learning, time designing; tinkering, fixing, enjoying and try-harding. Here it is...
+
+**The *HOLY CORE* said "Hello, World"**, gg wp.
 
 ## Resources
 

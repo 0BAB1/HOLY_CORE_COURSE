@@ -13,26 +13,28 @@ reset_hw_axi [get_hw_axis hw_axi_1]
 set bram_address 0x00000000
 set wt axi_bram_wt
 create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address -len 20 -data {
-    00002337
-    00000993
-    08000a13
-    00000913
-    0040006f
-    00000313
-    00002337
-    00000993
-    00190913
-    0040006f
-    01232023
-    00430313
-    00198993
-    ff499ae3
-    00002b83
-    02fafab7
-    080a8a93
-    fffa8a93
-    fe0a9ee3
-    fc9ff06f
+    00000337
+    000023b7
+    fff3e393
+    7c131073
+    7c239073
+    00003537
+    80050513
+    04800593
+    00d00613
+    00058683
+    00852703
+    00477713
+    fe070ce3
+    00d50223
+    00158593
+    fff60613
+    fe0612e3
+    0000006f
+    6c6c6548
+    57202c6f
+    646c726f
+    0000000a
 }
 
 run_hw_axi [get_hw_axi_txns $wt]

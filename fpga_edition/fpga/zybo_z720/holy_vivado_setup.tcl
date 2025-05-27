@@ -120,7 +120,7 @@ startgroup
 set_property -dict [list \
   CONFIG.C_MON_TYPE {MIX} \
   CONFIG.C_NUM_MONITOR_SLOTS {2} \
-  CONFIG.C_NUM_OF_PROBES {14} \
+  CONFIG.C_NUM_OF_PROBES {20} \
 ] [get_bd_cells system_ila_0]
 set_property CONFIG.C_DATA_DEPTH {4096} [get_bd_cells system_ila_0]
 endgroup
@@ -143,6 +143,12 @@ connect_bd_net [get_bd_ports cpu_reset] [get_bd_pins system_ila_0/probe10]
 connect_bd_net [get_bd_pins holy_wrapper_0/csr_flush_order] [get_bd_pins system_ila_0/probe11]
 connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_state] [get_bd_pins system_ila_0/probe12]
 connect_bd_net [get_bd_pins holy_wrapper_0/pc_source] [get_bd_pins system_ila_0/probe13]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_seq_stall] [get_bd_pins system_ila_0/probe14]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_comb_stall] [get_bd_pins system_ila_0/probe15]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_next_state] [get_bd_pins system_ila_0/probe16]
+connect_bd_net [get_bd_pins holy_wrapper_0/mem_read] [get_bd_pins system_ila_0/probe17]
+connect_bd_net [get_bd_pins holy_wrapper_0/mem_byte_en] [get_bd_pins system_ila_0/probe18]
+connect_bd_net [get_bd_pins holy_wrapper_0/wb_data] [get_bd_pins system_ila_0/probe19]
 
 # Add axi converted for gpio
 
@@ -171,6 +177,58 @@ assign_bd_address
 
 disconnect_bd_net /reset_rtl_1 [get_bd_pins holy_wrapper_0/aresetn]
 connect_bd_net [get_bd_pins holy_wrapper_0/aresetn] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
+
+#======================================
+# BRH 05/25 New SoC with UART LITE
+
+delete_bd_objs [get_bd_intf_nets axi_smc_M01_AXI] [get_bd_intf_nets axi_protocol_convert_0_M_AXI] [get_bd_cells axi_protocol_convert_0]
+
+startgroup
+set_property CONFIG.NUM_SI {3} [get_bd_cells axi_smc]
+endgroup
+
+connect_bd_intf_net [get_bd_intf_pins holy_wrapper_0/m_axi_lite] [get_bd_intf_pins axi_smc/S02_AXI]
+connect_bd_intf_net [get_bd_intf_pins system_ila_0/SLOT_1_AXI] [get_bd_intf_pins axi_smc/S02_AXI]
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_uartlite:2.0 axi_uartlite_0
+endgroup
+set_property location {6 1695 448} [get_bd_cells axi_uartlite_0]
+
+startgroup
+set_property CONFIG.NUM_MI {3} [get_bd_cells axi_smc]
+endgroup
+
+connect_bd_intf_net [get_bd_intf_pins axi_gpio_0/S_AXI] [get_bd_intf_pins axi_smc/M01_AXI]
+connect_bd_intf_net [get_bd_intf_pins axi_uartlite_0/S_AXI] [get_bd_intf_pins axi_smc/M02_AXI]
+
+apply_bd_automation -rule xilinx.com:bd_rule:board -config { Manual_Source {Auto}}  [get_bd_intf_pins axi_uartlite_0/UART]
+
+connect_bd_net [get_bd_pins axi_uartlite_0/s_axi_aclk] [get_bd_pins clk_wiz/clk_out1]
+connect_bd_net [get_bd_pins axi_uartlite_0/s_axi_aresetn] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
+
+delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
+assign_bd_address
+
+# all manual address reassignements...
+set_property offset 0x40600000 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_uartlite_0_Reg}]
+set_property offset 0 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
+set_property range 4K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_gpio_0_Reg}]
+set_property range 4K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_uartlite_0_Reg}]
+set_property offset 0x2000 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_gpio_0_Reg}]
+set_property range 2K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_gpio_0_Reg}]
+set_property range 2K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_uartlite_0_Reg}]
+set_property range 2K [get_bd_addr_segs {holy_wrapper_0/m_axi_lite/SEG_axi_gpio_0_Reg}]
+set_property range 2K [get_bd_addr_segs {holy_wrapper_0/m_axi_lite/SEG_axi_uartlite_0_Reg}]
+set_property range 2K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
+set_property range 2K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
+set_property offset 0 [get_bd_addr_segs {holy_wrapper_0/m_axi_lite/SEG_axi_bram_ctrl_0_Mem0}]
+set_property offset 0 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_bram_ctrl_0_Mem0}]
+set_property offset 0x2000 [get_bd_addr_segs {holy_wrapper_0/m_axi_lite/SEG_axi_gpio_0_Reg}]
+set_property offset 0x2800 [get_bd_addr_segs {holy_wrapper_0/m_axi_lite/SEG_axi_uartlite_0_Reg}]
+set_property offset 0x2800 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_uartlite_0_Reg}]
+set_property offset 0x2000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
+set_property offset 0x2800 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
 
 # Validate + wrapper
 

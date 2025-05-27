@@ -48,10 +48,17 @@ module holy_data_cache #(
 
     // debug signals
     output logic [6:0] set_ptr_out,
-    output logic [6:0] next_set_ptr_out
+    output logic [6:0] next_set_ptr_out,
+    output logic       debug_seq_stall,
+    output logic       debug_comb_stall,
+    output logic [3:0] debug_next_cache_state
 );
+    // debug assignements
     assign set_ptr_out = set_ptr;
     assign next_set_ptr_out = next_set_ptr;
+    assign debug_seq_stall = seq_stall;
+    assign debug_comb_stall = comb_stall;
+    assign debug_next_cache_state = next_state;
 
     // Here is how a cache line is organized:
     // | DIRTY | VALID | BLOCK TAG | INDEX/SET | OFFSET | DATA |
@@ -88,7 +95,7 @@ module holy_data_cache #(
 
     // HIT LOGIC
     logic hit;
-    assign hit = (req_block_tag == cache_block_tag) && cache_valid;
+    assign hit = ((req_block_tag == cache_block_tag) && cache_valid) | non_cachable;
 
     // STALL LOGIC
     logic actual_write_enable;
