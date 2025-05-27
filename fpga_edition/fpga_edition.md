@@ -5194,6 +5194,24 @@ And finally, after all this work, after all this struggle, after all this learni
 
 **The *HOLY CORE* said "Hello, World"**, gg wp.
 
+## 15 : The end ?
+
+Well... It may be the end of the FPGA Edition as you know know most of the things we need to run the core on FPGA.
+
+## 15.1 : What's next ?
+
+Well I have a big project comming up that will be the object of a YouTube video if I ever succeed.
+
+For the *HOLY CORE* itself, future planned work is :
+
+- Software environement to use the *HOLY CORE* on small projects.
+- A short and handy **debug manual**, like this one, but it would dive into the advanced debugging techniques used when you run into a problem.
+- A pipelined edition ? That's on my todo list as well.
+
+Godspeed,
+
+\- Hugo
+
 ## Resources
 
 Resource name | Link | Comment|
