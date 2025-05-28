@@ -61,6 +61,9 @@ def test_external_req_arbitrer():
     proj_path = Path(__name__).resolve().parent.parent
     generic_tb_runner("external_req_arbitrer", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/external_req_arbitrer/axi_translator.sv"])
 
+def test_csr_file():
+    generic_tb_runner("csr_file")
+
 if __name__ == "__main__":
     test_alu()
     test_control()
@@ -72,3 +75,4 @@ if __name__ == "__main__":
     test_reader()
     test_holy_cache()
     test_external_req_arbitrer()
+    test_csr_file()
