@@ -13,7 +13,7 @@ _start:
     # UARTLite base at 0x2800
     li x10, 0x2800              # x10 = UART base
     la x11, string              # x11 = address of string
-    li x12, 13                  # x12 = length of string
+    li x12, 14                  # x12 = length of string
 
 loop:
     lb x13, 0(x11)              # load byte from string
@@ -33,4 +33,4 @@ wait:
 .section .rodata
 .align 1
 string:
-    .asciz "Hello, World\n"
+    .asciz "Hello, World\n\r"

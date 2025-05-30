@@ -16,3 +16,4 @@ gpio.o
 .Xil
 HOLY_SOC
 *str
+*.ila

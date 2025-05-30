@@ -14,7 +14,7 @@ create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address 
     00003537
     80050513
     04800593
-    00d00613
+    00e00613
     00058683
     00852703
     00877713
@@ -27,7 +27,7 @@ create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address 
     6c6c6548
     57202c6f
     646c726f
-    0000000a
+    00000d0a
 }
 
 run_hw_axi [get_hw_axi_txns $wt]
