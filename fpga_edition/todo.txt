@@ -31,6 +31,8 @@ Implement CSR for better dev experience (cache flush Zicsr)
 DOING
 ===================
 
+simple sensor read for the video
+
 Implement CSR counters (Zicntr)
 
 Compile programs from C.

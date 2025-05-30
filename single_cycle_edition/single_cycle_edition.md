@@ -6266,6 +6266,8 @@ Here is a usage example :
 
 ## The end ?
 
-This is the end of this course ! We made a Core run on simulation, the next step is to actually use it on an FPGA !
+This is the end of this course ! We made a Core run on simulation, the next step is to actually use it on an FPGA by building an actual SoC and a cache system to interact with peripherals !
+
+We'll take a deep dive into SoC protocols (e.g. **AXI** and **AXI LITE**) and use the core to run real programs an interact with LEDs, a**nd even print "Hello world"** !
 
 See you in the *fpga edition* of this course !
