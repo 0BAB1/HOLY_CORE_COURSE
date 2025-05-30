@@ -12,7 +12,7 @@ This project is a course you can follow to build the HOLY CORE and everything th
 - A fully customizable cache system
   - AXI for large transers and "local" computations (memory accesses)
   - AXI LITE for non cachable MMIO interaction (Sensors, UART, ...)
-  - MMIO address range fully customizable during runtime using CRSs
+  - MMIO address range fully customizable during runtime using CSRs
 - Usable in FPGA SoC for basic emnbedded applications
 - You will also find sofware examples to play with it !
 
