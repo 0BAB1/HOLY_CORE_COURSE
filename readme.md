@@ -6,12 +6,15 @@ An open-source core **for learning purposes**. Learn to build your own 32 bits R
 
 ## Features
 
-This project is a course you can follow to build the HOLY CORE and everything that cames with it, and the final product of your work will feature :
+This project is a course you can follow to build the HOLY CORE and everything that comes with it, and the final product of your work will feature :
 
-- A single cycle RV32I,Zicsr,Zicntr (holy) Core
-- A fully custom cach system with a full AXI interface to communicate with any MMIO peripherals
-- A working, fully FPGA implementation
-- A basic sofwtware environement to develop basic application for **real-world** use on FPGA.
+- A single cycle RV32I (holy) Core
+- A fully customizable cache system
+  - AXI for large transers and "local" computations (memory accesses)
+  - AXI LITE for non cachable MMIO interaction (Sensors, UART, ...)
+  - MMIO address range fully customizable during runtime using CRSs
+- Usable in FPGA SoC for basic emnbedded applications
+- You will also find sofware examples to play with it !
 
 > You will find quickstart guides in the code case to help you out using the core without having to build it from scratch.
 
