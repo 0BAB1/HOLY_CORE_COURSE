@@ -26,29 +26,27 @@ Check how low can the timing can close (50, 75 ,100 , ... ?) => 50 will do it fo
 prepare tutorials (md) and pdfs (clean)
 Compile actual assembly for the cpu mem files
 Implement CSR for better dev experience (cache flush Zicsr)
+simple sensor read
 
 ===================
 DOING
 ===================
 
-simple sensor read for the video
 
-Implement CSR counters (Zicntr)
-
-Compile programs from C.
 
 =======================
 NOT DONE - TODO MILESTONES
 =======================
 
+Compile programs from C. Be able to use libc.
+
+Implement CSR counters (Zicntr)
 
 Add an SD card controller in the SoC, make a bootloader.
 
 Add basic utilities in a HOLY LIBRAIRY. (cache hadling, get counters, simplified MMIO access)
 
 Use the sensors, make a drone takeoff and stable (at least on the Z axis).
-
-Update the PDFs, the ref tables (with all csr and new imm signals and csr control signals)
 
 Once everything is done, split the core and PIPELINE it (objective : 80MHz).
 
