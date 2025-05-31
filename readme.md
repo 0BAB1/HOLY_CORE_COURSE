@@ -20,11 +20,13 @@ This project is a course you can follow to build the HOLY CORE and everything th
 
 The course is divided in multiple blocks to learn different aspects of digital design. The table below indicates availability of these learning blocks.
 
-| Block Name            | Status            |
-| ----------            | ------            |
-| Single cycle edition  | FINISHED   |
-| FPGA edition          | FINISHED   |
-| Pipelined edition     | ON MY TODO LIST      |
+| Block Name            | Status |
+| ----------            | ------ |
+| Single cycle edition  | FINISHED |
+| FPGA edition          | FINISHED |
+| Software edition      | CURRENTLY BUILDING |
+| Pipelined edition     | ON MY TODO LIST |
+| OS edition            | ON MY TODO LIST |
 
 > The code will always be **open-source**. I do give the option to donate for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
 
@@ -81,17 +83,13 @@ Take a deep dive into memory.
 - Improve our design by using cache and querying external data using AXI.
 - Interact with I/Os
 
-### Pipelined edition
+### Other Editions
 
-> The pipelined edition is on my todo list but I need to move on to other projects and freelancing stuff for now.
-
-Make the core more performant by adding a pipeline (On my todo list).
-
-**Goal :** Increase the core perfs by pipelining it and hadling all the hazards that comes with it.
+Other editions are coming soon ! Stay tuned !
 
 ## OPEN SOURCE and CONTRIBUTIONS
 
-Contributions are very welcomed as I know I tend to make a lot of mistakes.
+Contributions are very welcome as I know I tend to make a lot of mistakes and typos (at least it proves it's not some half baked AI generated garbage haha).
 
 **Special mention** to this Veryl rewrite of the `HOLY CORE` called `VERY HOLY CORE` by @jbeaurivage : [Link to VERY HOLY CORE repo](https://github.com/jbeaurivage/very-holy-core).
 

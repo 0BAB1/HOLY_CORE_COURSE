@@ -1,5 +1,7 @@
 # Quickstart Guide
 
+> A better, full user manual is on the todo list.
+
 ## Intro : The goal
 
 The goal of this HOLY CORE EDITION is to implement everything we need for our core to work in a basic SoC that we'll run on FPGA.
