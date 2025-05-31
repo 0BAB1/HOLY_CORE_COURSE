@@ -5,18 +5,18 @@ AUTHOR :  BABIN-RIBY Hugo a.k.a. BRH
 
 Please refer to the LICENSE for legal details on this document
 
-LAST EDIT : 12/2024
+LAST EDIT : 05/25
 -->
 
 # The HOLY CORE project : A full RISC-V RV32I Core Tutorial, for everyone
 
-![waveform banner](../images/banner.png)
+![waveform banner](./images/banner.png)
 
 This tutorial will teach **you** how to build and test a fully working RISC-V Single cycle core at the RTL Level using System Verilog HDL.
 
 We'll use a set of open-source tools to allow everyone to complete this project at home using little to no specific resources.
 
-Before starting, please check out the **setup manual** (*at the root of the tutorial's repo*). It also contains important information on the prerequisites for your system.
+Before starting, please check out the check out the **setup manual** (*at the root of the tutorial's repo*). It also contains important informations on the prerequisites for your system.
 
 This tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.com/watch?v=lrN-uBKooRY&list=PLh8QClfSUTcbfTnKUz_uPOn-ghB4iqAhs) and on the *Digital Design and Computer Architecture, RISC-V Edition* Book from Sarah & David Harris. (*I'll let you do your own research to get your hands on the PDF*).
 
@@ -24,7 +24,7 @@ This tutorial heavily based on [DDCA lectures, chapter 7](https://www.youtube.co
 
 In this tutorial, we will build the following core :
 
-![finished single cycle](../images/Holy_core.jpg)
+![finished single cycle](./images/Holy_core.jpg)
 
 Which aims at implementing all of the **RV32I** base instruction set. You can find a table [here](https://five-embeddev.com/riscv-user-isa-manual/Priv-v1.12/instr-table.html) describing each instruction we'll implement.
 
@@ -78,7 +78,7 @@ here is a quick breakdown :
 
 Here is an overview of what we'll try to do :
 
-![lw partial datapath img](../images/Lw_partial_datapath.png)
+![lw partial datapath img](./images/Lw_partial_datapath.png)
 
 As you can see, before doing any actual hardware digital interpretation of this instruction, we first need to build some basic logic blocks :
 
@@ -89,7 +89,7 @@ As you can see, before doing any actual hardware digital interpretation of this 
 - A basic ALU
 - And a decoder/control unit we will improve as time goes on
 
-We'll start by ceazting basic versions of the different building blocks and test their behavior separately.
+We'll start by creating basic versions of the different building blocks and test their behavior separately.
 
 We'll then assemble them to form our first version of our datapath.
 
@@ -403,7 +403,9 @@ assign zero = alu_result == 32'b0;
     
 endmodule
 ```
-We also add a `alu_control` option, to later select other arithmetic operation. We default the result to 0 if the requested arithmetic isn't implemented and we add a "zero" flag that we'll use in later designs.
+
+We also add an `alu_control` option, to later select other arithmetic operation. We default the result to 0 if the requested arithmetic isn't implemented and we add a "zero" flag that we'll use in later designs.
+
 ### 1.1.c : Verification
 
 Simple design, simple testbench, but this time, the alu being pur combinational logic, we do not use a clock :
@@ -453,6 +455,7 @@ async def zero_test(dut):
     assert int(dut.zero.value) == 1
     assert int(dut.alu_result.value) == 0
 ```
+
 Here we declare multiple tests, it's exactly the same as making a single block but it improves readability so why not.
 
 ## 1.1.d : Implementing the sign extender
@@ -478,7 +481,7 @@ logic [11:0] gathered_imm;
 
 always_comb begin
     case (imm_source)
-        2'b00 : gathered_imm = raw_src[24:13];
+        1'b00 : gathered_imm = raw_src[24:13];
         default: gathered_imm = 12'b0;
     endcase
 end
@@ -541,7 +544,7 @@ Once again, we'll add other features to this a bit later ;)
 
 Below is an image of what we need to do implement for the control unit. Note that the following image contains the logic for the **FULL** controller, for now, we'll focus on implementing the ```lw``` logic.
 
-![Controller logic img](../images/Controller_logic.png)
+![Controller logic img](./images/Controller_logic.png)
 
 > You can find the definitives tables for the HOLY CORE in the `Holy_Reference_Tables.pdf` file.
 
@@ -575,7 +578,7 @@ As you can see, there is an ALU control as well. This is because a single instru
 
 **To know what ```alu_control```to use**, the plan is to deduce a general ```alu_op``` depending on the instruction type and then add an ```alu_decoder``` unit will deduce the arithmetic from indicators like ```func3``` and ```func7``` (Also called simply *f3* & *f7*). This will finally assert some ```alu_control``` control signals to tell the ALU what to do, here is another truth table to use that :
 
-![Alu_op truth table img](../images/Alu_op_tt.png)
+![Alu_op truth table img](./images/Alu_op_tt.png)
 
 > You can find the full table for the entire course in the `Holy_Reference_Tables.pdf` file.
 
@@ -665,7 +668,7 @@ async def control_test(dut):
     assert dut.reg_write.value == "1"
 ```
 
-> ```await set_unknown(dut)``` is here to set the signals to default ```X``` values. You can check the section on tests setup or the source code for more info. If you don't use it, you may have a passing test whereas you are checking on other tests states. It will be up to you to update it (**by uncommenting the assignements**) as we add input to the *control* unit. Don't, worry, it will come to mind naturally.
+> `await set_unknown(dut)` is here to set the signals to default `X` values. You can check the section on tests setup or the source code for more info. If you don't use it, you may have a passing test whereas you are checking on other tests states. It will be up to you to update it (**by uncommenting the assignements**) as we add input to the *control* unit. Don't, worry, it will come to mind naturally.
 
 Here is what the ```set_unknown``` function looks like :
 
@@ -703,7 +706,7 @@ We can now start to edit ```cpu.sv``` and add the pieces together ! From there (
 
 Here is the complete ```lw``` specific datapth :
 
-![lw partial datapath img](../images/Lw_partial_datapath.png)
+![lw partial datapath img](./images/Lw_partial_datapath.png)
 
 So we implement it !
 
@@ -930,8 +933,6 @@ Which translates as this in HEX format (comments like ```//blablabla``` are igno
 00802903  //LW TEST START : lw x18 8(x0)
 00000013  //NOP
 00000013  //NOP
-00000013  //NOP
-00000013  //NOP
 //(Filled the rest with NOPs...) 
 ```
 
@@ -1064,7 +1065,7 @@ As you can see, the helper functions does help a lot indeed ! Using them, we can
 
 Here is what enhancements we need to make to add basic ```sw (S-type)``` support in our CPU :
 
-![sw enhancements img](../images/Sw_datapath.png)
+![sw enhancements img](./images/Sw_datapath.png)
 
 As you can see, it is simply about adding a wire from *RD2* to write data and an other *imm_source* control signal.
 
@@ -1315,7 +1316,7 @@ To verify, once again, we set up the memory files on a scenario that will be eas
 
 As you can see, we add a new instruction that will take the value we loaded in x18 and store it @ addr 0x0000000C in memory.
 
-rpeaking of memory, the file did not really change, except I changed the 0xC value to ```0xF2F2F2F2``` to avoid asserting 00000000 as it is too common of a value :
+Speaking of memory, the file did not really change, except I changed the 0xC value to ```0xF2F2F2F2``` to avoid asserting 00000000 as it is too common of a value :
 
 ```txt
 //test_dmemory.hex
@@ -1410,7 +1411,7 @@ Oh.. That's actually quite a lot ! But do not fret, as most of these mostly uses
 
 Here is what we'll try to implement :
 
-![R tpye improvements img](../images/Rtype_datapath.png)
+![R tpye improvements img](./images/Rtype_datapath.png)
 
 What I suggest we do is to first implement the ```add``` instruction (because our *ALU* already had *addition* arithmetic) and than we exercice a bit by adding ```and``` & ```or``` before moving on to jumps & branches instructions.
 
@@ -1827,8 +1828,8 @@ And that's pretty much it ! the same will go for ```and``` !
 
 BTW, Here are the tables I use (From the Harris' *DDCA book* just like many other temporary tables) for my control values, which can be whatever as long as it is consistent throughout your design :
 
-![Main decoder table img](../images/Main_decoder.png)
-![Alu decoder table img](../images/Alu_decoder.png)
+![Main decoder table img](./images/Main_decoder.png)
+![Alu decoder table img](./images/Alu_decoder.png)
 
 > You can find the definitives tables for the HOLY CORE in the `Holy_Reference_Tables.pdf` file.
 ### AND
@@ -2181,7 +2182,7 @@ To implement ```beq``` just like everything we did until now, we have to impleme
 
 Here is a figure from the Harris' **DDCA Books, RISC-V Edition** alongside a table for the new weird IMM source
 
-![beq / B-type datapath enhancements](../images/Beq_datapath.png)
+![beq / B-type datapath enhancements](./images/Beq_datapath.png)
 
 What is new here *(in terms of datapath)* ?
 
@@ -2277,7 +2278,7 @@ end
 /**
 * PC_Source (NEW !)
 */
-assign pc_source = alu_zero & branch;
+assign pc_source = (assert_branch & (op == OPCODE_B_TYPE)) | jump; // bug fixed 05/25 BRH
     
 endmodule
 ```
@@ -2428,7 +2429,7 @@ By updating the sign extender's logic to support this new ```imm_source = 2'b10`
 
 > Tip : I Highly suggest you you pen and paper, this is true for many things, but as immediates sources gets weirder, it will be more and more helpful. By doing so, you will easily pick up the patterns and quickly get  the "bitwise gymnastics".
 
-![Paper example for B-Type immediate](../images/B_imm.jpg)
+![Paper example for B-Type immediate](./images/B_imm.jpg)
 
 ### 4.1.c : HDL Code
 
@@ -2706,7 +2707,7 @@ so, we pretty much have nothing to check as this is an unconditional event that 
 
 Here is what we want to implement :
 
-![J Type datapath](../images/Jtype_datapath.png)
+![J Type datapath](./images/Jtype_datapath.png)
 
 So,
 
@@ -2720,7 +2721,7 @@ Don't mind the last **2'b11** value for the *write_back* mux on the scheme, we r
 
 > Tip : Just like ```beq``` (and many other things...) using pen and paper is strongly recommended to write HDL and tests !
 
-![Paper example for J-Type immediate](../images/J_imm.jpg)
+![Paper example for J-Type immediate](./images/J_imm.jpg)
 
 ### 5.1.a : HDL Code
 
@@ -2812,7 +2813,7 @@ async def signext_j_type_test(dut):
 
 Here is a recap of what we'll need to do now for the control unit (ignore "I-Type ALU" for now)
 
-![Enhancements to decoder for J-Type](../images/J_decoder.png)
+![Enhancements to decoder for J-Type](./images/J_decoder.png)
 
 (figures from *Digital Design and Computer Architecture, RISC-V Edition*, and as usual, you can find all the definitive signal in the `Holy_Reference_Tables.pdf` file.
 
@@ -3112,7 +3113,7 @@ So let's get to work !
 
 Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book) :
 
-![Enhancements to decoder for J-Type](../images/J_decoder.png)
+![Enhancements to decoder for J-Type](./images/J_decoder.png)
 
 > You can find the full list of definitive signals in the `Holy_Reference_Tables.pdf` file.
 
@@ -3136,7 +3137,9 @@ Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book)
 //...
 ```
 
-Only the source of the write_back changes ! Which makes sense ! Let's test that without further ado !
+Only the source of the write_back changes ! Which makes sense.
+
+Let's test that without further ado.
 
 ### 6.1.a : Verification
 
@@ -3260,7 +3263,7 @@ Well we shall do multiple things this time :
 
 Here is a scheme of what we'll implement :
 
-![U type datapath scheme img](../images/U_datapath.png)
+![U type datapath scheme img](./images/U_datapath.png)
 
 The mux before pc target chooses between :
 
@@ -4428,7 +4431,7 @@ And to use the correct arithmetic, we'll have to improve our *control*'s *ALU_De
 
 Here is the recap of the datapath we'll have after ```blt```, not much is changing except for the new ```alu_last_bit``` signal.
 
-![blt new signal datapath inmg](../images/blt_datapath.jpg)
+![blt new signal datapath inmg](./images/blt_datapath.jpg)
 
 > As you can see, we go for a strategy where the alu only gives us the state of its last bit and the *branch logic* inside the control unit will sort out from there, depending on the instruction, whether we branch or not.
 
@@ -4555,10 +4558,10 @@ always_comb begin : branch_logic_decode
     endcase
 end
 
-assign pc_source = (assert_branch & (op == OPCODE_B_TYPE)) | jump; // bug fixed 05/25 BRH
+assign pc_source = assert_branch | jump;
 ```
 
-You can see I used an intermediate "*assert_branch*" signal. There are **many** ways to implement this logic, some are more efficient if you concatenate the branch logic in the other decoders, **but who cares** ? (*coping again*)h.
+You can see I used an intermediate "*assert_branch*" signal. There are **many** ways to implement this logic, some are more efficient if you concatenate the branch logic in the other decoders, **but who cares** ? (*coping again*)
 
 ### 10.1.b : Verification
 
@@ -4691,7 +4694,7 @@ I'll go with the second choice, as we've always computed PC-related stuff in the
 
 Here is a recap of our datapath we will implement of ```jalr```:
 
-![jalr and final logic datapath](../images/jalr_datapath.jpg)
+![jalr and final logic datapath](./images/jalr_datapath.jpg)
 
 ## 11.1 : Laying down the work to do
 
@@ -4771,7 +4774,7 @@ We can now update our datapath !
 
 To update our datapth, here is a refresher of our new layout :
 
-![jalr and final logic datapath](../images/jalr_datapath.jpg)
+![jalr and final logic datapath](./images/jalr_datapath.jpg)
 
 ### 11.1.b : HDL Code
 
@@ -4885,7 +4888,7 @@ According to [this discussion](https://groups.google.com/a/groups.riscv.org/g/hw
 
 **BUT** halfwords can be mis-aligned : if the address is odd, that means we are trying to load in-between words :
 
-![lh non aligned exmaple](../images/lh_non_aligned.png)
+![lh non aligned exmaple](./images/lh_non_aligned.png)
 
 In this sceneario, it is **up to us** to decide what to do. And the "what to do" will be : **nothing**.
 
@@ -5129,7 +5132,7 @@ We could try to figure it out in control by getting info from the regitsers and 
 
 With that in mind, here is how we'll proceed to know where to write (or not) :
 
-![New datapath with load_store decoder](../images/WE_Decoder.png)
+![New datapath with load_store decoder](./images/WE_Decoder.png)
 
 As you can see, we added a whole "*load_store_decoder*" or "*byte_enable_decoder*" *(you can call it however you want)* which will produce the adequate ```byte_enable``` mask depending on the address offset and the instruction being fetched.
 
@@ -5226,7 +5229,7 @@ Okay, now everything is set up ! let's implement ```sb``` ! First, here is what 
 
 So we need to get that f3 into our decoder, let's do exactly that, first, here is a refresher of the revised version of our datapath :
 
-![enhanced ls_decoder for single single cpu : F3](../images/WE_Decoder.png)
+![enhanced ls_decoder for single single cpu : F3](./images/WE_Decoder.png)
 
 ### Quick word on the datapath
 
@@ -5559,7 +5562,7 @@ Then, we'll use the mask in a ```reader``` module that will simply **read the da
 
 Here is how this new data path would look like :
 
-![reader datapath](../images/reader%20lb%20datapath.jpg)
+![reader datapath](./images/reader%20lb%20datapath.jpg)
 
 You can see the new ```reader``` module which also gets info on what instruction is being fetched from *f3*. We need this information to know whether or not we should sign extend the data but also how to behave in all aspects of the data processing (data processing will be necessary to make the data ready to be written in a register).
 
@@ -6113,7 +6116,7 @@ Well... Looks like we implemented all of the RV32I instruction set ! But is it t
 
 After making this course on my side, I looked into implementing this core on fpga. The thing is that if I wanted to do so, the core needed to be... well... a bit more profesionnal !
 
-This is beacause using external memory etc raises the need to building interfaces, which is easier to do using system verilog fancy notations.
+This is beacause using external momery etc raises the need to building interfaces, which is easier to do using system verilog fancy notations.
 
 So the first task is to switch to actual systemverilog ! Until now I used **icarus verilog** as a simulator, meaning I have to switch to **verilator** to have full system verilog support. (*On your side, the setup file told you to use **verilator** so you shouldn't have to switch.*)
 

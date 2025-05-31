@@ -1,11 +1,11 @@
 <!--
-FPGA EDITION TUTORIAL 
+FPGA EDITION TUTORIAL
 
 AUTHOR :  BABIN-RIBY Hugo a.k.a. BRH
 
 Plese refer to the LICENSE for legal details on this document
 
-LAST EDIT : 12/2024
+LAST EDIT : 05/25
 -->
 
 # FPGA EDITION
@@ -14,7 +14,7 @@ Oh boy, making a whole core sure was a thing ! But now, the real part is about t
 
 Making a RISC-V is a project many students do, but doing it by implementing the whole RV32I ISA and then actually start using it on FPGA is going beyond that !
 
-Regardless of the fact that you made your own core or that you followed the HOLY CORE (single cycle edition) course, porting your core on FPGA is another story and will really deepen our understanding of the design by tackling the "*memory problem*".
+Regardless of the fact that you made your own core or that you followed the HOLY CORE (single cycle edition) course, porting your core on FPGA is another story and will really deepen our understanding of the design by tackling the "_memory problem_".
 
 Course Summary :
 
@@ -40,16 +40,16 @@ Regarding the software we'll use :
   - [cocotb](https://docs.cocotb.org/en/stable/) for assertions (Python)
   - [Verilator](https://docs.cocotb.org/en/stable/) for simulation (handled by cocotb, no need to learn it)
   - [cocotb AXI extension](https://github.com/alexforencich/cocotbext-axi) to simulate our AXI interfaces in cocotb (here is a [blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/) for tips on the subject)
-  - GTKWave for waves debugging (simple wave viewer to open ```dump.vcd```, you can use whatever you like for this purpose)
+  - GTKWave for waves debugging (simple wave viewer to open `dump.vcd`, you can use whatever you like for this purpose)
 - Synthesis and Implementation : Vivado (2023.2 on my side)
 
 I really encourage you to read the [blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/) tips and the **setup manual** from the single edition of you stuggle with the sofware tech stack. Take a moment to setup everything right.
 
 ### Hardware
 
-Towards the end of this *fpga editionù, I'll use a ZYBO Z7-20 embedding a Zynq. I won't use the Zynq's processing system and anything works just fine as long as it's programable logic so your average FPGA shall do.
+Towards the end of this \*fpga editionù, I'll use a ZYBO Z7-20 embedding a Zynq. I won't use the Zynq's processing system and anything works just fine as long as it's programable logic so your average FPGA shall do.
 
-![Zybo board](../images/zybo.jpg)
+![Zybo board](./images/zybo.jpg)
 
 Just note that even if I give a lot of details, the actual vivado TCL scripts and constraints file are for my board. It sould not be musch of a problem adapting these to your own needs though.
 
@@ -58,21 +58,21 @@ Just note that even if I give a lot of details, the actual vivado TCL scripts an
 You also need to get up to speed on [AXI](https://youtu.be/1zw1HBsjDH8?feature=shared) if you did not already.
 
 > You will find more resources at the end of this document.
-> Note : some file names were changed and some new files were added for this *fpga edition*. I do **not** go over the adapation of ```Makefile```s and imports for simulation in this course.
+> Note : some file names were changed and some new files were added for this _fpga edition_. I do **not** go over the adapation of `Makefile`s and imports for simulation in this course.
 > If you strugge on this technical matter, refer to the single cycle edition guide, the setup file or the resources. Happy learning !
 
 ## 0 : Before we start
 
 Before we start, please refer to the **setup manual** at the root of the tutorials repo to setup the environement correctly.
 
-Please also note that this is a follow-up to the *cingle cycle* edition of the holy core course. If you did not complete this first edition,
-please consider completing it before the *fpga edition*.
+Please also note that this is a follow-up to the _cingle cycle_ edition of the holy core course. If you did not complete this first edition,
+please consider completing it before the _fpga edition_.
 
 As stated in the **setup manual**, we'll use some advanced cocotb features like extensions for testing a custom AXI interface. You can refer to [this blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/) to learn more.
 
 ## 1 : What do we need to use the core on FPGA
 
-Using the core on FPGA is not trivial. I personally though it was *but it's not* :/ . **It is an entire problem on its own** !
+Using the core on FPGA is not trivial. I personally though it was _but it's not_ :/ . **It is an entire problem on its own** !
 
 Let's think about what our CPU needs to do for it to be "usable" on FPGA :
 
@@ -89,10 +89,10 @@ not paying any attetion to memory (Until now we implement memory as a simple arr
 
 We conviniently forgot that memory is one of the largest problem in computer design (if not the actual largest) and is often the main bottleneck to improving computer nowdays.
 
-Why is that ? Well I can only encourage you to read about it on the internet or in the *Digital Design and Computer Architecture: RISC-V Edition,
-(section 8 MEMORY SYSTEMS)* book from sarrah & David Harris (I'll let you find a pdf ;) ).
+Why is that ? Well I can only encourage you to read about it on the internet or in the _Digital Design and Computer Architecture: RISC-V Edition,
+(section 8 MEMORY SYSTEMS)_ book from sarrah & David Harris (I'll let you find a pdf ;) ).
 
-In a nutshell, memory is slow. Like very slow. Between the time we request a memory operation on a piece of data (using ```lw```, ```sw```, ...) and the time the operation is successful, it can take 10, 100 or even more clock cycles ! (given our core is fast enough...)
+In a nutshell, memory is slow. Like very slow. Between the time we request a memory operation on a piece of data (using `lw`, `sw`, ...) and the time the operation is successful, it can take 10, 100 or even more clock cycles ! (given our core is fast enough...)
 
 We need some sort of actual substantial memory to call our core a core, and we might as well make it external ! This will allow us to :
 
@@ -109,20 +109,20 @@ This is because all we'll do is simply **wait for it to arrive** by **stalling**
 
 To replace our old `memory.sv` logic and interface between the core and external memory, we'll use a **cache** (`$`) system :
 
-![very abstract stall](../images/very%20abstract%20stall.png)
+![very abstract stall](./images/very%20abstract%20stall.png)
 
 > If you don't know what a cache is, refer to the resources to learn more and get yourself up to speed.
 
 Before jumping into any form of design to make the stalling happen, we need to think about what does the cache do and how it actually holds data behind the scenes.
 
-## 2 : Requierements for an "*extremely simple*" cache system
+## 2 : Requierements for an "_extremely simple_" cache system
 
 ### Requirements
 
-The cache is a way to keep some data in **tighly coupled memory** that we can access in 1 clock cycle, just like before in the *single cycle edition*'s `memory.sv`.
+The cache is a way to keep some data in **tighly coupled memory** that we can access in 1 clock cycle, just like before in the _single cycle edition_'s `memory.sv`.
 
 But we can't make this piece of memory very large.
-Which is why we need to still be able to request data from external memory (aka *main memory*) when the requested data is not in the cache,
+Which is why we need to still be able to request data from external memory (aka _main memory_) when the requested data is not in the cache,
 in which case the cache shall **stall** the core and start moving data around.
 
 > Vocabulary : If we request memory operations on data that is not availible in the cache, it is called a **cache miss**, as opposed to a **cache hit**.
@@ -150,16 +150,16 @@ When I say **tag**, I refer to the **memory region** (or **memory block**) conta
 
 An address is composed of 32bits so when the cache gets an address from the CPU, we decompose the address like so :
 
-tag / block = address[31:9]     | set = address[8:2]    | offset = address[1:0]      |
------- | ------------ | ------- |
-The main memory blocks from which the current 128 words in cache comes from  | 128 words in cache, (cache lines / sets) 7bites addresable | byte off set in the word |
+| tag / block = address[31:9]                                                 | set = address[8:2]                                         | offset = address[1:0]    |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------ |
+| The main memory blocks from which the current 128 words in cache comes from | 128 words in cache, (cache lines / sets) 7bites addresable | byte off set in the word |
 
 So when the cpu asks to read the data in a certain addres, in order to know whether wa have the said data in the cache, we just check the the **incoming** request tag is the same as the one **currently loaded** into the cache (if yes, it's a **hit** !).
 
 Here is the logic to determine the stall signal using the **CPU request** alongside the **cache table** signals.
 Note that there is a **register** at the end to ensure that the stall assertion is asynchronous but the de-assertion is synchronous to ensure all AXI transactions (we'll go over that in the next section) are finished before starting fetching new instructions.
 
-![cache without AXI](../images/cache%20without%20AXI.png)
+![cache without AXI](./images/cache%20without%20AXI.png)
 
 ### Requesting data from main memory using AXI
 
@@ -175,14 +175,14 @@ comunication with the outside world.
 
 > I encourage you get yourself up to speed on AXI or at least get a refresher before actually implementing it in the later sections.
 
-In this course, we'll use a minimal AXI implementation by using system verilog's ```interface``` syntax.
+In this course, we'll use a minimal AXI implementation by using system verilog's `interface` syntax.
 
-By "*minimal*" I mean we'll discard all of the ```lock, qos, cache, ....``` signals from AXI that are pretty much useless in small design.
+By "_minimal_" I mean we'll discard all of the `lock, qos, cache, ....` signals from AXI that are pretty much useless in small design.
 They are also optional meaning it's bloat anyway.
 
 We'll drive this axi interface by using a Finite State Machine that can modify the cache using a pointer and that produces a `cache_state` signal which we'll be able to use to know what the cache's AXI interface is currently doing :
 
-![full holy cache with AXI](../images/full%20cache.png)
+![full holy cache with AXI](./images/full%20cache.png)
 
 We'll go over this design in more details later (Note this scheme is a simplification).
 
@@ -193,30 +193,30 @@ The cache system now has a set of requirements on how it shall work and on how i
 
 Well, just like the single cycle edition, we'll have :
 
-- An **instructions** cache (Also called ```i_cache``` or ```i$```)
-- A **data** cache (A lso called ```d_cache``` or ```d$```)
+- An **instructions** cache (Also called `i_cache` or `i$`)
+- A **data** cache (A lso called `d_cache` or `d$`)
 
 They both operate separatly and hold their own cache table. Here is what such an integration look like :
 
-![holy core only cache](../images/HOLYCORE%20no%20arbitrer.png)
+![holy core only cache](./images/HOLYCORE%20no%20arbitrer.png)
 
 On this scheme I also added the stalling logic that simply makes sures the next PC is set to the current PC whenever the core stalls.
 
-We also group all the **data memory** modules (*reader*, *BE_Decoder*, *d$*) in a same sub-module called `load/store unit` to make it more readable.
+We also group all the **data memory** modules (_reader_, _BE_Decoder_, _d$_) in a same sub-module called `load/store unit` to make it more readable.
 
 This integration raises a problem : we have 2 master axi interfaces going out of the core : one for the `i$`; and the other for the `d$`.
 
-To address this problem, we can add a simple ```external_request_arbitrer``` module that will "*merge*" both M_AXI into one.
+To address this problem, we can add a simple `external_request_arbitrer` module that will "_merge_" both M_AXI into one.
 
-The ```external_request_arbitrer``` will simply work by probing the different cache state to route on or another cache M_AXI interface to the main core's M_AXI.
+The `external_request_arbitrer` will simply work by probing the different cache state to route on or another cache M_AXI interface to the main core's M_AXI.
 
-![holy core arbitrer](../images/arbitrer.png)
+![holy core arbitrer](./images/arbitrer.png)
 
 And here is the integration with the new external request arbitrer :
 
-![full holy core](../images/HOLY_CORE_FPGA.png)
+![full holy core](./images/HOLY_CORE_FPGA.png)
 
-And that was the full core ! Now that we know the *why*, let's do the *how* shall we ?
+And that was the full core ! Now that we know the _why_, let's do the _how_ shall we ?
 
 ## 3 : Actual cache design
 
@@ -225,12 +225,12 @@ Without further ado, with all these requirements in mind for our cache, let's st
 ### Declaring an axi interface in system verilog
 
 Before doing anything, we'll declare an axi interface in system verilog.
-An **interface** is just a way to decalre ```input/output``` port in a separate structure to make the HDL shorter and avoid huge interface block when
+An **interface** is just a way to decalre `input/output` port in a separate structure to make the HDL shorter and avoid huge interface block when
 describing a module's logic. We can also use **interfaces** declare different configurations (e.g. slave or master).
 
 Declaring a large interface can be tedious at first but the good thing is you only need to do it once. Here is the interface declaration I'll use for this course :
 
-```sv
+```verilog
 // axi_if.sv
 
 interface axi_if #(
@@ -387,15 +387,15 @@ interface axi_if #(
 endinterface
 ```
 
-To use the interface, we simply have to add the ```axi_if.sv``` file as a source for whatever tool we are using (*synth, tb, ...*)
+To use the interface, we simply have to add the `axi_if.sv` file as a source for whatever tool we are using (_synth, tb, ..._)
 and declare use it normally in other file without an import statement.
 
-As for me in the *HOLY CORE* code base, I added it to the `packages/` folder.
+As for me in the _HOLY CORE_ code base, I added it to the `packages/` folder.
 
 We will go over actual interface usage in a module during the later sections.
 In the meantime, **you can check out this [article](https://www.chipverify.com/systemverilog/systemverilog-interface) which summarizes the subject pretty well**.
 
-> Note : "*Advanced*" systemVerilog concepts like these are not supported by all EDA tools (E.g. Verilator, cocotb, ...). We'll use wrappers to tackle this problem. More on that later.
+> Note : "_Advanced_" systemVerilog concepts like these are not supported by all EDA tools (E.g. Verilator, cocotb, ...). We'll use wrappers to tackle this problem. More on that later.
 
 ### Cache's HDL : AXI Finite State Machine and CPU interface
 
@@ -403,33 +403,31 @@ So as you may have understood by now, the cache has to be the intermediate betwe
 each of them having their own way of talking to the cache.
 
 - Main memory uses AXI (as a slave)
-- CPU uses regular signals like before (```write_data```,```write_enable```, ...)
+- CPU uses regular signals like before (`write_data`,`write_enable`, ...)
 
 And when the cache is talking to memory, he simply signals the CPU to wait while he's in buisness by asserting `stall`.
 Here is a reminder of the cache's structure :
 
-![holy cache without AXI](../images/full%20cache.png)
+![holy cache without AXI](./images/full%20cache.png)
 
 To make the whole AXI thing work out, we'll build the cache around a Finite State Machine (FSM).
-Here are the different states we'll use to describe *what* the cache is currently doing with main memory :
+Here are the different states we'll use to describe _what_ the cache is currently doing with main memory :
 
-STATE | Description |
------ | ----------- |
-IDLE  | IDLE is the state where the cache is not doing anything with the AXI interface. It is ready to get cpu's data request and ```stall``` is not asserted as long as the incomming request are hits |
-SENDING_WRITE_REQ  | The cache had a miss and the cache was dirty. The cache is currently sending a write request to main memory. |
-SENDING_WRITE_DATA  | The cache is sending data burst to main memory. |
-WAITING_WRITE_RES  | The cache is waiting for write confirmation from memory. |
-SENDING_READ_REQ  | The cache had a miss. We now send a read request to retrieve data from main memory back to cache. |
-RECEIVING_READ_DATA  | We cache the data incomming from main memory. |
+- **IDLE**: IDLE is the state where the cache is not doing anything with the AXI interface. It is ready to get cpu's data request and `stall` is not asserted as long as the incomming request are hits
+- **SENDING_WRITE_REQ**: The cache had a miss and the cache was dirty. The cache is currently sending a write request to main memory.
+- **SENDING_WRITE_DATA**: The cache is sending data burst to main memory.
+- **WAITING_WRITE_RES**: The cache is waiting for write confirmation from memory.
+- **SENDING_READ_REQ**: The cache had a miss. We now send a read request to retrieve data from main memory back to cache.
+- **RECEIVING_READ_DATA**: We cache the data incomming from main memory.
 
 Here is how we can declare them in the `packages/holy_core_pkg.sv` file.
 
-```sv
+```verilog
 // holy_core_pkg.sv
 
 package holy_core_pkg;
 
-  typedef enum logic [2:0] { 
+  typedef enum logic [2:0] {
       IDLE,
       SENDING_WRITE_REQ,
       SENDING_WRITE_DATA,
@@ -446,18 +444,18 @@ endpackage
 ### A word on clocking
 
 You might have already guessed it : because our cache system serves as an interface between two systems running at different speed scales
-(*CPU & Memory*), it runs on two clocks :
+(_CPU & Memory_), it runs on two clocks :
 
-- ```aclk``` or "axi clock".
-- ```clk``` or... well... ```clock``` but keep in mind it's the clock incomming from the cpu.
+- `aclk` or "axi clock".
+- `clk` or... well... `clock` but keep in mind it's the clock incomming from the cpu.
 
 We'll actually use only 1 clock for timing reasons due to Clock Domain Crossing hazards (CDC), which is an entire problem on its own.
 
 But still, let's make the effort to think about what a multi-clock design might have done :
 
-- The **AXI state machine** will be driven by ```aclk```.
+- The **AXI state machine** will be driven by `aclk`.
 - The **axi signals** will be derived from **current state** and dirven by **comb logic**.
-- The **data caching**, **data related signals** and **writes to cached lines** will be driven by ```clk``` as writes/reads depend on the CPU.
+- The **data caching**, **data related signals** and **writes to cached lines** will be driven by `clk` as writes/reads depend on the CPU.
 
 > If you want to try handling multple clock domains, this implies that "`aclk <= clk`" because if AXI clock is faster,
 > then the data will not be written fast enough and the AXI RDATA bus will change before we can cache it.
@@ -467,12 +465,12 @@ But still, let's make the effort to think about what a multi-clock design might 
 With that in mind, we can start declaring the core of our cache :
 
 - The CPU's interface with all the signals to take request from the CPU.
-- The AXI interface (*that we declared in a separate file*).
+- The AXI interface (_that we declared in a separate file_).
 - The **cache table**, containing the cache lines and the assocatiated signals (Valid, dirty)
 
 You can refer to the previous cache schemes for guidance.
 
-```sv
+```verilog
 // holy_cache.sv
 
 import holy_core_pkg::*;
@@ -513,27 +511,27 @@ module holy_cache #(
 endmodule
 ```
 
-Regarding the ```next_cache_valid``` signal, it's simply a way to drive the next value of a signal using comb logic like so :
+Regarding the `next_cache_valid` signal, it's simply a way to drive the next value of a signal using comb logic like so :
 
-![dq latch](../images/dq.JPG)
+![dq latch](./images/dq.JPG)
 
-> Note that we are using the ```CACHE_SIZE``` parameter. It's fixed to 128 and it shall stay that way as every bit range will be hardcoded from now on.
+> Note that we are using the `CACHE_SIZE` parameter. It's fixed to 128 and it shall stay that way as every bit range will be hardcoded from now on.
 > (Because I was a beginner and this was easier for me haha)
 
 We will now continue describing the cache's logic by ensuring async reads and sync writes to the cache table using comb logic and
-```clk``` driven sequential logic.
+`clk` driven sequential logic.
 
 To do so we need to make sure that the cache has the data available and is not doing anything AXI-Wise.
 
-So we'll declare some hit logic (based on the current tag and the incomming request's tag : ```req_tag```).
+So we'll declare some hit logic (based on the current tag and the incomming request's tag : `req_tag`).
 
-We'll also assert the state we're in is ```IDLE``` by declaring some states (even though we did not set their logic yet).
+We'll also assert the state we're in is `IDLE` by declaring some states (even though we did not set their logic yet).
 
 You can refer to the cache schemes for reference :
 
-![full holy cache for hit and stall reference](../images/full%20cache.png)
+![full holy cache for hit and stall reference](./images/full%20cache.png)
 
-```sv
+```verilog
 // holy_cache.sv
 
 module holy_cache #(
@@ -574,7 +572,7 @@ module holy_cache #(
     assign req_block_tag = address[31:9];
     logic [8:2] req_index;
     assign req_index = address[8:2];
-    
+
     wire [31:0] byte_enable_mask;
     assign byte_enable_mask = {
         {8{byte_enable[3]}},
@@ -603,7 +601,7 @@ module holy_cache #(
             cache_dirty <= next_cache_dirty;
 
             if(hit & write_enable & state == IDLE) begin
-                cache_data[req_index] <= 
+                cache_data[req_index] <=
                     (cache_data[req_index] & ~byte_enable_mask) |
                     (write_data & byte_enable_mask);
                 cache_dirty <= 1'b1;
@@ -652,38 +650,38 @@ module holy_cache #(
 endmodule
 ```
 
-> Side note : we just declared an interface in the I/Os using ```axi_if.master axi```. To do this you simply need to add the ```axi_if.sv```
+> Side note : we just declared an interface in the I/Os using `axi_if.master axi`. To do this you simply need to add the `axi_if.sv`
 > file as a source to your simulation or synth tool, no need to specify an include in systemVerilog.
 > Please refer to the resources for further guidance.
-> We can then acces this interface "real" I/O ports by using a **dot syntax** (eg ```axi.rlast``` for the ```LAST``` signal on the read channel).
+> We can then acces this interface "real" I/O ports by using a **dot syntax** (eg `axi.rlast` for the `LAST` signal on the read channel).
 
-As you can see, I also added in the logic that cache incomming AXI data when reading from main memory. ```set_ptr``` is driven by the AXI FSM logic we'll design afterwards.
+As you can see, I also added in the logic that cache incomming AXI data when reading from main memory. `set_ptr` is driven by the AXI FSM logic we'll design afterwards.
 
-Now our cache behaves more or less like the memory we had in the *single cycle edition* (expect we added some flags **and made the main table a packed array** for fpga implementation reasons). Before moving on to stalling,
+Now our cache behaves more or less like the memory we had in the _single cycle edition_ (expect we added some flags **and made the main table a packed array** for fpga implementation reasons). Before moving on to stalling,
 let's add the states we talked about earlier :
 
 Do do so we use **COMB LOGIC** to :
 
 - Drive the **output** AXI signals
-- Determine the ```next_state``` and ```set_ptr``` based on **input** AXI signals
+- Determine the `next_state` and `set_ptr` based on **input** AXI signals
 
-We also use **SEQ LOGIC** driven by ```aclk```to :
+We also use **SEQ LOGIC** driven by `aclk`to :
 
-- Incremet the ```set_ptr``` and switch ```state```.
+- Incremet the `set_ptr` and switch `state`.
 - That's it (wanted to make a bullet list so I have to add this line)
 
 > Note: Constant AXI signals are hardcoded towards the end of the following example.
 
 Enough talking, here is a scheme of the FSM :
 
-![holy core axi FSM](../images/axi%20fsm.png)
+![holy core axi FSM](./images/axi%20fsm.png)
 
 Of course, depending on the current state, we'll assert diffferent signals and when data is being transfered, we'll
 have to modify the `set_ptr` accordingly.
 
 And here is how we can implement it in SystemVerilog :
 
-```sv
+```verilog
 // holy_cache.sv
 
 // ...
@@ -754,7 +752,7 @@ always_comb begin
             // HANDLE MISS WITH DIRTY CACHE : Update main memory first
             // when we send a write-back request, we write the CURRENT cache data !
             axi.awaddr = {cache_block_tag, 7'b0000000, 2'b00}; // tag, set, offset
-            
+
             if(axi.awready) next_state = SENDING_WRITE_DATA;
 
             // SENDING_WRITE_REQ AXI SIGNALS : address request
@@ -772,7 +770,7 @@ always_comb begin
             if(axi.wready) begin
                 next_set_ptr = set_ptr + 1;
             end
-            
+
             if(set_ptr == 7'd127) begin
                 axi.wlast = 1'b1;
                 if(axi.wready) begin
@@ -810,7 +808,7 @@ always_comb begin
         SENDING_READ_REQ : begin
             // HANDLE MISS : Read
             axi.araddr = {req_block_tag, 7'b0000000, 2'b00}; // tag, set, offset
-            
+
             if(axi.arready) begin
                 next_state = RECEIVING_READ_DATA;
             end
@@ -826,18 +824,18 @@ always_comb begin
         end
 
         RECEIVING_READ_DATA: begin
-    
+
             if (axi.rvalid) begin
                 // Increment pointer on valid data
                 next_set_ptr = set_ptr + 1;
-        
+
                 if (axi.rlast) begin
                     // Transition to IDLE on the last beat
                     next_state = IDLE;
                     next_cache_valid = 1'b1;
                 end
             end
-        
+
             // AXI Signals
             axi.awvalid = 1'b0;
             axi.wvalid = 1'b0;
@@ -845,7 +843,7 @@ always_comb begin
             axi.arvalid = 1'b0;
             axi.rready = 1'b1;
         end
-        
+
         default : begin
             $display("CACHE FSM SATETE ERROR");
         end
@@ -879,7 +877,7 @@ assign axi.wstrb = 4'b1111; // We handle data masking in cache itself
 This chunk of code can be overwhelming if you did not study AXI a little bit. If so, take a bit of time to get yourself
 up to speed (see resources section).
 
-Once you put both this FSM and the previous logic together, we get a cache module ! You can refer to the *HOLY CORE*
+Once you put both this FSM and the previous logic together, we get a cache module ! You can refer to the _HOLY CORE_
 code base for the full code.
 
 ### Testing the cache module
@@ -894,12 +892,12 @@ As we are using an interface, which verilator does not like to see in a top-modu
 reason, we need to declare a wrapper for our cache.
 
 The wrapper's role is simply to "demux" our axi inteface to a bunch of I/Os ports with the same
-```m_axi``` prefix. If you want an example, check out [this blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/).
+`m_axi` prefix. If you want an example, check out [this blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/).
 
 The blog post I just mentionned will guide you through the project setup and use of cocotbext.axi
 with wrappers if you need guidance on the subject.
 
-We can now start working on the python testbench by starting with helper functions and constants declarations  :
+We can now start working on the python testbench by starting with helper functions and constants declarations :
 
 - Constants for cache states, clock perdiods & cache + memory size
 - Helper functions to read & dump the cache table (packed array is not really easy to work with otherwise)
@@ -1072,7 +1070,7 @@ async def main_test(dut):
     # Verify constant axi signals
     assert dut.cache_system.state.value == SENDING_READ_REQ
     assert dut.axi_arid.value == 0b0000
-    assert dut.axi_araddr.value == 0x000 
+    assert dut.axi_araddr.value == 0x000
     assert dut.axi_arlen.value == 0x07F
     assert dut.axi_arsize.value == 0b010
     assert dut.axi_arburst.value == 0b01 # increment mode
@@ -1086,7 +1084,7 @@ async def main_test(dut):
     await Timer(1, units="ns")
 
     assert dut.cache_system.state.value == RECEIVING_READ_DATA
-    
+
     assert dut.axi_arvalid.value == 0b0
     assert dut.axi_rready.value == 0b1
 
@@ -1115,7 +1113,7 @@ async def main_test(dut):
 
     await RisingEdge(dut.aclk) # STATE SWITCH
     await Timer(1, units="ps")
-    
+
     assert dut.cache_system.state.value == IDLE
     assert dut.cache_system.cache_stall.value == 0b0
     #======
@@ -1134,14 +1132,17 @@ async def main_test(dut):
         dut.cpu_address.value = addr
         await Timer(1, units="ps")
         assert dut.cache_system.cache_stall == 0b0
-        assert dut.cache_system.read_data.value == int.from_bytes(mem_golden_ref[int(addr/4)], byteorder='little')
+        assert (
+            dut.cache_system.read_data.value 
+            == int.from_bytes(mem_golden_ref[int(addr/4)], byteorder='little'
+        )
         assert dut.cache_system.set_ptr.value == 0
 
         addr += 0x4
         await RisingEdge(dut.clk)
         await Timer(1, units="ps")
 
-    assert addr == CACHE_SIZE * 4 
+    assert addr == CACHE_SIZE * 4
 
     # We are ouside of cache bounds. If we try to read now, the cache should miss.
     dut.cpu_address.value = addr
@@ -1158,14 +1159,15 @@ async def main_test(dut):
     dut.cpu_byte_enable.value = 0b0011 # We write an halfword to cache
     dut.cpu_write_enable.value = 0b1
     dut.cpu_read_enable.value = 0b0
-    dut.cpu_write_data.value = 0xDEADBEEF 
+    dut.cpu_write_data.value = 0xDEADBEEF
     # check we are not stalling and that the cache will accept the write
     await Timer(1, units="ns")
     assert dut.cache_system.cache_stall.value == 0b0
 
     # Build expected value for later assertion
     expected_data = axi_ram_slave.read(0x0C, 4)
-    expected_data = int.from_bytes(expected_data, byteorder='little') # convert to int for manip & assertions
+    # convert to int for manip & assertions
+    expected_data = int.from_bytes(expected_data, byteorder='little') 
     expected_data &= 0xFFFF0000
     expected_data |= (0xDEABEEF & 0x0000FFFF)
 
@@ -1183,7 +1185,7 @@ async def main_test(dut):
     wb_test_addr = 0xF0C
     dut.cpu_address.value = wb_test_addr # Not in cache
     dut.cpu_read_enable.value = 0b1
-    await Timer(1, units="ns") 
+    await Timer(1, units="ns")
 
     # Cache miss : The cache should send a write request because it's now dirty
     assert dut.cache_system.next_state.value == SENDING_WRITE_REQ
@@ -1195,7 +1197,7 @@ async def main_test(dut):
 
     assert dut.axi_awvalid.value == 0b1
     # awaddr writes back the current cached tag, i.e. 0x000
-    assert dut.axi_awaddr.value == 0x000 
+    assert dut.axi_awaddr.value == 0x000
 
     # check the w channels constants
     assert dut.axi_awid.value == 0b0000
@@ -1256,7 +1258,7 @@ async def main_test(dut):
     for address in range(0,SIZE,4):
         assert mem_golden_ref[int(address/4)] == axi_ram_slave.read(address, 4)
 
-    
+
     # After write_back is done, we can read
     assert dut.cache_system.next_state.value == SENDING_READ_REQ
 
@@ -1286,7 +1288,7 @@ async def main_test(dut):
             i += 1
 
         assert dut.axi_rlast.value == 0b0
-        assert dut.cache_system.cache_stall.value == 0b1 
+        assert dut.cache_system.cache_stall.value == 0b1
         await RisingEdge(dut.aclk)
         await Timer(1, units="ns")
 
@@ -1297,7 +1299,7 @@ async def main_test(dut):
 
     await RisingEdge(dut.aclk) # STATE SWITCH
     await Timer(1, units="ns")
-    
+
     assert dut.cache_system.state.value == IDLE
     assert dut.cache_system.cache_stall.value == 0b0
     dut.axi_rlast.value = 0b0 # todo : rlast matter to handle
@@ -1340,14 +1342,14 @@ async def main_test(dut):
             i += 1
 
         assert dut.axi_rlast.value == 0b0
-        assert dut.cache_system.cache_stall.value == 0b1 
+        assert dut.cache_system.cache_stall.value == 0b1
         await RisingEdge(dut.aclk)
         await Timer(1, units="ns")
 
     assert dut.axi_rvalid.value == 0b1
     assert dut.axi_rready.value == 0b1
     assert dut.axi_rlast.value == 0b1
-    assert dut.cache_system.cache_stall.value == 0b1 
+    assert dut.cache_system.cache_stall.value == 0b1
     assert dut.cache_system.next_state.value == IDLE
 
     await RisingEdge(dut.aclk) # STATE SWITCH !
@@ -1360,7 +1362,7 @@ async def main_test(dut):
     assert dut.cpu_address.value == 0x008
     assert dut.cpu_byte_enable.value == 0b1111
     assert dut.cpu_write_enable.value == 0b1
-    assert dut.cpu_read_enable.value == 0b0 
+    assert dut.cpu_read_enable.value == 0b0
     assert dut.cpu_write_data.value == 0xFFFFFFFF
     assert not read_cache(dut.cache_system.cache_data,int(8/4)) == 0xFFFFFFFF
 
@@ -1385,8 +1387,8 @@ Once the design passes our basic testbench, we can start to implement it in the 
 To integrate our cache design to the core, we have to agree on some design choices :
 
 - We use 2 caches
-  - One for data (```D$```)
-  - The other instructions (```I$```)
+  - One for data (`D$`)
+  - The other instructions (`I$`)
 - We'll only have one external axi interface going out from the core
 
 Given there is one AXI interface per cache and only one going out of the core, we need to figure out a way to "merge" both interface into one.
@@ -1395,24 +1397,24 @@ Of course merging, two AXI interface toghteher is simply not possible but what w
 
 It would look like this :
 
-![external AXI request arbitrer simplified](../images/external%20AXI%20request%20arbitrer%20simplified.png).
+![external AXI request arbitrer simplified](./images/external%20AXI%20request%20arbitrer%20simplified.png).
 
 One question now remains : **How do we decide what AXI interface gets to get muxes to the outside ?**. To answer, we can first make some assumptions
 
 1. Both outgoing interfaces are **masters**, meaning the outside world (slaves) will never send requests.
-2. We can know what master is sending a request to the peripherals based on the corresponding ```cache_state```.
-3. If a cache is **not** in ```IDLE``` mode, we grant him access to the outside.
+2. We can know what master is sending a request to the peripherals based on the corresponding `cache_state`.
+3. If a cache is **not** in `IDLE` mode, we grant him access to the outside.
 4. If both caches need data, we prioritize the instruction cache.
 
 > Note that the choice of prioritizing the **I$** is arbitrary because caches stall the core when they are requesting data.
 
 We now introduce some control logic for our custom interconnect :
 
-![external AXI request arbitrer full](../images/external%20AXI%20request%20arbitrer%20full.png)
+![external AXI request arbitrer full](./images/external%20AXI%20request%20arbitrer%20full.png)
 
 Here is the verilog description of the logic for this module :
 
-```sv
+```verilog
 // external_req_arbitrer.sv
 
 import holy_core_pkg::*;
@@ -1430,7 +1432,8 @@ module external_req_arbitrer (
 
 localparam CACHE_SIZE = 128;
 
-// The request controller simply muxes the transactions until they are done using state info from the caches
+// The request controller simply muxes the transactions until they are done
+// using state info from the caches
 
 always_comb begin : main_axi_mux
     // Default values set to 0s
@@ -1447,7 +1450,7 @@ always_comb begin : main_axi_mux
     // Invariant AXI Signals get hardcoded values
 
     m_axi.awlen = CACHE_SIZE-1; // num of WORDS (packects of 4B)
-    m_axi.awsize = 3'b010; 
+    m_axi.awsize = 3'b010;
     m_axi.awburst = 2'b01;
     m_axi.arlen = CACHE_SIZE-1;
     m_axi.arsize = 3'b010;
@@ -1467,7 +1470,7 @@ always_comb begin : main_axi_mux
     s_axi_instr.rresp  = 0;
     s_axi_instr.rlast  = 0;
     s_axi_instr.rvalid = 0;
-    
+
     s_axi_data.awready = 0;
     s_axi_data.wready = 0;
     s_axi_data.bid    = 0;
@@ -1489,20 +1492,20 @@ always_comb begin : main_axi_mux
         m_axi.awburst  = s_axi_instr.awburst;
         m_axi.awvalid  = s_axi_instr.awvalid;
         s_axi_instr.awready = m_axi.awready;
-    
+
         // Write Data Channel
         m_axi.wdata    = s_axi_instr.wdata;
         m_axi.wstrb    = s_axi_instr.wstrb;
         m_axi.wlast    = s_axi_instr.wlast;
         m_axi.wvalid   = s_axi_instr.wvalid;
         s_axi_instr.wready = m_axi.wready;
-    
+
         // Write Response Channel
         s_axi_instr.bid    = m_axi.bid;
         s_axi_instr.bresp  = m_axi.bresp;
         s_axi_instr.bvalid = m_axi.bvalid;
         m_axi.bready       = s_axi_instr.bready;
-    
+
         // Read Address Channel
         m_axi.arid     = s_axi_instr.arid;
         m_axi.araddr   = s_axi_instr.araddr;
@@ -1511,7 +1514,7 @@ always_comb begin : main_axi_mux
         m_axi.arburst  = s_axi_instr.arburst;
         m_axi.arvalid  = s_axi_instr.arvalid;
         s_axi_instr.arready = m_axi.arready;
-    
+
         // Read Data Channel
         s_axi_instr.rid    = m_axi.rid;
         s_axi_instr.rdata  = m_axi.rdata;
@@ -1519,7 +1522,7 @@ always_comb begin : main_axi_mux
         s_axi_instr.rlast  = m_axi.rlast;
         s_axi_instr.rvalid = m_axi.rvalid;
         m_axi.rready       = s_axi_instr.rready;
-    
+
     end else if (d_cache_state != IDLE & i_cache_state == IDLE) begin
         // Write Address Channel
         m_axi.awid     = s_axi_data.awid;
@@ -1529,20 +1532,20 @@ always_comb begin : main_axi_mux
         m_axi.awburst  = s_axi_data.awburst;
         m_axi.awvalid  = s_axi_data.awvalid;
         s_axi_data.awready = m_axi.awready;
-    
+
         // Write Data Channel
         m_axi.wdata    = s_axi_data.wdata;
         m_axi.wstrb    = s_axi_data.wstrb;
         m_axi.wlast    = s_axi_data.wlast;
         m_axi.wvalid   = s_axi_data.wvalid;
         s_axi_data.wready = m_axi.wready;
-    
+
         // Write Response Channel
         s_axi_data.bid    = m_axi.bid;
         s_axi_data.bresp  = m_axi.bresp;
         s_axi_data.bvalid = m_axi.bvalid;
         m_axi.bready      = s_axi_data.bready;
-    
+
         // Read Address Channel
         m_axi.arid     = s_axi_data.arid;
         m_axi.araddr   = s_axi_data.araddr;
@@ -1551,7 +1554,7 @@ always_comb begin : main_axi_mux
         m_axi.arburst  = s_axi_data.arburst;
         m_axi.arvalid  = s_axi_data.arvalid;
         s_axi_data.arready = m_axi.arready;
-    
+
         // Read Data Channel
         s_axi_data.rid    = m_axi.rid;
         s_axi_data.rdata  = m_axi.rdata;
@@ -1559,10 +1562,10 @@ always_comb begin : main_axi_mux
         s_axi_data.rlast  = m_axi.rlast;
         s_axi_data.rvalid = m_axi.rvalid;
         m_axi.rready      = s_axi_data.rready;
-    
+
     end
 end
-    
+
 endmodule
 ```
 
@@ -1604,9 +1607,25 @@ async def main_test(dut):
     MEM_SIZE = 4096
     cocotb.start_soon(Clock(dut.clk, PERIOD, units="ns").start())
 
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.clk, dut.rst_n, reset_active_level=False, size=MEM_SIZE)
-    i_cache_master = AxiMaster(AxiBus.from_prefix(dut, "s_axi_instr"), dut.clk, dut.rst_n, reset_active_level=False)
-    d_cache_master = AxiMaster(AxiBus.from_prefix(dut, "s_axi_data"), dut.clk, dut.rst_n, reset_active_level=False)
+    axi_ram_slave = AxiRam(
+        AxiBus.from_prefix(dut, "m_axi"),
+        dut.clk,
+        dut.rst_n,
+        reset_active_level=False,
+        size=MEM_SIZE
+    )
+    i_cache_master = AxiMaster(
+        AxiBus.from_prefix(dut, "s_axi_instr"),
+        dut.clk,
+        dut.rst_n,
+        reset_active_level=False
+    )
+    d_cache_master = AxiMaster(
+        AxiBus.from_prefix(dut, "s_axi_data"),
+        dut.clk,
+        dut.rst_n,
+        reset_active_level=False
+    )
 
     await RisingEdge(dut.clk)
     # init states to IDLE
@@ -1617,7 +1636,7 @@ async def main_test(dut):
     # ========================================
     # SCENARIO 1 : ONLY THE DCACHE WRITES
     # ========================================
-    
+
     dut.data_cache_state.value = SENDING_WRITE_REQ
     await Timer(1, units="ns")
     await d_cache_master.write(0x000, b'test')
@@ -1702,22 +1721,22 @@ async def main_test(dut):
 
 Recall the schemes for our final design :
 
-![full holy core](../images/HOLY_CORE_FPGA.png)
+![full holy core](./images/HOLY_CORE_FPGA.png)
 
 We see that we now have all the missing pieces to make it happen.
 
-Note that the ```load_store_unit``` is simply a wrapper for all the logic that surronds the data transactions :
+Note that the `load_store_unit` is simply a wrapper for all the logic that surronds the data transactions :
 
-- The ```BE_decoder```
-- The ```data_cache```
-- The ```reader```
+- The `BE_decoder`
+- The `data_cache`
+- The `reader`
 - And all internal signals...
 
 Here is an in depth view as a reminder :
 
-![Holy core's load store unit](../images/lsu.png)
+![Holy core's load store unit](./images/lsu.png)
 
-*Nota :*  `LSU` a common term in computer design but for us **it's just a way to make the schemes simpler**,
+_Nota :_ `LSU` a common term in computer design but for us **it's just a way to make the schemes simpler**,
 **we won't create any additional module**. With that being said, integration should be relatively simple compared to
 the previous designs.
 
@@ -1725,7 +1744,7 @@ the previous designs.
 
 We start by adding a `read_enable` signal to the control unit (And then add it to the control unit's test bench according to the single cycle edition method) :
 
-```sv
+```verilog
 // control.sv
 
 module control (
@@ -1756,15 +1775,15 @@ always_comb begin
         // Rest of the file (...)
 ```
 
-Our `holy_cache` module needs this ```read_enable``` to signal our cache a read in order for it to stall
+Our `holy_cache` module needs this `read_enable` to signal our cache a read in order for it to stall
 if the data isn't available.
 
-We then move on to the **holy_core** file (*previously called cpu.sv)* to integrate the caches. Just like in the single cycle edition,
+We then move on to the **holy_core** file (_previously called cpu.sv)_ to integrate the caches. Just like in the single cycle edition,
 data and instruction are implemented differently (e.g. instruction cache's read is always asserted).
 
 Here is an overview of this integration :
 
-```sv
+```verilog
 // holy_core.sv
 
 `timescale 1ns/1ps
@@ -1841,13 +1860,13 @@ holy_cache data_cache (
 );
 
 // ...
-    
+
 endmodule
 ```
 
-### Adapting the *single cycle edition's* test program & testbench
+### Adapting the _single cycle edition's_ test program & testbench
 
-In the *single cycle edition*, we made a very rigid testbench where each clock cycle was the equivalent of a new instruction.
+In the _single cycle edition_, we made a very rigid testbench where each clock cycle was the equivalent of a new instruction.
 
 But now, on top of the actual core's logic, we have a couple of cache modules that will sometime stall the core to require data.
 
@@ -1855,15 +1874,15 @@ This means some clock cycles won't do anything and we'll have to wait until the 
 
 So here is what we need to do :
 
-- Create a **test harness** (Which is just a glorified ```axi_translator``` wrapper we already designed for cache's and arbitrer's testbenches) to add the simulated AXI RAM slave.
+- Create a **test harness** (Which is just a glorified `axi_translator` wrapper we already designed for cache's and arbitrer's testbenches) to add the simulated AXI RAM slave.
 - Init the AXI RAM slave's memory with our test program (requires some hackery and helper functions)
 - Add some waiting loops where needed (I used a trial and error method to only add it where needed, not very "pro" but its fast and it works)
 
-So let's to work ! We create the axi_translator wrapper and name it "`holy_test_harness`" to make it look "*pro*" and proceed to write the exact same logic as an ```axi_transltor.sv```.
+So let's to work ! We create the axi_translator wrapper and name it "`holy_test_harness`" to make it look "_pro_" and proceed to write the exact same logic as an `axi_transltor.sv`.
 
-Then we create the helper functions we'll need to init the memory, generate the clocks, and read the cache for assetions (remember : our *single cycle edition's* testbench makes assertions on memory)
+Then we create the helper functions we'll need to init the memory, generate the clocks, and read the cache for assetions (remember : our _single cycle edition's_ testbench makes assertions on memory)
 
-The function in charge of initiating the AXI RAM memory has to perform some formating as our ```test_imemory.hex``` file has some comments we need to get rid of.
+The function in charge of initiating the AXI RAM memory has to perform some formating as our `test_imemory.hex` file has some comments we need to get rid of.
 
 And the function in charge of reading the cache is now necessary as we changed our cache table definition for a packed array,wich reads only raw bits we need to translate.
 Thanksfully, we can easily leverage python's `int()` function with base 2 fot that.
@@ -1904,7 +1923,7 @@ async def init_memory(axi_ram : AxiRam, hexfile, base_addr):
             addr_offset += 4
 ```
 
-And then we can start adapting the *single cycle edition's* testbench.
+And then we can start adapting the _single cycle edition's_ testbench.
 
 Here is a breakdown of the test setup :
 
@@ -1935,10 +1954,17 @@ async def cpu_insrt_test(dut):
     #===============
 
     SIZE = 2**13
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
+    axi_ram_slave = AxiRam(
+        AxiBus.from_prefix(dut, "m_axi"),
+        dut.aclk,
+        dut.aresetn,
+        size=SIZE,
+        reset_active_level=False
+    )
 
     await cpu_reset(dut)
-    await init_memory(axi_ram_slave, "./test_imemory.hex", 0x0000) # more on the new program later...
+    await init_memory(axi_ram_slave, "./test_imemory.hex", 0x0000) 
+    # more on the new program later...
     await init_memory(axi_ram_slave, "./test_dmemory.hex", 0x1000)
 ```
 
@@ -1954,7 +1980,7 @@ lui x3 0x1 # x3  <= 00001000
 
 Then we adapt each and every data access and writes like so :
 
-```asm
+```c
 # from...
 00802903  //LW  TEST START :    lw x18 0x8(x0)      | x18 <= DEADBEEF
 # ...to
@@ -1981,7 +2007,7 @@ And we end up with a new test program :
 00000013  //                    nop                 | NEVER EXECUTED
 00000013  //                    nop                 | NEVER EXECUTED
 00000663  //                    beq x0 x0 0xC       | #4 SHOULD BRANCH (avoid loop)
-0001AB03  //                    lw x22 0x0(x3)      | x22 <= AEAEAEAE 
+0001AB03  //                    lw x22 0x0(x3)      | x22 <= AEAEAEAE
 FF6B0CE3  //                    beq x22 x22 -0x8    | #3 SHOULD BRANCH (negative offset)
 00000013  //                    nop                 | FINAL NOP
 00C000EF  //JAL TEST START :    jal x1 0xC          | #1 jump @PC+0xC     PC 0x48
@@ -2019,7 +2045,7 @@ FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 013948B3  //XOR TEST START :    xor x17 x18 x19     | x17 <= 000711F0
 0079D433  //SRL TEST START :    srl x8 x19 x7       | x8  <= 00FFFFEE
 4079D433  //SRA TEST START :    sra x8 x19 x7       | x8  <= FFFFFFEE
-0088C463  //BLT TEST START :    blt x17 x8 0x8      | not taken : x8 neg (sign), x17 pos (no sign)
+0088C463  //BLT TEST START :    blt x17 x8 0x8      | not taken
 01144463  //                    blt x8 x17 0x8      | taken : x8 neg (sign), x17 pos (no sign)
 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
 00841463  //BNE TEST START :    bne x8 x8 0x8       | not taken
@@ -2033,23 +2059,23 @@ FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)
 0088F463  //BGEU TEST START :   bgeu x17 x8 0x8     | not taken
 01147463  //                    bgeu x8 x17 0x8     | taken
-00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x10C
-00000397  //JALR TEST START :   auipc x7 0x0        | x7 <= 00000110                PC = 0x110 
-01438393  //                    addi x7 x7 0x14     | x7 <= 00000124                PC = 0x114
-FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000118, go @PC 0x120  PC = 0x118
-00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value)  PC = 0x11C
-008020A3  //SB TEST START :     sw x8 0x1(x0)       | NO WRITE ! (mis-aligned !)    PC = 0x120
-00818323  //                    sb x8 0x6(x3)       | mem @ 0x4 <= 00EE0000         PC = 0x124
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value) PC = 0x10C
+00000397  //JALR TEST START :   auipc x7 0x0        | x7 <= 00000110               PC = 0x110
+01438393  //                    addi x7 x7 0x14     | x7 <= 00000124               PC = 0x114
+FFC380E7  //                    jalr x1  -4(x7)     | x1 <= 00000118, go @PC 0x120 PC = 0x118
+00C00413  //                    addi x8 x0 0xC      | NEVER EXECUTED (check value) PC = 0x11C
+008020A3  //SB TEST START :     sw x8 0x1(x0)       | NO WRITE ! (mis-aligned !)   PC = 0x120
+00818323  //                    sb x8 0x6(x3)       | mem @ 0x4 <= 00EE0000        PC = 0x124
 008010A3  //SH TEST START :     sh x8 1(x0)         | NO WRITE ! (mis-aligned !)
 008011A3  //                    sh x8 3(x0)         | NO WRITE ! (mis-aligned !)
-00819323  //                    sh x8 6(x3)         | mem @ 0x4 <= FFEE0000      
-01018393  //LB TEST START :     addi x7 x3 0x10     | x7 <= 00001010 (base address for this test) 
-FFF3A903  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER ! (x18 last value : FFF8FF00)
-FFF38903  //                    lb x18 -1(x7)       | x18 <= FFFFFFDE (0xC is DEADBEEF bc sw test)
+00819323  //                    sh x8 6(x3)         | mem @ 0x4 <= FFEE0000
+01018393  //LB TEST START :     addi x7 x3 0x10     | x7 <= 00001010
+FFF3A903  //                    lw x18 -1(x7)       | NO WRITE IN REGISTER !
+FFF38903  //                    lb x18 -1(x7)       | x18 <= FFFFFFDE 
 FFD3C983  //LBU TEST START :    lbu x19 -3(x7)      | x19 <= 000000BE
-FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! (x20 last value : 0FFFFEEF)
+FFD39A03  //LH TEST START :     lh x20 -3(x7)       | NO WRITE IN REGISTER ! 
 FFA39A03  //                    lh x20 -6(x7)       | x20 <= FFFFDEAD
-FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! (x21 last value : FFFFFFEE)
+FFD3DA83  //LHU TEST START :    lhu x21 -3(x7)      | NO WRITE IN REGISTER ! 
 FFA3DA83  //                    lhu x21 -6(x7)      | x21 <= 0000DEAD
 00000013  //NOP
 00000013  //This program was translated in HEX by hand. Please help.
@@ -2092,8 +2118,8 @@ Regarding the **waiting loop**, here is an example assertion for the very first 
 The core will stall as the instruction cache is non valid on startup, meaning the core will fetch the instructions from the RAM and stall.
 On the frontend, we simply wait for the stall signals to go low. The same goes for all memory-wise instructions.
 
-Then, when also did assertions on the memory's state in the *single cycle edition* to check if the stores were effective.
-Because simple array memory is not a thing anymore with our brand new cache (now **packed array**), we'll simply re-work these assertions by using the ```read_cache```
+Then, when also did assertions on the memory's state in the _single cycle edition_ to check if the stores were effective.
+Because simple array memory is not a thing anymore with our brand new cache (now **packed array**), we'll simply re-work these assertions by using the `read_cache`
 helper function we defined earlier :
 
 ```python
@@ -2102,11 +2128,11 @@ helper function we defined earlier :
 # ...
 
     ##################
-    # STORE WORD TEST 
+    # STORE WORD TEST
     # 0121A623  //SW  TEST START :    sw x18 0xC(x3)      | 0xC <= DEADBEEF
     ##################
     print("\n\nTESTING SW\n\n")
-    test_address = int(0xC / 4) 
+    test_address = int(0xC / 4)
 
     # Check the inital state
     # assert binary_to_hex(dut.core.data_cache.cache_data[test_address].value) == "F2F2F2F2"
@@ -2126,45 +2152,45 @@ We grab this opprtunity to add a new and final test to the holy core testbench :
 In this test, we'll take the time to check if the core does correctly write back the information it holds when needed.
 
 Because the last tests in the original testbench are **STORE** instructions, we can simply load a piece of data not contained
-in the current cache content, and with the cache being dirty, this should create *cache miss* and a *write back*, effectively **updating the actual RAM content**.
+in the current cache content, and with the cache being dirty, this should create _cache miss_ and a _write back_, effectively **updating the actual RAM content**.
 (We'll later use this method to update GPIO on real FPGA)
 
 So we add some instructions to our test program :
 
 ```txt
-20018393  //CACHE WB TEST :     addi x7 x3 0x200    | x7  <= 00001200 (just above 128*4=512B cache size)
-0003AA03  //                    lw x20 0x0(x7)      | x20 <= 00000000 + MISS + WRITE BACK + RELOAD !
+20018393  //CACHE WB TEST :     addi x7 x3 0x200| x7  <= 00001200 (just above cache size)
+0003AA03  //                    lw x20 0x0(x7)  | x20 <= 00000000 MISS, WRITE BACK, RELOAD
 ```
 
-And we then proceed to add some assertions. We'll use the ```read()``` method from **cocotbext-axi** to read actual RAM content after write-back.
+And we then proceed to add some assertions. We'll use the `read()` method from **cocotbext-axi** to read actual RAM content after write-back.
 
 ```python
 # test_holy_core.py
 
-# ... 
+# ...
 
-    #################
-    # CACHE WB TEST
-    # 20018393  //CACHE WB TEST :     addi x7 x3 0x200    | x7  <= 00001200 (just above 128*4=512B cache size)
-    # 0003AA03  //                    lw x20 0x0(x7)      | x20 <= 00000000 + MISS + WRITE BACK + RELOAD !
-    ##################
+#################
+# CACHE WB TEST
+# 20018393  //CACHE WB TEST :     addi x7 x3 0x200| x7  <= 00001200 (just above cache size)
+# 0003AA03  //                    lw x20 0x0(x7)  | x20 <= 00000000 MISS, WRITE BACK, RELOAD
+##################
 
-    # Check test's init state
-    assert binary_to_hex(dut.core.instruction.value) == "20018393"
+# Check test's init state
+assert binary_to_hex(dut.core.instruction.value) == "20018393"
 
-    await RisingEdge(dut.clk) # addi x7 x3 0x200
-    assert binary_to_hex(dut.core.regfile.registers[7].value) == "00001200"
+await RisingEdge(dut.clk) # addi x7 x3 0x200
+assert binary_to_hex(dut.core.regfile.registers[7].value) == "00001200"
 
-    assert dut.core.stall.value == 0b1
-    assert dut.core.data_cache.next_state.value == SENDING_WRITE_REQ
+assert dut.core.stall.value == 0b1
+assert dut.core.data_cache.next_state.value == SENDING_WRITE_REQ
 
-    # Wait for the cache to retrieve data
-    while(dut.core.stall.value == 0b1) :
-        await RisingEdge(dut.clk)
+# Wait for the cache to retrieve data
+while(dut.core.stall.value == 0b1) :
+    await RisingEdge(dut.clk)
 
-    await RisingEdge(dut.clk) # lw x20 0x0(x7)
-    assert binary_to_hex(dut.core.regfile.registers[20].value) == "00000000"
-    assert axi_ram_slave.read(0x00001004, 4) == 0xFFEE0000.to_bytes(4,'little')
+await RisingEdge(dut.clk) # lw x20 0x0(x7)
+assert binary_to_hex(dut.core.regfile.registers[20].value) == "00000000"
+assert axi_ram_slave.read(0x00001004, 4) == 0xFFEE0000.to_bytes(4,'little')
 ```
 
 ## 6 : FPGA integration and debugging
@@ -2179,7 +2205,7 @@ Before starting here are a few specifics on what I use :
 
 I use a Zybo Z7-20 for the board
 
-![zybo z7-20 board](../images/zybo.jpg)
+![zybo z7-20 board](./images/zybo.jpg)
 
 And I also use vivado 2023.2 as an EDA.
 
@@ -2187,7 +2213,7 @@ It's better if you have the same environment as me (especially for the EDA) but 
 
 Here is a schematic of the SoC we'll put together :
 
-![SoC shemes for HOLY CORE](../images/SoC_simple.png)
+![SoC shemes for HOLY CORE](./images/SoC_simple.png)
 
 There are a few new things here, let me get you up to speed on these :
 
@@ -2204,7 +2230,7 @@ We'll add some output signals to our core. These signals are the most important 
 
 ILA allows us to debug the core **LIVE** on FPGA and monitor what is going right -or most likely- wrong.
 
-Get up to speed on this one (*very important*) if you did not already. It is also pretty well documented on internet.
+Get up to speed on this one (_very important_) if you did not already. It is also pretty well documented on internet.
 
 #### JTAG
 
@@ -2231,7 +2257,7 @@ more on that later.
 Regarding the debug signals, you can use whatever you want. The bare minimu are PC and instrcution in my opinion,
 I also added a variety of cache signals as my cache was pretty buggy at first :
 
-```sv
+```verilog
 // holy_core.sv
 
 module holy_core (
@@ -2241,17 +2267,17 @@ module holy_core (
     axi_if.master m_axi,
 
     // OUTGOING DEBUG SIGNALS
-    output logic [31:0] debug_pc,  
+    output logic [31:0] debug_pc,
     output logic [31:0] debug_pc_next,
-    output logic [31:0] debug_instruction,  
-    output logic [2:0] debug_i_cache_state,  
+    output logic [31:0] debug_instruction,
+    output logic [2:0] debug_i_cache_state,
     output logic [2:0] debug_d_cache_state,
-    output logic [6:0] debug_i_set_ptr,  
-    output logic [6:0] debug_i_next_set_ptr,  
-    output logic [6:0] debug_d_set_ptr,  
-    output logic [6:0] debug_d_next_set_ptr,  
-    output logic debug_i_cache_stall,  
-    output logic debug_d_cache_stall  
+    output logic [6:0] debug_i_set_ptr,
+    output logic [6:0] debug_i_next_set_ptr,
+    output logic [6:0] debug_d_set_ptr,
+    output logic [6:0] debug_d_next_set_ptr,
+    output logic debug_i_cache_stall,
+    output logic debug_d_cache_stall
 );
 
 import holy_core_pkg::*;
@@ -2260,13 +2286,13 @@ import holy_core_pkg::*;
 * FPGA Debug_out signals
 */
 
-assign debug_pc = pc;  
-assign debug_pc_next = pc_next;  
-assign debug_instruction = instruction;  
-assign debug_i_cache_state = i_cache_state;  
-assign debug_d_cache_state = d_cache_state;  
-assign debug_i_cache_stall = i_cache_stall;  
-assign debug_d_cache_stall  = d_cache_stall; 
+assign debug_pc = pc;
+assign debug_pc_next = pc_next;
+assign debug_instruction = instruction;
+assign debug_i_cache_state = i_cache_state;
+assign debug_d_cache_state = d_cache_state;
+assign debug_i_cache_stall = i_cache_stall;
+assign debug_d_cache_stall  = d_cache_stall;
 
 // ...
 ```
@@ -2276,8 +2302,8 @@ You might need to add some of these signals as outputs to submodules, I'll let y
 ### Implementing the SoC in vivado
 
 > There is a vivado TCL automation script in `fpga/zybo_z720`, you can use it even if you don't own the same board to have the
-pre-built SoC without the hassle of using vivado (the less we use it, the better haha). You can then use this example to
-make your own. Below is a description of this process to make it manually.
+> pre-built SoC without the hassle of using vivado (the less we use it, the better haha). You can then use this example to
+> make your own. Below is a description of this process to make it manually.
 
 If you are not familiar with vivado, you can get yourself up to speed using the resources.
 
@@ -2287,16 +2313,17 @@ Because vivado does not like systemVerilog as a top module, we'll need to create
 
 - One system verilog wrapper that does the same thing as `axi_translator` but routes all signals as outputs (called it `axi_details.sv`)
 - One "Regular" verilog wrapper that simply routes all outputs as... outputs, except it's plain verilog.
-(`holy_wrapper.v`)
+  (`holy_wrapper.v`)
 
-You can find these files under the `fpga/` folder of the *fpga edition*.
+You can find these files under the `fpga/` folder of the _fpga edition_.
 
 We can now proceed to add these file to our sources in vivado and create a new block design.
 
 We can then add (by a drag and drop) our `holy_wrapper.v` top module in the block design.
 
 After that, simply add all of the other components like so :
-![final holy core fpga soc in vivado](../images/SoC_final.png)
+
+![final holy core fpga soc in vivado](./images/SoC_final.png)
 
 You can then validate the block design, generate an HDL wrapper an set this wrapper as the new top module for synthesis.
 
@@ -2318,13 +2345,13 @@ The clock speed is set to 50MHz in my example.
 
 We can now launch bitstream generation & flash the said bitstream onto the board. We'll be greeted by the ILA dubugger that we can leverage to check on our live debug signals.
 
-![ila debugging](../images/ila.png)
+![ila debugging](./images/ila.png)
 
 > If you are not familiar with ILA debugging yet, it is a very powerful tool that you should learn. See the resources to learn more.
 
 Now, we put the CORE on reset and the AXI interfaces on active using the buttons we defined in our constraint file like in the following example :
 
-![flashed board reset](../images/flashed%20board%20reset.png)
+![flashed board reset](./images/flashed%20board%20reset.png)
 
 We can now move on to building a program.
 
@@ -2336,7 +2363,7 @@ To run a program, we need to get our hands on an hexadecimal version of the said
 
 To do so, let's code an assembly version of an LED counter :
 
-```assembly
+```c
 # test.s
 
 .section .text
@@ -2347,30 +2374,30 @@ start:
     # Initialization
     lui x6, 0x2                 # Load GPIO base address
     addi x19, x0, 0x0           # Set offset to 0
-    addi x20, x0, 0x80          # Set offset limit to 128 (i.e., cache size) 
+    addi x20, x0, 0x80          # Set offset limit to 128 (i.e., cache size)
     addi x18, x0, 0
     j loop
 
 loop:
     # reset offsets
     addi x6, x0, 0
-    lui x6, 0x2                 # Load GPIO base address 
-    addi x19, x0, 0x0           # Set offset to 0 
+    lui x6, 0x2                 # Load GPIO base address
+    addi x19, x0, 0x0           # Set offset to 0
 
     addi x18, x18, 0x1
     j sub_loop
 
 sub_loop:
     sw x18, 0(x6)
-    addi x6, x6, 0x4            
-    addi x19, x19, 0x1         
-    bne x19, x20, sub_loop         
+    addi x6, x6, 0x4
+    addi x19, x19, 0x1
+    bne x19, x20, sub_loop
 
     lw x23, 0(x0)               # Done! Create a cache miss to write back.
 
     # Delay loop: Wait for ~50,000,000 clock cycles
     li x21, 50000000      # Load 50,000,000 into x21
-    
+
 delay_loop:
     addi x21, x21, -1           # Decrement x21
     bnez x21, delay_loop        # If x21 != 0, continue looping
@@ -2383,9 +2410,9 @@ This code is pretty self explainatory except there are a few software trick to m
 
 - We have to trigger a cache miss after each data update for the cache to create a write-back sequence.
 - We fill the **ENTIRE** cache with the data we want to write. Because AXI GPIO only has a `0x0` to `0xF` address range. Addresses above that "wraps around" instead of being ignored,
-meaning if we have 0s in the cache (or any other un-related data) in the higher addresses,
-they will overwrite the lower ones.
-There are others ways to tackle this specific problem but here the simplest way was just to fill the entire cache with the data and call it a day.
+  meaning if we have 0s in the cache (or any other un-related data) in the higher addresses,
+  they will overwrite the lower ones.
+  There are others ways to tackle this specific problem but here the simplest way was just to fill the entire cache with the data and call it a day.
 
 Then we can compile this to raw hexadecimal. To get the right syntax, use `make build_test_hex` in the
 `Makefile` under `fpga_edition/fpga/test_programs/`.
@@ -2426,9 +2453,9 @@ run_hw_axi [get_hw_axi_txns $wt]
 
 Once this is done, the program is in the BRAM, ready to run.
 
-To run it simply realease the CORE's `reset` signal. And *voilà* ! blinking LEDs !
+To run it simply realease the CORE's `reset` signal. And _voilà_ ! blinking LEDs !
 
-![counter program running](../images/working%20leds.png)
+![counter program running](./images/working%20leds.png)
 
 ## 7 : Making the core more usable, introducing Zicsr and Zicntr
 
@@ -2458,9 +2485,9 @@ And you may be seeing it comming, but we'll allows the user to control cache beh
 
 So we'll start by reding what are CSR here : [link](https://five-embeddev.com/riscv-user-isa-manual/latest-latex/csr.html#csrinsts) and we see that the ISA only defines an instruction type that looks like an I-type :
 
- csr | rs1 / unsigned imm     | f3           | rd      | op |
- ------------ | ------------ |------------ | ------- | ------- |
- XXXXXXXXXXXX | XXXXX    | XXX        | XXXX | 1110011 |
+| csr          | rs1 / unsigned imm | f3  | rd   | op      |
+| ------------ | ------------------ | --- | ---- | ------- |
+| XXXXXXXXXXXX | XXXXX              | XXX | XXXX | 1110011 |
 
 The F3 field will control what specific operation we want to do but the idea is lways the same :
 
@@ -2471,14 +2498,14 @@ Now, there are a couple of specificities because there are 6 different CSR instr
 
 Here is what they do :
 
- Name | What they do    | f3  |
- ------------ | ------------ |------------ |
- CSRRW  |  Exactly what we just described  | 001 |
- CSRRS  |  Same, but does not reaplce ! It runs a bitwise OR (csr <= rs \| csr) | 010 |
- CSRRC  |  Same, but does not reaplce ! It runs a bitwise NOT AND (csr <= ~rs \& csr) | 011 |
- CSRRI  |  Same but rs is replaced with 5bits immediate, zero exented | 101 |
- CSRRSI  |  Same but rs is replaced with 5bits immediate, zero exented  | 110 |
- CSRRCI  |  Same but rs is replaced with 5bits immediate, zero exented  | 111 |
+| Name   | What they do                                                               | f3  |
+| ------ | -------------------------------------------------------------------------- | --- |
+| CSRRW  | Exactly what we just described                                             | 001 |
+| CSRRS  | Same, but does not reaplce ! It runs a bitwise OR (csr <= rs \| csr)       | 010 |
+| CSRRC  | Same, but does not reaplce ! It runs a bitwise NOT AND (csr <= ~rs \& csr) | 011 |
+| CSRRI  | Same but rs is replaced with 5bits immediate, zero exented                 | 101 |
+| CSRRSI | Same but rs is replaced with 5bits immediate, zero exented                 | 110 |
+| CSRRCI | Same but rs is replaced with 5bits immediate, zero exented                 | 111 |
 
 But why these bitwise operations ? Well here are some use case where it's useful :
 
@@ -2505,7 +2532,7 @@ Then the harware resets the flag to 0 and life goes on.
 
 Here is what the module would look like :
 
-![csr file scheme](../images/csr_file.png)
+![csr file scheme](./images/csr_file.png)
 
 So, without further ado, let's create a new `csr_file.sv` file !
 
@@ -2513,7 +2540,7 @@ So, without further ado, let's create a new `csr_file.sv` file !
 
 The HDL is a bit special here : we are **NOT** going to declare a BRAM block (paccked array or whatever) or 4096 registers sitting there in the CPU. Oh no ! That would be such a waste of space.
 
-What we'll do instead is declare it 1 by 1 ! This can seem tidious bit remember : *we only have 1 CSR so far* ! The logic will be completely separate as well ! This is beacause each CSR does not behave the same, some wil increment without dev intervention, some are meant to bea read only and some meant to be written ! (like out `flush_cach` CSR).
+What we'll do instead is declare it 1 by 1 ! This can seem tidious bit remember : _we only have 1 CSR so far_ ! The logic will be completely separate as well ! This is beacause each CSR does not behave the same, some wil increment without dev intervention, some are meant to bea read only and some meant to be written ! (like out `flush_cach` CSR).
 
 And before moving on to the HDL, some final details on the behavior of the module :
 
@@ -2692,7 +2719,7 @@ async def test_csr_file(dut):
                 dut.read_data.value
                 == (init_csr_value & (~wd & 0xFFFFFFFF)) #we mask wd to 32 bits
             )
-    
+
     # ----------------------------------
     # test reset, first write sample data
     dut.write_enable.value = 1
@@ -2753,22 +2780,22 @@ once this is done, we can move on to adding support in our cache !
 
 This part is exaclty what it sounds like : us adding a way to recieve the flush order comming from the `CSR_file` and interpret it.
 
-Lucky us,  we manage our cache using a state machine. This means we can simply add an input and switch the FSM's state to `SENDING_WRITE_REQ` which will automaticcaly unroll the whole `write_back / read` AXI procedure.
+Lucky us, we manage our cache using a state machine. This means we can simply add an input and switch the FSM's state to `SENDING_WRITE_REQ` which will automaticcaly unroll the whole `write_back / read` AXI procedure.
 
 Here is how we're going to update our AXI FSM in the cache :
 
-![New axi fsm to add manual flush](../images/updated_fsm_axi_csr.jpg)
+![New axi fsm to add manual flush](./images/updated_fsm_axi_csr.jpg)
 
 As you can see, we are going to make some choices here but the idea is pretty simple :
 
 - We now shall switch to write-back is we recieve `cs_flush_order`
-- We have to **remember** somehow that the flush originated from manual order, **why ?**, well this way we can *bypass* the re-read which would be useless and broken anyway for various reasons that I painfully had to *slowly* understand while debugging this :)
+- We have to **remember** somehow that the flush originated from manual order, **why ?**, well this way we can _bypass_ the re-read which would be useless and broken anyway for various reasons that I painfully had to _slowly_ understand while debugging this :)
 
 ### 8.2.a : HDL Code
 
 Here are the modifications made :
 
-```sv
+```verilog
 // holy_cache.sv
 module holy_cache #(
     parameter CACHE_SIZE = 128
@@ -2806,11 +2833,14 @@ module holy_cache #(
 
 // CACHE TABLE DECLARATION
     logic [CACHE_SIZE-1:0][31:0]    cache_data;
-    logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
-    logic                           cache_valid;  // is the current block valid ?
+    // direct mapped cache so only one block, only one tag
+    logic [31:9]                    cache_block_tag;
+    // is the current block valid ?
+    logic                           cache_valid;  
     logic                           next_cache_valid;
     logic                           cache_dirty;
-    // register to retain info on wether we are writing back because of miss or because of CSR order
+    // register to retain info on wether we are writing back
+    // because of miss or because of CSR order
     logic                           csr_flushing, next_csr_flushing; // NEW !
 
 // ...
@@ -2838,13 +2868,14 @@ module holy_cache #(
         axi.wdata = cache_data[set_ptr];
         cache_state = state;
         next_set_ptr = set_ptr;
-        // csr flushing keeps value by default, only set at beginning of flush and deset a end of flush
+        // csr flushing keeps value by default
+        // only set at beginning of flush and deset a end of flush
         next_csr_flushing = csr_flushing;
 
         case (state)
             IDLE: begin
                 // when idling, we simple read and write, no problem !
-                if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
+                if(read_enable && write_enable) $display("ERROR");
 
                 else if(hit && read_enable) begin
                     // async reads
@@ -2860,8 +2891,11 @@ module holy_cache #(
                     next_state = SENDING_WRITE_REQ;
                 end
 
-                else if( (~hit && (read_enable ^ actual_write_enable)) & ~csr_flush_order) begin
-                    // switch state to handle the MISS, if data is dirty, we have to write first
+                else if(
+                    (~hit && (read_enable ^ actual_write_enable)) & ~csr_flush_order)
+                begin
+                    // switch state to handle the MISS
+                    // if data is dirty, we have to write first
                     case(cache_dirty)
                         1'b1 : next_state = SENDING_WRITE_REQ;
                         1'b0 : next_state = SENDING_READ_REQ;
@@ -2950,7 +2984,7 @@ Verification is very straight forward :
     assert dut.cache_system.csr_flushing.value == 0b1
     assert dut.cache_system.next_csr_flushing.value == 0b0
     assert dut.cache_system.next_state.value == IDLE
-    
+
     # csr flushin should be low again
     await RisingEdge(dut.aclk)
     await Timer(1, units="ns")
@@ -2964,15 +2998,15 @@ Verification is very straight forward :
 
 Before moving on the the "plug everython part, there is a couple of things to do : **DECODE** csr instructions ! A little reminder shall we ?
 
- csr | rs1 / unsigned imm     | f3           | rd      | op |
- ------------ | ------------ |------------ | ------- | ------- |
- XXXXXXXXXXXX | XXXXX    | XXX        | XXXXX | 1110011 |
+| csr          | rs1 / unsigned imm | f3  | rd    | op      |
+| ------------ | ------------------ | --- | ----- | ------- |
+| XXXXXXXXXXXX | XXXXX              | XXX | XXXXX | 1110011 |
 
 So we just have to decode the op... Yes, indeed but there's more to it. We also have to add the followings signals :
 
 - `csr_write_enable`
 - `csr_write_back_source`
-- add a new `imm_source` (**) to specify the 0 extended uimm from bits [19:16]
+- add a new `imm_source` (\*\*) to specify the 0 extended uimm from bits [19:16]
   - and that means we'll have to make a quick update on the sign extender after that
 - add a new `write_back_source` variant, making it a 3 bits wide signal
   - and yes, that means a handful of changes todo !
@@ -2985,7 +3019,7 @@ For the control, life is good, no fancy logic and just some nice case to fill. b
 
 > Also, don't forget do add the new OP code to the `holy_core_pkg.sv` file ! We'll call it `OPCODE_CSR`
 
-```sv
+```verilog
 // holy_core_pkg.sv
 
 // ...
@@ -3009,7 +3043,7 @@ For the control, life is good, no fancy logic and just some nice case to fill. b
 
 Then we get to modifying control :
 
-```sv
+```verilog
 // control.sv
 
 module control (
@@ -3125,13 +3159,13 @@ async def csr_control_test(dut):
 
 ## 8.4 : Quick update on the `sign_extender` module
 
-To take our new `imm_source` (*0b101*), we shall update out `signext.sv` file.
+To take our new `imm_source` (_0b101_), we shall update out `signext.sv` file.
 
 ### 8.4.a : HDL Code
 
 Here is the entire updated module :
 
-```sv
+```verilog
 // signext.sv
 
 module signext (
@@ -3151,7 +3185,7 @@ always_comb begin
         default: immediate = 32'd0;
     endcase
 end
-    
+
 endmodule
 ```
 
@@ -3194,13 +3228,13 @@ Good, now we have everything we need to implement our CSR regfile. Next step : i
 
 Alright so here what we aim to implement under the form of a nice scheme :
 
-![datapath with CSR regfile](../images/added_csr.jpg)
+![datapath with CSR regfile](./images/added_csr.jpg)
 
 As you can see, there a bit of work to do ! We have to :
 
 - Add the CSR module
   - and declare all its signals !
-- Route the flush orders correctly the the *HOLY Caches*
+- Route the flush orders correctly the the _HOLY Caches_
 - Adapt `write_back_source`'s width and update the write back MUX logic
 - Add a new csr write back mux
 - And many more little things, but it comes up naturally as we implement it, no worries
@@ -3211,7 +3245,7 @@ Our first objective is to wire up all this and then make the old tests pass agai
 
 Here are the highlights of the updated datapath :
 
-```sv
+```verilog
 // holy_core.sv
 
 module holy_core (
@@ -3273,7 +3307,7 @@ csr_file holy_csr_file(
 );
 
 // ...
-    
+
 endmodule
 ```
 
@@ -3281,7 +3315,7 @@ And it's not shown here but don't forget to add an input the the data and intrsc
 
 ### 8.5.b : Verification
 
-To verify, we'll create a simple test program that will check the behavior of the CSR cache flush and the core's reaction to such an order (*asserted to be an initation of the write back / read sequence depending on cache state*)
+To verify, we'll create a simple test program that will check the behavior of the CSR cache flush and the core's reaction to such an order (_asserted to be an initation of the write back / read sequence depending on cache state_)
 
 The test program is extremely simple :
 
@@ -3291,16 +3325,17 @@ The test program is extremely simple :
 // other tests...
 
 00100A13  //CSR FLUSH TEST :    addi x20 x0 0x1     | x20 <= 00000001
-7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 / flush_cache <= 00000001 / + WRITE BACK + RELOAD !
+7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 
+// (flush_cache <= 00000001 / + WRITE BACK + RELOAD !)
 
 // NOPs...
 ```
 
-What we do is simply load the value : `x20 <= 0x1`  and then use the `csrrw` instruction to do `x21 <= CSR <= x20`.
+What we do is simply load the value : `x20 <= 0x1` and then use the `csrrw` instruction to do `x21 <= CSR <= x20`.
 
 And you guessed it, after that, `flush_cache` CSR will be 1, thus flushing the cache and x21 should be 0 as this was the `flush_cache` CSR's value before the test.
 
-> Nota : I chose x21 because its value was non 0 before (*it was 0x0000DEAD from the partial loads tests*).
+> Nota : I chose x21 because its value was non 0 before (_it was 0x0000DEAD from the partial loads tests_).
 
 Here is the tb, which is pretty much what we just described :
 
@@ -3312,7 +3347,8 @@ Here is the tb, which is pretty much what we just described :
     ################
     # CSR TESTS (FLUSH_CACHE)
     # 00100A13  //CSR FLUSH TEST :    addi x20 x0 0x1     | x20 <= 00000001
-    # 7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000 / flush_cache <= 00000001 / + WRITE BACK + RELOAD !
+    # 7C0A1AF3  //                    csrrw x21 0x7C0 x20 | x21 <= 00000000
+    # (flush_cache <= 00000001 / + WRITE BACK + RELOAD !)
     ##################
 
     # Check test init's state
@@ -3321,11 +3357,12 @@ Here is the tb, which is pretty much what we just described :
 
     await RisingEdge(dut.clk) # addi x20 x0 0x1
     assert binary_to_hex(dut.core.regfile.registers[20].value) == "00000001"
-    
+
     await RisingEdge(dut.clk) # csrrw x21 0x7C0 x20
     await Timer(2,units="ns") # csrrw x21 0x7C0 x20
-    assert binary_to_hex(dut.core.regfile.registers[21].value) == "00000000" # value in CSR was 0...
-    
+    # value in CSR was 0...
+    assert binary_to_hex(dut.core.regfile.registers[21].value) == "00000000" 
+
     assert dut.core.stall.value == 0b1
     assert dut.core.data_cache.state.value == SENDING_READ_REQ
 
@@ -3347,7 +3384,7 @@ Okay, before adding the counters for `Zicntr`, we'll test our CSR live on the FP
 
 Remember our old `test.s` program to blink leds ?
 
-```asm
+```c
 # test.S
 
 .section .text
@@ -3358,30 +3395,30 @@ start:
     # Initialization
     lui x6, 0x2                 # Load GPIO base address
     addi x19, x0, 0x0           # Set offset to 0
-    addi x20, x0, 0x80          # Set offset limit to 128 (i.e., cache size) 
+    addi x20, x0, 0x80          # Set offset limit to 128 (i.e., cache size)
     addi x18, x0, 0
     j loop
 
 loop:
     # reset offsets
     addi x6, x0, 0
-    lui x6, 0x2                 # Load GPIO base address 
-    addi x19, x0, 0x0           # Set offset to 0 
+    lui x6, 0x2                 # Load GPIO base address
+    addi x19, x0, 0x0           # Set offset to 0
 
     addi x18, x18, 0x1
     j sub_loop
 
 sub_loop:
     sw x18, 0(x6)
-    addi x6, x6, 0x4            
-    addi x19, x19, 0x1         
-    bne x19, x20, sub_loop         
+    addi x6, x6, 0x4
+    addi x19, x19, 0x1
+    bne x19, x20, sub_loop
 
     lw x23, 0(x0)               # Done! Create a cache miss to write back.
 
     # Delay loop: Wait for ~50,000,000 clock cycles
     li x21, 50000000      # Load 50,000,000 into x21
-    
+
 delay_loop:
     addi x21, x21, -1           # Decrement x21
     bnez x21, delay_loop        # If x21 != 0, continue looping
@@ -3477,7 +3514,7 @@ First of all, les't add our couple of new CSRs to the CSR file and test their be
 
 Adding simple R/W CSRs is pretty straightforward (yes I always write that I know but it's true). But we gotta make sure the logic is well pllied everywhere because rember : we declare each CSR **individually**, and we detailled the logic to the maximum to get good control over the CSRs behavior :
 
-```sv
+```verilog
 module csr_file (
     // IN
     input logic clk,
@@ -3680,7 +3717,7 @@ async def test_csr_file(dut):
                     dut.read_data.value
                     == (init_csr_value & (~wd & 0xFFFFFFFF)) #we mask wd to 32 bits
                 )
-        
+
         # ----------------------------------
         # test reset, first write sample data
         dut.write_enable.value = 1
@@ -3734,13 +3771,13 @@ async def test_csr_file(dut):
 
 Well, here is the core of the work we'll have to perform to make this improvement a reality... So let's setlle our logic on a nice scheme first...
 
-![holy data cache scheme](../images/data_cache.jpg)
+![holy data cache scheme](./images/data_cache.jpg)
 
 A bit of explaination : Here are the point of attetion that will chage compared to the last cache subystem :
 
 - We compare the requested address to CSRs to determine "cachability" of the data
   - side note : we compare the TAG of the CSR addresses, meaning the user cannot specify a range lower that a 128 words block or misaligned on 128 words. If the dev ignres that well the data may be cached anyway. We assumer the end user will know. On our side, the implementation will be easy : we simply compare the upper bits, ignoring the lower.
-- We add an **AXI LITE** dimension to our FSM *(new states but shared IDLE)*
+- We add an **AXI LITE** dimension to our FSM _(new states but shared IDLE)_
 - For non cachable data, we declare a single register used to return the read result from **AXI_LITE**
 - we use the `non_cachable` signal to select the `read_data` we want to return.
 - stalling mecanism is "already implemented : **because we share the same FSM**, the cache will stall as soon as the next decided state is not IDLE (eg going into AXI LITE transaction states)
@@ -3756,17 +3793,15 @@ As we can see, this is quite bit of work, and it adds a bit of complexity. At th
 
 > And yes, we'll separate data cache from instruction cache if we do that as instruction cache will NOT need AXI_LITE to fetch anything.
 
-The choice is easy, **let's go for the struggle**, as this is what makes this core a *HOLY CORE* after all !
+The choice is easy, **let's go for the struggle**, as this is what makes this core a _HOLY CORE_ after all !
 
 ### 12.2.a : HDL Code
-
-<!-- TODO : Update with new ay of validating axi lite result (or maybe not as i may talk about it in the datapath section to make it easier to follow) -->
 
 First, we have to create a whole new `holy_data_cache.sv` file and the tb that goes with it by copy pasting the "old" cache (mostly renaming stuff and modules).
 
 Let's start by declaring the `axi_lite_if.sv` interface in the `pkg/` folder :
 
-```sv
+```verilog
 // axi_lite_if.sv
 
 interface axi_lite_if #(
@@ -3870,7 +3905,7 @@ And then start declaring the basic signals we'll need to make our new cache work
 
 > Don't forget, we now work in a copied version of the `holy_cache` that we named `holy_data_cache.sv` !
 
-```sv
+```verilog
 // holy_data_cache.sv
 
 import holy_core_pkg::*;
@@ -3879,7 +3914,7 @@ module holy_data_cache #(
     parameter CACHE_SIZE = 128
 )(
     // ...
-    
+
     // incomming cachable range from CSRs (NEW !)
     input logic [31:0] non_cachable_base,
     input logic [31:0] non_cachable_limit,
@@ -3898,11 +3933,17 @@ module holy_data_cache #(
     // ...
 
     // non_cashable ? is the reaquested address *NOT* cachable
-    // WARNING : because the cache works by block, only the TAG from the addresses is taken in cosideration to determine cachability.
-    // meaning the end user (dev) has to be aware that low range resolution eg 0x00000000 to 0x000000000F will not be considered.
+    // WARNING : because the cache works by block
+    // only the TAG from the addresses is taken in cosideration to determine cachability.
+    // meaning the end user (dev) has to be aware that low range resolution
+    // eg 0x00000000 to 0x000000000F will not be considered.
     logic                           non_cachable;
-    assign non_cachable = ((req_block_tag >= non_cachable_base[31:9]) && (req_block_tag < non_cachable_limit[31:9]));
-    logic [31:0]                    axi_lite_read_result; // axi lite's only data reg for non cachable data
+    assign non_cachable = (
+        (req_block_tag >= non_cachable_base[31:9])
+        && (req_block_tag < non_cachable_limit[31:9])
+    );
+    // axi lite's only data reg for non cachable data
+    logic [31:0]                    axi_lite_read_result; 
 
     // (UNCHANGED !)
 
@@ -3921,7 +3962,7 @@ module holy_data_cache #(
         logic actual_write_enable;
         assign actual_write_enable = write_enable & |byte_enable;
         logic comb_stall, seq_stall;
-        assign comb_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
+        assign comb_stall = (next_state != IDLE)|(~hit & (read_enable | actual_write_enable));
         assign cache_stall = comb_stall | seq_stall;
 
     // =======================
@@ -3940,7 +3981,11 @@ module holy_data_cache #(
             // ...
 
             // NEW ! : axi liste write logic to our single result register !
-            end else if(axi_lite.rvalid & state == LITE_RECEIVING_READ_DATA & axi_lite.rready) begin
+            end else if(
+                axi_lite.rvalid
+                & state == LITE_RECEIVING_READ_DATA
+                & axi_lite.rready)
+            begin
                 // Write incomming axi lite read
                 axi_lite_read_result <= axi_lite.rdata;
             end
@@ -3955,7 +4000,7 @@ module holy_data_cache #(
     // =======================
     // READ & MAIN FSM LOGIC
     // =======================
-    
+
 
     // STILL_T0DO !
 
@@ -3964,7 +4009,7 @@ endmodule
 
 Now let's think about how all of this is going to come together. How ? Well, most of it relies in our FSM design ! Let's detail our vision for how it would work :
 
-![NEW FSM with axi lite scheme](../images/axi_lite_fsm.jpg)
+![NEW FSM with axi lite scheme](./images/axi_lite_fsm.jpg)
 
 As you can see, this logic got added to the previous FSM, which makes way more sense. Lookin at this new FSM, the cache logic becomes way clearer and now it's mostly a matter of nailing the muxes and RTL right to makes all these ideas go smoothly.
 
@@ -3978,12 +4023,12 @@ And now, we use our FSM andAXI Lite knowledge to builf the FSM STATES LOGIC in R
 
 > NOTE : I strongly recommend you get yourself up to speed on AXI LITE. But at this point, we should all be all set on this subject ;)
 
-```sv
+```verilog
 // holy_core_pkg.sv
 
 package holy_core_pkg;
 
-  typedef enum logic [3:0] { 
+  typedef enum logic [3:0] {
       IDLE, // Acts as simple BRAM array
       // AXI FULL STATES
       SENDING_WRITE_REQ,
@@ -4004,7 +4049,7 @@ package holy_core_pkg;
 
 And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
 
-```sv
+```verilog
 // holy_data_cache.sv
 
 // ... all the rest
@@ -4013,7 +4058,7 @@ And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
     // READ & MAIN FSM LOGIC
     // =======================
     always_comb begin
-        // State transition 
+        // State transition
         next_state = state; // Default
         next_cache_valid = cache_valid;
 
@@ -4027,14 +4072,16 @@ And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
         // AXI LITE DEFAULT
         axi_lite.wstrb = 4'b1111; // we write all by default.
 
-        // csr flushing keeps value by default, only set at beginning of flush and deset a end of flush
+        // csr flushing keeps value by default
+        // only set at beginning of flush and deset a end of flush
         next_csr_flushing = csr_flushing;
 
         case (state)
             IDLE: begin
                 // when idling, we simply read and write, no problem !
-                // but let's be carefull and notif in case of error (no traps yet to handle that)
-                if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
+                // but let's be carefull and notif in case of error
+                // (no traps yet to handle that)
+                if(read_enable && write_enable) $display("ERROR");
 
                 else if(csr_flush_order) begin
                     // don't forget to keep in mind that we are flushing from order
@@ -4044,14 +4091,18 @@ And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
                     next_state = SENDING_WRITE_REQ;
                 end
 
-                else if( (~hit && (read_enable ^ actual_write_enable)) & ~csr_flush_order & ~non_cachable) begin
-                    // switch state to handle the MISS, if data is dirty, we have to write first
+                else if(
+                    (~hit && (read_enable ^ actual_write_enable))
+                    & ~csr_flush_order & ~non_cachable)
+                begin
+                    // switch state to handle the MISS, if data is dirty
+                    // we have to write first
                     case(cache_dirty)
                         1'b1 : next_state = SENDING_WRITE_REQ;
                         1'b0 : next_state = SENDING_READ_REQ;
                     endcase
                 end
-                
+
                 else if ( read_enable & non_cachable ) begin
                     next_state = LITE_SENDING_READ_REQ;
                 end
@@ -4102,7 +4153,7 @@ And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
             LITE_SENDING_WRITE_REQ : begin
                 // NON CACHED DATA, WE WRITE DIRECTLY TO REQ ADDRESS
                 axi_lite.awaddr = address;
-                
+
                 if(axi_lite.awready) next_state = LITE_SENDING_WRITE_DATA;
 
                 // SENDING_WRITE_REQ AXI SIGNALS : address request
@@ -4155,7 +4206,7 @@ And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
             LITE_SENDING_READ_REQ : begin
                 // HANDLE MISS : Read
                 axi_lite.araddr = address;
-                
+
                 if(axi_lite.arready) begin
                     next_state = LITE_RECEIVING_READ_DATA;
                 end
@@ -4174,7 +4225,7 @@ And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
                 if (axi_lite.rvalid) begin
                     next_state = IDLE;
                 end
-            
+
                 // AXI LITE Signals
                 axi_lite.awvalid = 1'b0;
                 axi_lite.wvalid = 1'b0;
@@ -4182,7 +4233,7 @@ And now we "simply" (even though it's not trivial) apply our FSM logic in HDL :
                 axi_lite.arvalid = 1'b0;
                 axi_lite.rready = 1'b1;
             end
-            
+
             default : begin
                 $display("CACHE FSM SATETE ERROR");
             end
@@ -4194,25 +4245,25 @@ So we improved our `IDLE LOGIC` to take into account the new type of transition 
 
 We also adapted the address source we send an the `aw`and `ar` channels as now, the cache block is pretty much irrelevant.
 
-This results in a data cache where cacheble and uncachable logic are well separated  by handling the transaction via completely defferent states.
+This results in a data cache where cacheble and uncachable logic are well separated by handling the transaction via completely defferent states.
 
 ### 12.2.b : Verification
 
 To verify this, the test follow the same logic as previous cache states. We provoke R/W transaction and follow along with assetions on the expected behavior and hopefully the tests passes.
 
-**BUT** before writting any test... we need ta *adapt* our test bench to :
+**BUT** before writting any test... we need ta _adapt_ our test bench to :
 
 1. Add the new axi_lite interface to our `axi_translator.sv` test harness for cocotb
 2. In cocotb, using the `cocotbext.axi` python package, we have to declare a new `AXI_LITE` RAM Slave
 
-```sv
+```verilog
 // test_holy_cache/axi_translator.sv
 
 module axi_translator (
     // ==========
     // AXI FULL
     // ==========
-    
+
     // unchanged ...
 
     // ==========
@@ -4311,7 +4362,7 @@ module axi_translator (
     /* verilator lint_off PINMISSING */
     holy_data_cache #(
     ) cache_system (
-        .clk(clk), 
+        .clk(clk),
         .rst_n(rst_n),
 
         .aclk(aclk),
@@ -4353,8 +4404,20 @@ Now we declare our `AXI_LITE` slave, and like for the previous cache tests, init
 
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
     cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
-    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+    axi_ram_slave = AxiRam(
+        AxiBus.from_prefix(dut, "axi"),
+        dut.aclk,
+        dut.rst_n,
+        size=SIZE,
+        reset_active_level=False
+    )
+    axi_lite_ram_slave = AxiLiteRam(
+        AxiLiteBus.from_prefix(dut, "axi_lite"),
+        dut.aclk,
+        dut.rst_n,
+        size=SIZE,
+        reset_active_level=False
+    )
     await RisingEdge(dut.clk)
     await reset(dut)
 
@@ -4388,174 +4451,182 @@ And now, at the end of the file, we can write our tests :
 ```python
 # test_holy_data_cache.py
 
+# ...
+
 # ==================================
-        # NON CACHABLE RANGE WRITE TEST
-        # ==================================
+# NON CACHABLE RANGE WRITE TEST
+# ==================================
 
-        # Set the non cachable range that will use AXI LITE for communication with axi_lite_ram tb slave
-        # Set cachable range to 0 for now to fully test the cache
-        dut.cache_system.non_cachable_base.value = 0x0000_0000
-        dut.cache_system.non_cachable_limit.value = 0x0000_0200 # minimum admissible value !!
-        dut.cpu_byte_enable.value = 0b1111 # We fix write to full words for now. TODO : set axi_lite.wstrb to siupport this ! 10min job !
-        await Timer(1, units="ns")
+# Set the non cachable range that will use AXI LITE for
+# communication with axi_lite_ram tb slave
+# Set cachable range to 0 for now to fully test the cache
+dut.cache_system.non_cachable_base.value = 0x0000_0000
+dut.cache_system.non_cachable_limit.value = 0x0000_0200 # minimum admissible value !!
+dut.cpu_byte_enable.value = 0b1111 # We fix write to full words for now.
 
-        # Now prepare a write request from the CPU, state should go towards LITE_SENDING_WRITE_REQ
-        dut.cpu_address.value = 0x4 # in the non cachable range !
-        dut.cpu_write_enable.value = 0b1
-        dut.cpu_read_enable.value = 0b0
-        dut.cpu_write_data.value = 0xABCDABCD # data we are looking to write ...
-        await Timer(1, units="ns") # propagate ...
+# Now prepare a write request from the CPU, state should go towards LITE_SENDING_WRITE_REQ
+dut.cpu_address.value = 0x4 # in the non cachable range !
+dut.cpu_write_enable.value = 0b1
+dut.cpu_read_enable.value = 0b0
+dut.cpu_write_data.value = 0xABCDABCD # data we are looking to write ...
+await Timer(1, units="ns") # propagate ...
 
-        # whithout a clock cycle, the core should stall and next state should be LITE_SENDING_WRITE_REQ
-        assert dut.cpu_cache_stall.value == 0b1
-        assert dut.cache_system.non_cachable.value == 0b1
-        assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_REQ
+# whithout a clock cycle, the core should stall and next state should be
+#LITE_SENDING_WRITE_REQ
+assert dut.cpu_cache_stall.value == 0b1
+assert dut.cache_system.non_cachable.value == 0b1
+assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_REQ
 
-        # Then we switch to AXI LITE write
-        await RisingEdge(dut.aclk) # STATE SWITCH !
-        await Timer(1, units="ns")
-        
-        assert dut.cpu_cache_stall.value == 0b1
-        assert dut.cache_system.non_cachable.value == 0b1
-        assert dut.cache_system.state.value == LITE_SENDING_WRITE_REQ
+# Then we switch to AXI LITE write
+await RisingEdge(dut.aclk) # STATE SWITCH !
+await Timer(1, units="ns")
 
-        # Assuming memory is ready, request is acknowledged and we are about to sed data
-        assert dut.axi_lite_arready.value == 1
-        assert dut.cache_system.state.value == LITE_SENDING_WRITE_REQ
-        assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_DATA
+assert dut.cpu_cache_stall.value == 0b1
+assert dut.cache_system.non_cachable.value == 0b1
+assert dut.cache_system.state.value == LITE_SENDING_WRITE_REQ
 
-        # Then we switch to sending the data...
-        await RisingEdge(dut.aclk) # STATE SWITCH !
-        await Timer(1, units="ns")
+# Assuming memory is ready, request is acknowledged and we are about to sed data
+assert dut.axi_lite_arready.value == 1
+assert dut.cache_system.state.value == LITE_SENDING_WRITE_REQ
+assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_DATA
 
-        # assume memory is ready, check the data is the one expected and state is about to switch..
-        assert dut.axi_lite_wvalid.value == 0b1
-        assert dut.axi_lite_wready.value == 0b1
-        assert dut.cache_system.state.value == LITE_SENDING_WRITE_DATA
-        assert dut.cache_system.next_state.value == LITE_WAITING_WRITE_RES
-        assert dut.axi_lite_wdata.value == 0xABCDABCD
+# Then we switch to sending the data...
+await RisingEdge(dut.aclk) # STATE SWITCH !
+await Timer(1, units="ns")
 
-        # Then we switch to sending the data...
-        await RisingEdge(dut.aclk) # STATE SWITCH !
-        await Timer(1, units="ns")
-        await RisingEdge(dut.aclk) # wait for bvalid manually...
-        await Timer(1, units="ns")
+# assume memory is ready, check the data is the one expected and state is about to switch..
+assert dut.axi_lite_wvalid.value == 0b1
+assert dut.axi_lite_wready.value == 0b1
+assert dut.cache_system.state.value == LITE_SENDING_WRITE_DATA
+assert dut.cache_system.next_state.value == LITE_WAITING_WRITE_RES
+assert dut.axi_lite_wdata.value == 0xABCDABCD
 
-        # We are now waiting for a response from the memory... we assume it is instantly given
-        assert dut.axi_lite_bready.value == 0b1
-        assert dut.axi_lite_bvalid.value == 0b1
-        assert dut.axi_lite_bresp.value == 0b00 # "OKAY" code
-        assert dut.cache_system.next_state.value == IDLE
+# Then we switch to sending the data...
+await RisingEdge(dut.aclk) # STATE SWITCH !
+await Timer(1, units="ns")
+await RisingEdge(dut.aclk) # wait for bvalid manually...
+await Timer(1, units="ns")
 
-        # Check that the data was written correctly to the axi lite ram slave
-        assert axi_lite_ram_slave.read(0x0000_0004, 4) == 0xABCDABCD.to_bytes(4, 'little')
-        # update the golden ref
-        lite_mem_golden_ref[int(0x0000_0004/4)] = 0xABCDABCD
+# We are now waiting for a response from the memory... we assume it is instantly given
+assert dut.axi_lite_bready.value == 0b1
+assert dut.axi_lite_bvalid.value == 0b1
+assert dut.axi_lite_bresp.value == 0b00 # "OKAY" code
+assert dut.cache_system.next_state.value == IDLE
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
-        await Timer(1, units="ns")
+# Check that the data was written correctly to the axi lite ram slave
+assert axi_lite_ram_slave.read(0x0000_0004, 4) == 0xABCDABCD.to_bytes(4, 'little')
+# update the golden ref
+lite_mem_golden_ref[int(0x0000_0004/4)] = 0xABCDABCD
 
-        # ==================================
-        # NON CACHABLE RANGE READ TEST
-        # ==================================
+await RisingEdge(dut.aclk) # STATE SWITCH !
+await Timer(1, units="ns")
 
-        # check init state after a write sequence... everythin should be back to default !
-        assert dut.cache_system.state.value == IDLE
-        # aw
-        assert dut.axi_lite_awvalid.value == 0b0
-        # w
-        assert dut.axi_lite_wvalid.value == 0b0
-        # b
-        assert dut.axi_lite_bready.value == 0b0
-        # ar
-        assert dut.axi_lite_arvalid.value == 0b0
-        # r
-        assert dut.axi_lite_rready.value == 0b0
+# ==================================
+# NON CACHABLE RANGE READ TEST
+# ==================================
 
-        # we have to test the exactitude of the read and that the actual output data is the right one
-        # memory r slave is init to random values, we pick an arbitrary address whithing the non cachable range.
-        addr = 0x0000_000C
+# check init state after a write sequence... everythin should be back to default !
+assert dut.cache_system.state.value == IDLE
+# aw
+assert dut.axi_lite_awvalid.value == 0b0
+# w
+assert dut.axi_lite_wvalid.value == 0b0
+# b
+assert dut.axi_lite_bready.value == 0b0
+# ar
+assert dut.axi_lite_arvalid.value == 0b0
+# r
+assert dut.axi_lite_rready.value == 0b0
 
-        dut.cpu_write_enable.value = 0b0
-        dut.cpu_read_enable.value = 0b1
-        dut.cpu_address.value = addr
-        await Timer(1, units="ns") # propagate
+# we have to test the exactitude of the read and that
+# the actual output data is the right one
+# memory r slave is init to random values,
+# we pick an arbitrary address whithing the non cachable range.
+addr = 0x0000_000C
 
-        # cpu should stall immediatly and prepare to switch state to LITE_SENDING_READ_REQ
-        assert dut.cpu_cache_stall.value == 0b1
-        assert dut.cache_system.non_cachable.value == 0b1
-        assert dut.cache_system.next_state.value == LITE_SENDING_READ_REQ
-        # should immediatly start outputtin the data in axi_read_result,(even if its outdated)
-        old_data_in_axi_read_result = dut.cache_system.axi_lite_read_result.value
-        assert dut.cache_system.read_data.value == old_data_in_axi_read_result
+dut.cpu_write_enable.value = 0b0
+dut.cpu_read_enable.value = 0b1
+dut.cpu_address.value = addr
+await Timer(1, units="ns") # propagate
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
-        await Timer(1, units="ns")
+# cpu should stall immediatly and prepare to switch state to LITE_SENDING_READ_REQ
+assert dut.cpu_cache_stall.value == 0b1
+assert dut.cache_system.non_cachable.value == 0b1
+assert dut.cache_system.next_state.value == LITE_SENDING_READ_REQ
+# should immediatly start outputtin the data in axi_read_result,(even if its outdated)
+old_data_in_axi_read_result = dut.cache_system.axi_lite_read_result.value
+assert dut.cache_system.read_data.value == old_data_in_axi_read_result
 
-        # assuming memory is ready... req is ack and we switch to recieving the data
-        assert dut.axi_lite_arready == 0b1
-        assert dut.axi_lite_arvalid == 0b1
-        assert dut.axi_lite_araddr == addr
-        assert dut.cache_system.state.value == LITE_SENDING_READ_REQ
-        assert dut.cache_system.next_state.value == LITE_RECEIVING_READ_DATA
+await RisingEdge(dut.aclk) # STATE SWITCH !
+await Timer(1, units="ns")
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
-        await Timer(1, units="ns")
-        await RisingEdge(dut.aclk) # wait for rvalid manually
-        await Timer(1, units="ns")
+# assuming memory is ready... req is ack and we switch to recieving the data
+assert dut.axi_lite_arready == 0b1
+assert dut.axi_lite_arvalid == 0b1
+assert dut.axi_lite_araddr == addr
+assert dut.cache_system.state.value == LITE_SENDING_READ_REQ
+assert dut.cache_system.next_state.value == LITE_RECEIVING_READ_DATA
 
-        # We are recieving the incomming data, asuming memory sends valid data
-        assert dut.cache_system.state.value == LITE_RECEIVING_READ_DATA
-        assert dut.axi_lite_rready.value == 0b1
-        assert dut.axi_lite_rvalid.value == 0b1
-        # check that we recieve the expected data form the right addr ...
-        assert int(dut.axi_lite_rdata.value).to_bytes(4,'little') == lite_mem_golden_ref[int(0x0000_000C/4)]
-        expected_axi_result = dut.axi_lite_rdata.value
-        assert dut.cache_system.next_state.value == IDLE
-        
-        await RisingEdge(dut.aclk) # STATE SWITCH !
-        await Timer(1, units="ns")
+await RisingEdge(dut.aclk) # STATE SWITCH !
+await Timer(1, units="ns")
+await RisingEdge(dut.aclk) # wait for rvalid manually
+await Timer(1, units="ns")
 
-        # check that we are in IDLE, not stalling anymore and sending the right data to the cpu !
-        assert dut.cache_system.state.value == IDLE
-        assert dut.cache_system.axi_lite_read_result.value == expected_axi_result
-        assert dut.cpu_read_data.value == expected_axi_result
-        dut.cpu_read_enable.value = 0b0
-        await Timer(1, units="ns")
+# We are recieving the incomming data, asuming memory sends valid data
+assert dut.cache_system.state.value == LITE_RECEIVING_READ_DATA
+assert dut.axi_lite_rready.value == 0b1
+assert dut.axi_lite_rvalid.value == 0b1
+# check that we recieve the expected data form the right addr ...
+assert (
+    int(dut.axi_lite_rdata.value).to_bytes(4,'little')
+    == lite_mem_golden_ref[int(0x0000_000C/4)]
+)
+expected_axi_result = dut.axi_lite_rdata.value
+assert dut.cache_system.next_state.value == IDLE
 
-        assert dut.cpu_cache_stall.value == 0b0
+await RisingEdge(dut.aclk) # STATE SWITCH !
+await Timer(1, units="ns")
 
-        # everythin should be back to default !
-        assert dut.cache_system.state.value == IDLE
-        # aw
-        assert dut.axi_lite_awvalid.value == 0b0
-        # w
-        assert dut.axi_lite_wvalid.value == 0b0
-        # b
-        assert dut.axi_lite_bready.value == 0b0
-        # ar
-        assert dut.axi_lite_arvalid.value == 0b0
-        # r
-        assert dut.axi_lite_rready.value == 0b0
+# check that we are in IDLE, not stalling anymore and sending the right data to the cpu !
+assert dut.cache_system.state.value == IDLE
+assert dut.cache_system.axi_lite_read_result.value == expected_axi_result
+assert dut.cpu_read_data.value == expected_axi_result
+dut.cpu_read_enable.value = 0b0
+await Timer(1, units="ns")
 
-        # And now we create a cache miss to a large address
-        # (next looped tests nedd to miss)
-        # FOR TUTORIAL : MORE ON THIS BELOW
+assert dut.cpu_cache_stall.value == 0b0
 
-        dut.cpu_read_enable.value = 0b1
-        dut.cpu_address.value = 0xAEAE_AEA0
-        await Timer(1, units="ns")
-        await RisingEdge(dut.clk)
-        await Timer(1, units="ns")
-        assert dut.cache_system.state.value == SENDING_WRITE_REQ
+# everythin should be back to default !
+assert dut.cache_system.state.value == IDLE
+# aw
+assert dut.axi_lite_awvalid.value == 0b0
+# w
+assert dut.axi_lite_wvalid.value == 0b0
+# b
+assert dut.axi_lite_bready.value == 0b0
+# ar
+assert dut.axi_lite_arvalid.value == 0b0
+# r
+assert dut.axi_lite_rready.value == 0b0
 
-        while not dut.cache_system.state.value == IDLE:
-            await RisingEdge(dut.clk)
-            await Timer(1, units="ns")
+# And now we create a cache miss to a large address
+# (next looped tests nedd to miss)
+# FOR TUTORIAL : MORE ON THIS BELOW
 
-        # seq stall de assert
-        await RisingEdge(dut.clk)
-        await Timer(1, units="ns")
+dut.cpu_read_enable.value = 0b1
+dut.cpu_address.value = 0xAEAE_AEA0
+await Timer(1, units="ns")
+await RisingEdge(dut.clk)
+await Timer(1, units="ns")
+assert dut.cache_system.state.value == SENDING_WRITE_REQ
+
+while not dut.cache_system.state.value == IDLE:
+    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
+
+# seq stall de assert
+await RisingEdge(dut.clk)
+await Timer(1, units="ns")
 ```
 
 > Great, but why provoke a cache miss at the end ??
@@ -4567,27 +4638,39 @@ But why am I saying that ? Well we are going to put our tests in a big loop we'l
 ```python
 # test_holy_data_cache.py
 
- # ==================================
-    # CLOCKS & RAM DECLARATION
-    # ==================================
+# ==================================
+# CLOCKS & RAM DECLARATION
+# ==================================
 
-    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
-    cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
-    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
-    await RisingEdge(dut.clk)
-    await reset(dut)
+cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
+cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
+axi_ram_slave = AxiRam(
+    AxiBus.from_prefix(dut, "axi"),
+    dut.aclk,
+    dut.rst_n,
+    size=SIZE,
+    reset_active_level=False
+)
+axi_lite_ram_slave = AxiLiteRam(
+    AxiLiteBus.from_prefix(dut, "axi_lite"),
+    dut.aclk,
+    dut.rst_n,
+    size=SIZE,
+    reset_active_level=False
+)
+await RisingEdge(dut.clk)
+await reset(dut)
 
-    # ----------------------
-    # we run these test multiple times with no resets, to check that going through states does
-    # not affect default bahavior. e.g :  forgor to reset some AXI / AX LITE flags to default
-    for _ in range(10) :
-        # Set cachable range to 0 for now to fully test the cache
-        dut.cache_system.non_cachable_base.value = 0x0000_0000
-        dut.cache_system.non_cachable_limit.value = 0x0000_0000
+# ----------------------
+# we run these test multiple times with no resets, to check that going through states does
+# not affect default bahavior. e.g :  forgor to reset some AXI / AX LITE flags to default
+for _ in range(10) :
+    # Set cachable range to 0 for now to fully test the cache
+    dut.cache_system.non_cachable_base.value = 0x0000_0000
+    dut.cache_system.non_cachable_limit.value = 0x0000_0000
 
 
-        # and we go on ...
+    # and we go on ...
 ```
 
 The reason ? Chceck that using the non cachable range does not interfere with some forgotten state, flag or signal that could compromise the regular `AXI FULL` transactions.
@@ -4598,7 +4681,7 @@ And it works ! Great !
 
 ### 12.3.a : HDL Code
 
-As always, we simply wire things up for the data path, so I am not going to give the code to you this time ;) **BUT** be assured that its *"business as usual"*, even though it's not trivial.
+As always, we simply wire things up for the data path, so I am not going to give the code to you this time ;) **BUT** be assured that its _"business as usual"_, even though it's not trivial.
 
 Here is a list of thing you have to watch out for for this specific datapath implementation :
 
@@ -4607,7 +4690,7 @@ Here is a list of thing you have to watch out for for this specific datapath imp
   - And in the test harnesses
 - Don't forget to update cache state to 4 bits
   - for the testbench files
-  - but also for the actual FPGA debug wire (*if you have your own*)
+  - but also for the actual FPGA debug wire (_if you have your own_)
 - Link address ranges from `csr_file` to `data_cache`.
 - Don't forget rename the data cache module `holy_cache` -> `holy_data_cache` in the datapath HDL
 - Add `axi_lite_if` import to the tb's make file
@@ -4621,7 +4704,7 @@ Great question, glad you asked.
 Our data ccache works great and as expected but for it to work with our code, we'll need to tweak it slighly.
 
 The reason why is that when we fetch a `sw` for example, the cache will **STALL** because the next state is not going to be
-IDLE and the  fetch the data. Once it's back at IDLE, the core does not behave like our tb : **The `sw` instruction is still being fetched** as the core was stalled the whole time, waiting for the cache to sop being busy.
+IDLE and the fetch the data. Once it's back at IDLE, the core does not behave like our tb : **The `sw` instruction is still being fetched** as the core was stalled the whole time, waiting for the cache to sop being busy.
 
 What does that mean ? well the cache now want to restart all over again to get the data through AXI LITE and it keeps stalling... forevermore.
 
@@ -4635,13 +4718,13 @@ In a nutshell :
 
 Here is an updated scheme for our cache :
 
-![data cache with done flag scheme](../images/data_cache_with_done_flag.jpg)
+![data cache with done flag scheme](./images/data_cache_with_done_flag.jpg)
 
-As you can see, we also bring our `non_cachable` to the hit logic to avoid side effects where the cache thinks we are missing and stalls the core after `axi_lite_tx_done` goes low because of `seq_stall`, which, *if you remember correctly*, have a 1 cycle delay. Keeping hit high on non cachable operation prevents such behavior. (Note the *holy_cache*'stest has been slightly modified for this bug fix by adding assertions on the `cache_stall` signal and changing the requested address on the non cachble data transactions tests, nothing fancy.)
+As you can see, we also bring our `non_cachable` to the hit logic to avoid side effects where the cache thinks we are missing and stalls the core after `axi_lite_tx_done` goes low because of `seq_stall`, which, _if you remember correctly_, have a 1 cycle delay. Keeping hit high on non cachable operation prevents such behavior. (Note the _holy_cache_'stest has been slightly modified for this bug fix by adding assertions on the `cache_stall` signal and changing the requested address on the non cachble data transactions tests, nothing fancy.)
 
 Now let's implement it in the cache logic :
 
-```sv
+```verilog
 // holy_data_cache.sv
 
 module holy_data_cache #(
@@ -4651,10 +4734,13 @@ module holy_data_cache #(
 );
     // ...
 
-    // IMPORTANT : axi_lite_tx_done is flag used to determinen if R or W tx has been completed
-    // it is set to 1 after a successful AXI LITE TX to avoid going into a NON IDLE state right away
+    // IMPORTANT : axi_lite_tx_done is flag used to determine
+    // if R or W tx has been completed
+    // it is set to 1 after a successful AXI LITE TX to avoid going into a
+    // NON IDLE state right away
     // and let the core fetch a new instruction.
-    // This also means it stays high for 1 clock cycle only before going low again, thus allwing the cache
+    // This also means it stays high for 1 clock cycle only before going low again
+    // thus allwing the cache
     // to go NON-IDLE again on the non cachable range.
     logic                           axi_lite_tx_done, next_axi_lite_tx_done; // NEW !
 
@@ -4666,7 +4752,8 @@ module holy_data_cache #(
 
     // HIT LOGIC
     logic hit;
-    assign hit = ((req_block_tag == cache_block_tag) && cache_valid) | non_cachable; // CHANGED ! (BRH BUG FIX)
+    // CHANGED ! (BRH BUG FIX)
+    assign hit = ((req_block_tag == cache_block_tag) && cache_valid) | non_cachable;
 
     // =======================
     // CACHE LOGIC
@@ -4690,7 +4777,7 @@ module holy_data_cache #(
     // READ & MAIN FSM LOGIC
     // =======================
     always_comb begin
-        // State transition 
+        // State transition
         // ...
         next_axi_lite_tx_done = axi_lite_tx_done; // NEW !
 
@@ -4705,7 +4792,7 @@ module holy_data_cache #(
                     next_axi_lite_tx_done = 1'b0;
                 end
             end
-            
+
 
             // ... AXI FULL states defs ...
 
@@ -4741,10 +4828,10 @@ module holy_data_cache #(
                     // flag tx as done as well
                     next_axi_lite_tx_done = 1'b1; // NEW !
                 end
-            
+
                 // AXI LITE Signals ...
             end
-            
+
             default : begin
                 $display("CACHE FSM SATETE ERROR");
             end
@@ -4807,8 +4894,20 @@ async def cpu_insrt_test(dut):
 
     SIZE = 2**14 # Change this (larger memory)
 
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
-    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False) # Declare this !
+    axi_ram_slave = AxiRam(
+        AxiBus.from_prefix(dut, "m_axi"),
+        dut.aclk,
+        dut.aresetn,
+        size=SIZE,
+        reset_active_level=False
+    )
+    axi_lite_ram_slave = AxiLiteRam(
+        AxiLiteBus.from_prefix(dut, "m_axi_lite"),
+        dut.aclk,
+        dut.aresetn,
+        size=SIZE,
+        reset_active_level=False
+    ) # Declare this !
 
     # OTHER TESTS ...
 
@@ -4822,9 +4921,9 @@ async def cpu_insrt_test(dut):
     # 004A0A13  //                    addi x20 x20 0x4    | x20 <= 00002004
     # ABCD1B37  //                    lui x22 0xABCD1     | x22 <= ABCD1000
     # 111B0B13  //                    addi x22 x22 0x111  | x22 <= ABCD1111
-    # 016A2023  //                    sw x22 0(x20)       | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
-    # 004A2B03  //                    lw x22 4(x20)       | x22 <= 00000000 / AXI LITE TX
-    # 000A2B03  //                    lw x22 0(x20)       | x22 <= ABCD1111 / AXI LITE TX
+    # 016A2023  //                    sw x22 0(x20)  | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
+    # 004A2B03  //                    lw x22 4(x20)  | x22 <= 00000000 / AXI LITE TX
+    # 000A2B03  //                    lw x22 0(x20)  | x22 <= ABCD1111 / AXI LITE TX
     ##################
 
     # check init state
@@ -4915,13 +5014,13 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.core.regfile.registers[22].value) == "ABCD1111"
 ```
 
-And voila ! we tested our feature and it *kinda* works ! Great ! Now let's test it on real FPGA.
+And voila ! we tested our feature and it _kinda_ works ! Great ! Now let's test it on real FPGA.
 
 ## 13 : Testing the non cachable ranges on FPGA (LEDs)
 
 Okay so to test in out on FPGA, it all depends on your FPGA and board. Because I have a zybo z7-20, it might not work for you but here is what my SoC looks like :
 
-![new soc for design with axi lite if](../images/axi_soc2.png)
+![new soc for design with axi lite if](./images/axi_soc2.png)
 
 As you can see, **AXI LITE** and and **AXI FULL** are somwhat co exsting on the SoC, the use the same interconnect (had to add axi lite manually though) and thus axi lite can access any range (peripheral) as well as axi full can.
 
@@ -4936,7 +5035,7 @@ And last but not least :
 
 Here is the test program I then compiled and loaded in memory using, as always, the **JTAG to AXI-M** IP :
 
-```assembly
+```c
 .section .text
 .align 2
 .global _start
@@ -4957,7 +5056,7 @@ loop:
 
     # Delay loop: Wait for 50,000,000 clock cycles = 1s @ 50Mhz
     li x21, 50000000            # 02fafab7 / 080a8a93 Load 50,000,000 into x21
-    
+
 delay_loop:
     addi x21, x21, -1           # fffa8a93 Decrement x21
     bnez x21, delay_loop        # fe0a9ee3 If x21 != 0, continue looping
@@ -4985,52 +5084,52 @@ Well, we'll use an ip for that of course because I don't wanna drive an output p
 
 So let's drag and drop it to our SoC, while begin careful to map the addresses well and note them down to make sure we can set it as non cachable.
 
-![SoC block design](../images/soc_hello.png)
+![SoC block design](./images/soc_hello.png)
 
-![SoC addresses](../images/soc_hello_addr.png)
+![SoC addresses](./images/soc_hello_addr.png)
 
 > Note : you can perfecly connect an AXI LITE master to an AXI FULL slave (contrary not possible). Connection automation will not do it for you though so you'll have to mannually add interfaces to the `smart_connect` block (you need that to assign addresses) and simply connect your devices as usual !
 
 By running connection automation, vivado fills the uart pins with a weird "`uart_rtl`" port.
 
-Don't be like me: *a fool*... Who though that "`uart_rtl`" meant my CPU would *magically* use the UART embedded in the power cable that the Zynq processing system uses.
+Don't be like me: _a fool_... Who though that "`uart_rtl`" meant my CPU would _magically_ use the UART embedded in the power cable that the Zynq processing system uses.
 
 **Turns out it doesn't**, so instead of looking around on how do do that, I'll just use this :
 
-![pmod uart to usb](../images/uart_usb_being_used.png)
+![pmod uart to usb](./images/uart_usb_being_used.png)
 
-[*(clickable link to the docs)*](https://digilent.com/reference/pmod/pmodusbuart/reference-manual?redirect=1)
+[_(clickable link to the docs)_](https://digilent.com/reference/pmod/pmodusbuart/reference-manual?redirect=1)
 
-[*(clickable link to the schematics)*](https://digilent.com/reference/_media/reference/pmod/pmodusbuart/pmodusbuart_sch.pdf)
+[_(clickable link to the schematics)_](https://digilent.com/reference/_media/reference/pmod/pmodusbuart/pmodusbuart_sch.pdf)
 
-[*(clickable link to the digilent shop)*](https://digilent.com/shop/pmod-usbuart-usb-to-uart-interface/)
+[_(clickable link to the digilent shop)_](https://digilent.com/shop/pmod-usbuart-usb-to-uart-interface/)
 
 > TODO : add this small module to prerequisites and add link to z7-20 schematics.
 
 Alright so we'll say we'll plug this nice little PCB in the JE PMOD upper female connector. Let's see which pin is which using the schematics :
 
-![alt text](../images/pmod_schemes.png)
+![alt text](./images/pmod_schemes.png)
 
 We can see that pins 1 to 4 of the PMOD are linked to pins JE1 to JE4 of the board.
 
 And here is what the pins do on the PMOD Uart to USB pcb :
 
- Pin | Signal | Description                                 |
------|--------|---------------------------------------------|
- 1   | `~RTS`   | Request to Send Output (active low)         |
- 2   | `RXD`   | Receive data from host to Pmod              |
- 3   | `TXD`   | Transmit data from Pmod to host             |
- 4   | `~CTS`   | Clear to Send Input (active low)            |
- 5   | `GND`   | Power Supply Ground                         |
- 6   | `VCC`   | Power Supply                                |
+| Pin | Signal | Description                         |
+| --- | ------ | ----------------------------------- |
+| 1   | `~RTS` | Request to Send Output (active low) |
+| 2   | `RXD`  | Receive data from host to Pmod      |
+| 3   | `TXD`  | Transmit data from Pmod to host     |
+| 4   | `~CTS` | Clear to Send Input (active low)    |
+| 5   | `GND`  | Power Supply Ground                 |
+| 6   | `VCC`  | Power Supply                        |
 
 Note that `~RTS` & `~CTS` are optional so we won't use it. And we can't anyway so let's dicard their existence.
 
 Alright, we have all the information wee need ! only 2 pins to bind to be exact and we can move on to the sofware side of things.
 
-Here is ho I improve the `constraints.xdc` file to line the `uart_rtl` outpouts generated by connection automation to the real, physical pin of the *"PMOD UART to USB"*.
+Here is ho I improve the `constraints.xdc` file to line the `uart_rtl` outpouts generated by connection automation to the real, physical pin of the _"PMOD UART to USB"_.
 
-> Small tip, in vivado, double click on the block design generated wrapper to get the detailled names of the `uart_rtl` output. for me its *uart_rtl_rxd* and *uart_rtl_txd*.
+> Small tip, in vivado, double click on the block design generated wrapper to get the detailled names of the `uart_rtl` output. for me its _uart_rtl_rxd_ and _uart_rtl_txd_.
 
 ```tcl
 # constraints.xcd
@@ -5058,27 +5157,27 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_rtl_txd]
 
 As you can see, JE1 is not really JE1 and same for JE2. You'll need to check your boards schematics to know the REAL FPGA pin name on the IO bank. Example :
 
-![alt text](../images/io_bank_pin.png)
+![alt text](./images/io_bank_pin.png)
 
 Looks like we are all set ! once you have a bitstream, we can
 
-1. Check if our LED program still works *(did we break anything ?)*
-2. Move on to writing our ***hello world*** program !
+1. Check if our LED program still works _(did we break anything ?)_
+2. Move on to writing our **_hello world_** program !
 
 > Note : My JE PMOD did not work for some reason so I moved it to JB (the one on the picture above as I take pictures once things work). But the idea stays the same for your board / FPGA.
 
 ## 14 bis : Hello world... Software
 
-Okay, now we need to write **software** (*eww*) to make our hello world work.
+Okay, now we need to write **software** (_eww_) to make our hello world work.
 
-To do so, we simply read our **AXI UART-LITE* IP's datasheet to figure out :
+To do so, we simply read our \*_AXI UART-LITE_ IP's datasheet to figure out :
 
 - What register to write the data we want to send (tx reg is `0x4` from base address and we only have acces to a byte)
 - What register we can check to see if we can actually send data (status reg is `0x8` from base address and `tx_full` is the 4th bit flag / bit 3)
 
 So here is the resulting assembly code :
 
-```assembly
+```c
 # hello.s
 
 .section .text
@@ -5121,7 +5220,7 @@ string:
 
 As you can see, our program gained in complexity as it now has a `.rodata` memory section. This is just a "high level" way to place data elements in memory. As we'll load this program in the BRAM, the data will also be included and the instruction will know where to look for it as its address will be hardcoded at compile time.
 
-**BUT** to make a program that is not weird or anything (*compliant with our SoC architecture*), we need to tell the compiler:
+**BUT** to make a program that is not weird or anything (_compliant with our SoC architecture_), we need to tell the compiler:
 
 - How our memory is organized in our embedded system.
 - Where does the sections (e.g. `.text` and `.data`) belong in this memory.
@@ -5148,7 +5247,7 @@ SECTIONS {
 }
 ```
 
-Now, we'll change our method a little to get our HEX dump. Before we used a disassemble version of the .text section. Which worked "*fine*" for **very** simple programs but not for this. Here we'll use our linker file alongside hexdump.
+Now, we'll change our method a little to get our HEX dump. Before we used a disassemble version of the .text section. Which worked "_fine_" for **very** simple programs but not for this. Here we'll use our linker file alongside hexdump.
 
 Here is a makefile that generates the `hello.hex` dump automatically :
 
@@ -5188,11 +5287,11 @@ To connect to the `tty` terminal via the host pc, multiple solution exists. I pe
 
 Once the `tty` terminal is open, you can load the program in the BRAM using a `.tcl` script (Leveraging the JTAG to AXI MASTER IP as a bootloader once again) and realease the reset. Here is the result :
 
-![hello world from HOLY CORE](../images/hello.png)
+![hello world from HOLY CORE](./images/hello.png)
 
 And finally, after all this work, after all this struggle, after all this learning, time designing; tinkering, fixing, enjoying and try-harding. Here it is...
 
-**The *HOLY CORE* said "Hello, World"**, gg wp.
+**The _HOLY CORE_ said "Hello, World"**, gg wp.
 
 ## 15 : The end ?
 
@@ -5202,9 +5301,9 @@ Well... It may be the end of the FPGA Edition as you know know most of the thing
 
 Well I have a big project comming up that will be the object of a YouTube video if I ever succeed.
 
-For the *HOLY CORE* itself, future planned work is :
+For the _HOLY CORE_ itself, future planned work is :
 
-- Software environement to use the *HOLY CORE* on small projects.
+- Software environement to use the _HOLY CORE_ on small projects a.k.a. *HOLY CORE SFTWARE EDITION*.
 - A short and handy **debug manual**, like this one, but it would dive into the advanced debugging techniques used when you run into a problem.
 - A pipelined edition ? That's on my todo list as well.
 
@@ -5214,12 +5313,11 @@ Godspeed,
 
 ## Resources
 
-Resource name | Link | Comment|
------- | ----- | ---|
-Digital Design and Computer Architecture: RISC-V Edition | [YT Lectures](https://www.youtube.com/watch?v=7tM4XkqoFro) | Very important resources for datapath and cache understanding |
-AXI Protocol reference | [YT Lectures](https://youtu.be/1zw1HBsjDH8?feature=shared) [Troubleshooting Vivado IF Compatibility](https://www.reddit.com/r/FPGA/comments/1h2ozbp/guide_on_fixing_vivados_aximm_error/) | Learn about AXI read & write bursts, no bloat information |
-SystemVerilog : Interfaces | [Article](https://www.chipverify.com/systemverilog/systemverilog-interface) | What is an interface and how to use it in system verilog |
-Cocotb setup & axi extension | [blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/) | Setup your own cocotb project with verilator & use enxtensions to test your AXI interface |
-Vivado resources | [GitHub repo](https://github.com/0BAB1/BRH_Tutorials) or [YT Playlist](https://www.youtube.com/@BRH_SoC) | If you stuggle with Vivado, I have some beginners videos on the subject |
+| Resource name                                            | Link                                                                                                                                                                                      | Comment                                                                                   |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Digital Design and Computer Architecture: RISC-V Edition | [YT Lectures](https://www.youtube.com/watch?v=7tM4XkqoFro)                                                                                                                                | Very important resources for datapath and cache understanding                             |
+| AXI Protocol reference                                   | [YT Lectures](https://youtu.be/1zw1HBsjDH8?feature=shared) [Troubleshooting Vivado IF Compatibility](https://www.reddit.com/r/FPGA/comments/1h2ozbp/guide_on_fixing_vivados_aximm_error/) | Learn about AXI read & write bursts, no bloat information                                 |
+| SystemVerilog : Interfaces                               | [Article](https://www.chipverify.com/systemverilog/systemverilog-interface)                                                                                                               | What is an interface and how to use it in system verilog                                  |
+| Cocotb setup & axi extension                             | [blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/)                                                                                                                           | Setup your own cocotb project with verilator & use enxtensions to test your AXI interface |
+| Vivado resources                                         | [GitHub repo](https://github.com/0BAB1/BRH_Tutorials) or [YT Playlist](https://www.youtube.com/@BRH_SoC)                                                                                  | If you stuggle with Vivado, I have some beginners videos on the subject                   |
 
-<!-- contributions are welcome -- >
