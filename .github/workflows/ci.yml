@@ -56,11 +56,11 @@ jobs:
       # Run tests in single_cycle_edition
       - name: Run Tests in single_cycle_edition
         run: |
-          cd single_cycle_edition/tb
+          cd 0_single_cycle_edition/tb
           pytest test_runner.py
 
       # Run tests in fpga_edition
       - name: Run Tests in fpga_edition
         run: |
-          cd fpga_edition/tb
+          cd 1_fpga_edition/tb
           pytest test_runner.py

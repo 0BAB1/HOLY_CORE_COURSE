@@ -1,3 +1,6 @@
+=> BRH's todo list for the project
+=> Who needs a web app for this, serioulsy ?
+
 ===================
 DONE
 ===================
@@ -26,40 +29,45 @@ Check how low can the timing can close (50, 75 ,100 , ... ?) => 50 will do it fo
 prepare tutorials (md) and pdfs (clean)
 Compile actual assembly for the cpu mem files
 Implement CSR for better dev experience (cache flush Zicsr)
-simple sensor read
+Simple sensor read on IIC. (note : that was a pain and vendor specific, we NEED libraries support)
 
 ===================
 DOING
 ===================
 
-
+Software edition
+    Compile programs from C. Be able to use picolibc.
+    Add basic utilities in a HOLY LIBRAIRY. (cache hadling, get counters, simplified MMIO access)
+    Implement CSR counters (Zicntr) and distilate performances metrics
+    Add an SD card controller in the SoC, make a bootloader.
+    Support gdb ? will need ecall ebreak and trap handling.
 
 =======================
 NOT DONE - TODO MILESTONES
 =======================
 
-Compile programs from C. Be able to use libc.
-
-Implement CSR counters (Zicntr)
-
-Add an SD card controller in the SoC, make a bootloader.
-
-Add basic utilities in a HOLY LIBRAIRY. (cache hadling, get counters, simplified MMIO access)
-
-Use the sensors, make a drone takeoff and stable (at least on the Z axis).
-
-Once everything is done, split the core and PIPELINE it (objective : 80MHz).
-
 MAKE user docs (next logical step after quick start guides)
+
+Make a drone takeoff (for video).
+
+PIELINED EDITION :
+    Make a 2 stages pipeline.
+    (objective : 80MHz).
 
 =======================
 NOT DONE - SIDEQUESTS
 =======================
 
-add halfword / byte writes / reads to non cachable range !
+Add a IIC bare metal ASM exmple at the end of FPGA edition (bonus)
 
-figure out this tlast bug in simulation
+Add halfword / byte writes / reads to non cachable range !
 
-AXI wresp & rresp error handling.
+AXI wresp & rresp error handling (currently doing nothing).
 
-What about Holy C
+Holy C support would be insane. (or is it ?)
+
+=======================
+NOT DONE - FORGOTTEN
+=======================
+
+Figure out this tlast bug in simulation => Note 05/25 : SoC works fine without for now and it's only affecting simulation
