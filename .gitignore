@@ -17,3 +17,7 @@ gpio.o
 HOLY_SOC
 *str
 *.ila
+riscv-arch-test
+# config.ini
+riscof_work
+*.signature
