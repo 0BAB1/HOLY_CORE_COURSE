@@ -40,6 +40,8 @@ always @(posedge clk) begin
     else if(write_enable == 1'b1 && address3 != 0) begin
         registers[address3] <= write_data;
     end
+    // Hardwire Reg 0 to 0
+    registers[5'd0] <= 32'd0;
 end
 
 // Read logic, async

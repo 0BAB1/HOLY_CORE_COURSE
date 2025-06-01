@@ -31,6 +31,7 @@ module control (
 );
 
 import holy_core_pkg::*;
+logic illegal_instr;
 
 /**
 * MAIN DECODER
@@ -41,6 +42,18 @@ logic branch;
 logic jump;
 
 always_comb begin
+    // defaults
+    imm_source = 3'b000;
+    mem_write = 1'b0;
+    mem_read = 1'b0;
+    reg_write = 1'b0;
+    alu_source = 1'b0;
+    write_back_source = 3'b000;
+    second_add_source = 2'b00;
+    csr_write_back_source = 1'b0;
+    csr_write_enable = 1'b0;
+    illegal_instr = 1'b0;
+
     case (op)
         // I-type
         OPCODE_I_TYPE_LOAD : begin
@@ -70,15 +83,15 @@ always_comb begin
             // ie :
             // - 7 upper bits are interpreted as a "f7", ony valid for a restricted slection tested below
             // - 5 lower as shamt (because max shift is 32bits and 2^5 = 32).
-            if(func3 == F3_SLL)begin
-                // slli only accept f7 7'b0000000
-                reg_write = (func7 == F7_SLL_SRL) ? 1'b1 : 1'b0;
+            if (func3 == F3_SLL) begin
+                // Only slli valid with func7 = F7_SLL_SRL
+                reg_write = (func7 == F7_SLL_SRL);
             end
-            else if(func3 == F3_SRL_SRA)begin
-                // srli only accept f7 7'b0000000
-                // srai only accept f7 7'b0100000
-                reg_write = (func7 == F7_SLL_SRL | func7 == F7_SRA) ? 1'b1 : 1'b0;
-            end else begin
+            else if (func3 == F3_SRL_SRA) begin
+                // srli: f7 = F7_SLL_SRL, srai: f7 = F7_SRA
+                reg_write = (func7 == F7_SLL_SRL) || (func7 == F7_SRA);
+            end
+            else begin
                 reg_write = 1'b1;
             end
             csr_write_enable = 1'b0;
@@ -176,7 +189,8 @@ always_comb begin
             jump = 1'b0;
             branch = 1'b0;
             csr_write_enable = 1'b0;
-            $display("Unknown/Unsupported OP CODE !");
+            illegal_instr = 1'b1;
+            $display("CONTROL: Unknown/Unsupported OP CODE : %b", op);
         end
     endcase
 end
@@ -261,6 +275,14 @@ always_comb begin : branch_logic_decode
     endcase
 end
 
-assign pc_source = (assert_branch & (op == OPCODE_B_TYPE)) | jump;
+always_comb begin
+    pc_source = 1'b0;
+    if (op == OPCODE_B_TYPE && assert_branch) begin
+        pc_source = 1'b1;
+    end
+    else if (jump) begin
+        pc_source = 1'b1;
+    end
+end
     
 endmodule
