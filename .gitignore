@@ -21,3 +21,4 @@ riscv-arch-test
 # config.ini
 riscof_work
 *.signature
+my.*

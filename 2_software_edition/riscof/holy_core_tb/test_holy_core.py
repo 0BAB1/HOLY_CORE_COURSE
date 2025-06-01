@@ -115,6 +115,8 @@ async def cpu_insrt_test(dut):
     # actual test program execution
     for _ in range(10_000):
         await RisingEdge(dut.clk)
+        if dut.core.instruction.value.integer == 0x0000006F:
+            break
 
     # At the end of the test, dump everythin in a file
     dump_dir = os.path.dirname(program_hex)
