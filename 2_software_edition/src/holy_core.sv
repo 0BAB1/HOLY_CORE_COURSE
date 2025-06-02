@@ -210,6 +210,7 @@ logic [4:0] dest_reg;
 assign dest_reg = instruction[11:7];
 wire [31:0] read_reg1;
 wire [31:0] read_reg2;
+// wb_valid is just here to avoid writing by default...
 logic wb_valid;
 
 logic [31:0] write_back_data;
@@ -237,7 +238,7 @@ always_comb begin : write_back_source_select
         end
         default begin
             write_back_data = 32'hFFFFFFFF;
-            wb_valid = 1'b0;
+            wb_valid = 1'b0; // only 0 by default on wrong wb source select
         end
     endcase
 end

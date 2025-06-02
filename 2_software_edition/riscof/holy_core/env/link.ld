@@ -2,7 +2,7 @@ OUTPUT_ARCH( "riscv" )
 ENTRY(rvtest_entry_point)
 
 MEMORY {
-    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 0x8000
+    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 0x80000
 }
 
 SECTIONS

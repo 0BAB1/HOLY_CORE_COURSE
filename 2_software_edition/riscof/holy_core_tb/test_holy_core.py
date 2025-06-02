@@ -47,6 +47,12 @@ def read_cache(cache_data, line) :
     l = 127 - line
     return (int(str(cache_data.value[32*l:(32*l)+31]),2))
 
+def format_gpr(idx):
+    if idx < 10:
+        return f"x{idx} "
+    else:
+        return f"x{idx}"
+
 @cocotb.coroutine
 async def cpu_reset(dut):
     # Init and reset
@@ -81,7 +87,7 @@ async def cpu_insrt_test(dut):
 
     await inst_clocks(dut)
 
-    SIZE = 2**15
+    SIZE = 2**19
     axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
     axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
     await cpu_reset(dut)
@@ -115,8 +121,56 @@ async def cpu_insrt_test(dut):
     # actual test program execution
     for _ in range(10_000):
         await RisingEdge(dut.clk)
-        if dut.core.instruction.value.integer == 0x0000006F:
-            break
+        await Timer(1, units="ns") # let signals info propagate in sim
+
+        ##########################################################
+        # SPIKE LIKE LOGS (inspired by jeras' work, link below)
+        # https://github.com/jeras/rp32/blob/master/hdl/tbn/riscof/r5p_degu_trace_logger.sv
+        ##########################################################
+
+        # if we're about to execute the instruction, we can log.
+        if dut.core.stall.value.integer == 0:
+            # --- Initialize logging strings
+            str_ifu = ""
+            str_gpr = ""
+            str_lsu = ""
+
+            # --- GPR write-back logging ---
+            if dut.core.reg_write.value and dut.core.wb_valid.value:
+                if dut.core.dest_reg.value.integer != 0:  # ignore x0
+                    reg_id = dut.core.dest_reg.value.integer
+                    reg_val = dut.core.regfile.registers[reg_id].value.integer
+                    str_gpr = f" {format_gpr(reg_id)} 0x{reg_val:08x}"
+                else:
+                    str_gpr = ""
+            else:
+                str_gpr = ""
+
+            # --- LSU memory logging ---
+            if dut.core.mem_write_enable.value:  # memory store
+                # address comes from alu_result directly in holy_core
+                addr = dut.core.alu_result.value.integer
+                data = dut.core.mem_write_data.value.integer
+                str_lsu = f" mem 0x{addr:08x} 0x{data:08x}"
+            elif dut.core.mem_read_enable.value:  # memory load
+                addr = dut.core.alu_result.value.integer
+                data = dut.core.mem_read.value.integer
+                str_lsu = f" 0x{addr:08x} (0x{data:08x})"
+
+            # --- Instruction fetch logging ---
+            pc = dut.core.pc.value.integer
+            instr = dut.core.instruction.value.integer
+            instr_size = 4  # instruction are always 4 bytes for now...
+
+            if instr_size == 4:
+                str_ifu = f" 0x{pc:08x} (0x{instr:08x})"
+            else:
+                # not used but its here, we nere know ;)
+                str_ifu = f" 0x{pc:08x} (0x{instr & 0xFFFF:04x})"
+
+            # --- Write final combined log line ---
+            with open("dut.log", "a") as fd:
+                fd.write(f"core   0: 3{str_ifu}{str_gpr}{str_lsu}\n")
 
     # At the end of the test, dump everythin in a file
     dump_dir = os.path.dirname(program_hex)
