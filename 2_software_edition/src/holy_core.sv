@@ -256,7 +256,7 @@ regfile regfile(
     .read_data2(read_reg2),
 
     // Write In
-    .write_enable(reg_write & wb_valid),
+    .write_enable(reg_write && wb_valid && ~stall),
     .write_data(write_back_data),
     .address3(dest_reg)
 );

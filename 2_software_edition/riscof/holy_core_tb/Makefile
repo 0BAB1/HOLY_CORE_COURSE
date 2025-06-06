@@ -21,6 +21,12 @@ MODULE = test_holy_core
 # HEX FILE ABSOLUTE PATH TO PROGRAM
 IHEX_PATH ?= $(PWD)/test_imemory.hex
 export IHEX_PATH
+begin_signature ?= fool
+export begin_signature
+end_signature ?= fool
+export end_signature
+write_tohost ?= fool
+export write_tohost
 
 # Include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim

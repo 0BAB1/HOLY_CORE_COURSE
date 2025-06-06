@@ -169,7 +169,7 @@ module holy_data_cache #(
         next_set_ptr = set_ptr;
 
         // AXI LITE DEFAULT
-        axi_lite.wstrb = 4'b1111; // we write all by default.
+        axi_lite.wstrb = byte_enable; // axi strobe is our byte enable (BE) mask
 
         // csr flushing keeps value by default, only set at beginning of flush and deset a end of flush
         next_csr_flushing = csr_flushing;

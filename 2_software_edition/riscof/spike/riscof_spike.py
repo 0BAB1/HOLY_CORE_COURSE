@@ -156,6 +156,8 @@ class spike(pluginTemplate):
           if self.target_run:
             # set up the simulation command. Template is for spike. Please change.
             simcmd = self.dut_exe + ' --isa={0} --log-commits +signature={1} +signature-granularity=4 {2} > ref.log 2>&1 '.format(self.isa, sig_file, elf)
+            # also set up a commande to remove spike's initialization sequence in commits logs
+            simcmd += "; tail -n +6 ref.log > ref.log.tmp && mv ref.log.tmp ref.log"
           else:
             simcmd = 'echo "NO RUN"'
 
