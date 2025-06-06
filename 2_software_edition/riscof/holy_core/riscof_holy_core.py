@@ -140,7 +140,7 @@ class holy_core(pluginTemplate):
             # 2 : Compile macros
             # 3 : .bin file intermediary
             # 4 : end HEX DUMP file
-            cmd = self.compile_cmd.format(
+            comp_cmd = self.compile_cmd.format(
                 test,
                 elf, 
                 compile_macros,
@@ -148,25 +148,45 @@ class holy_core(pluginTemplate):
                 hex
             )
 
+
+            # get symbol list from elf file
+            nm_symbols_cmd = f'riscv32-unknown-elf-gcc-nm {elf} > dut.symbols'
+
+            # extract listed symbols
+            symbols_list = ['begin_signature', 'end_signature','write_tohost', 'tohost', 'fromhost']
+            # construct dictionary of listed symbols
+            symbols_cmd = []
+            symbols_cmd.append(nm_symbols_cmd)
+            for symbol in symbols_list:
+                # get symbols from symbol list file
+                cmd = f'export {symbol}=$$(grep -w {symbol} dut.symbols | cut -c 1-8)'
+                symbols_cmd.append(cmd)
+
             # if the user wants to disable running the tests and only compile the tests, then
             # the "else" clause is executed below assigning the sim command to simple no action
             # echo statement.
             if self.target_run:
                 # We go in the tb's dir
-                simcmd = 'cd {0} ;'.format(os.path.join(self.pluginpath, "../holy_core_tb/"))
-                # execute make (tb) and specify init memory content
-                simcmd += 'IHEX_PATH="{0}" make ;'.format(os.path.join(test_dir, hex))
+                simcmd = 'cd {0} && '.format(os.path.join(self.pluginpath, "../holy_core_tb/"))
+                # execute make (tb) and specify init memory content + symbols addresses
+                simcmd += 'IHEX_PATH="{0}" make > tb_messages.log;'.format(os.path.join(test_dir, hex))
                 # And finally, copy paste the waveforms in the work dir
-                simcmd += 'cp ./dump.vcd {0}'.format(testentry['work_dir'])
+                simcmd += 'cp ./dump.vcd {0};'.format(testentry['work_dir'])
+                simcmd += 'cp ./dut.log {0};'.format(testentry['work_dir'])
+                simcmd += 'cp {0} {1};'.format(sig_file ,testentry['work_dir'])
+                simcmd += 'cp ./tb_messages.log {0}'.format(testentry['work_dir'])
             else:
                 simcmd = 'echo "NO RUN"'
 
-            # concatenate all commands that need to be executed within a make-target.
-            execute = '@cd {0}; {1}; {2};'.format(testentry['work_dir'], cmd, simcmd)
+            execute = []
+            execute.append(f'cd {testentry["work_dir"]}')
+            execute.append(comp_cmd)
+            execute += symbols_cmd
+            execute.append(simcmd)
 
             # create a target. The makeutil will create a target with the name "TARGET<num>" where num
             # starts from 0 and increments automatically for each new target that is added
-            make.add_target(execute)
+            make.add_target('@' + ';\\\n'.join(execute))
 
         # if you would like to exit the framework once the makefile generation is complete uncomment the
         # following line. Note this will prevent any signature checking or report generation.
