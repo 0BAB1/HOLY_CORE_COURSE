@@ -83,6 +83,19 @@ Take a deep dive into memory.
 - Improve our design by using cache and querying external data using AXI.
 - Interact with I/Os
 
+### Software edition
+
+Remember : a CPU is meant to run software !
+
+**Goal :** Make software develpoment easier and run bare metal application smoothly & reliably.
+
+- Test and debug the *HOLY CORE* complioance to actual RISC-V specs
+- Enable & use C programming
+- Develop basic C utilities librairies
+- Add a bootloader
+- Create a real I/O program to drive DC motors
+- Improve and extend the core by adding `M` support
+
 ### Other Editions
 
 Other editions are coming soon ! Stay tuned !

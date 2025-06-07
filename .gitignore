@@ -22,3 +22,9 @@ riscv-arch-test
 riscof_work
 *.signature
 my.*
+*.elf
+*.bin
+my.*
+hello.hex
+*.o
+*.a

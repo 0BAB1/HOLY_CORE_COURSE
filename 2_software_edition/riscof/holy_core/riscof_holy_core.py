@@ -1,13 +1,5 @@
 import os
-import re
-import shutil
-import subprocess
-import shlex
 import logging
-import random
-import string
-from string import Template
-import sys
 
 import riscof.utils as utils
 import riscof.constants as constants
