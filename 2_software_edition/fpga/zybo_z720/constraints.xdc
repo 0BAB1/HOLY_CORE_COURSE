@@ -21,11 +21,11 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_rtl_txd]
 # after adding IIC AXI Ip in the SoC
 ###
 
-# I2C BUS constraints
-# set_property PACKAGE_PIN T11 [get_ports iic_rtl_sda_io]
-# set_property IOSTANDARD LVCMOS33 [get_ports iic_rtl_sda_io]
-# set_property PACKAGE_PIN T10 [get_ports iic_rtl_scl_io]
-# set_property IOSTANDARD LVCMOS33 [get_ports iic_rtl_scl_io]
+I2C BUS constraints
+set_property PACKAGE_PIN T11 [get_ports iic_rtl_sda_io]
+set_property IOSTANDARD LVCMOS33 [get_ports iic_rtl_sda_io]
+set_property PACKAGE_PIN T10 [get_ports iic_rtl_scl_io]
+set_property IOSTANDARD LVCMOS33 [get_ports iic_rtl_scl_io]
 
 # I2C BUS debug
 # set_property PACKAGE_PIN P14 [get_ports debug_sda]
