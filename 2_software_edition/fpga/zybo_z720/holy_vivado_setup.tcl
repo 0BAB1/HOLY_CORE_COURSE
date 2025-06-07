@@ -16,26 +16,26 @@ create_project holy_soc_project ./HOLY_SOC -part xc7z020clg400-1 -force
 set_property board_part digilentinc.com:zybo-z7-20:part0:1.2 [current_project]
 
 # Add constraint file
-add_files -fileset constrs_1 -norecurse ./fpga_edition/fpga/zybo_z720/constraints.xdc
+add_files -fileset constrs_1 -norecurse ./2_software_edition/fpga/zybo_z720/constraints.xdc
 
 # Add source files
 add_files -norecurse {
-    ./fpga_edition/fpga/holy_wrapper.v
-    ./fpga_edition/src/holy_data_cache.sv
-    ./fpga_edition/src/holy_cache.sv
-    ./fpga_edition/src/control.sv
-    ./fpga_edition/src/reader.sv
-    ./fpga_edition/packages/axi_if.sv
-    ./fpga_edition/packages/axi_lite_if.sv
-    ./fpga_edition/packages/holy_core_pkg.sv
-    ./fpga_edition/src/regfile.sv
-    ./fpga_edition/src/external_req_arbitrer.sv
-    ./fpga_edition/src/alu.sv
-    ./fpga_edition/fpga/axi_details.sv
-    ./fpga_edition/src/holy_core.sv
-    ./fpga_edition/src/signext.sv
-    ./fpga_edition/src/load_store_decoder.sv
-    ./fpga_edition/src/csr_file.sv
+    ./2_software_edition/fpga/holy_wrapper.v
+    ./2_software_edition/src/holy_data_cache.sv
+    ./2_software_edition/src/holy_cache.sv
+    ./2_software_edition/src/control.sv
+    ./2_software_edition/src/reader.sv
+    ./2_software_edition/packages/axi_if.sv
+    ./2_software_edition/packages/axi_lite_if.sv
+    ./2_software_edition/packages/holy_core_pkg.sv
+    ./2_software_edition/src/regfile.sv
+    ./2_software_edition/src/external_req_arbitrer.sv
+    ./2_software_edition/src/alu.sv
+    ./2_software_edition/fpga/axi_details.sv
+    ./2_software_edition/src/holy_core.sv
+    ./2_software_edition/src/signext.sv
+    ./2_software_edition/src/load_store_decoder.sv
+    ./2_software_edition/src/csr_file.sv
 }
 
 # Update compile order

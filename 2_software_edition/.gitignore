@@ -7,3 +7,5 @@ results.xml
 new.hex
 temp.py
 *.vcd
+blink.hex
+dump.txt

@@ -18,7 +18,7 @@ TOPLEVEL = holy_test_harness
 # MODULE is the basename of the Python test file
 MODULE = test_holy_core
 
-# HEX FILE ABSOLUTE PATH TO PROGRAM
+# HEX FILE ABSOLUTE PATH TO PROGRAM AND LABELS
 IHEX_PATH ?= $(PWD)/test_imemory.hex
 export IHEX_PATH
 begin_signature ?= fool

@@ -30,21 +30,23 @@ prepare tutorials (md) and pdfs (clean)
 Compile actual assembly for the cpu mem files
 Implement CSR for better dev experience (cache flush Zicsr)
 Simple sensor read on IIC. (note : that was a pain and vendor specific, we NEED libraries support)
+Compile programs from C. Be able to use picolibc.
 
 ===================
 DOING
 ===================
 
 Software edition
-    Compile programs from C. Be able to use picolibc.
     Add basic utilities in a HOLY LIBRAIRY. (cache hadling, get counters, simplified MMIO access)
-    Implement CSR counters (Zicntr) and distilate performances metrics
     Add an SD card controller in the SoC, make a bootloader.
     Support gdb ? will need ecall ebreak and trap handling.
+    Add M support
 
 =======================
 NOT DONE - TODO MILESTONES
 =======================
+
+Implement CSR counters (Zicntr) and distilate performances metrics
 
 MAKE user docs (next logical step after quick start guides)
 

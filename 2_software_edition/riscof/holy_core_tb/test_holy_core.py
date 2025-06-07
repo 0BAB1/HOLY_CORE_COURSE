@@ -7,28 +7,12 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
-import random
 from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
-import numpy as np
 import os
 
 # WARNING : Passing test on async cloks does not mean CDC timing sync is met !
 AXI_PERIOD = 10
 CPU_PERIOD = 10
-
-# CACHE STATES CST
-IDLE                        = 0b0000
-SENDING_WRITE_REQ           = 0b0001
-SENDING_WRITE_DATA          = 0b0010
-WAITING_WRITE_RES           = 0b0011
-SENDING_READ_REQ            = 0b0100
-RECEIVING_READ_DATA         = 0b0101
-# LITE states, only for data cache
-LITE_SENDING_WRITE_REQ      = 0b0110
-LITE_SENDING_WRITE_DATA     = 0b0111
-LITE_WAITING_WRITE_RES      = 0b1000
-LITE_SENDING_READ_REQ       = 0b1001
-LITE_RECEIVING_READ_DATA    = 0b1010
 
 def binary_to_hex(bin_str):
     # Convert binary string to hexadecimal
@@ -48,6 +32,7 @@ def read_cache(cache_data, line) :
     return (int(str(cache_data.value[32*l:(32*l)+31]),2))
 
 def format_gpr(idx):
+    """Used for debug logs."""
     if idx < 10:
         return f"x{idx} "
     else:
@@ -208,16 +193,14 @@ async def cpu_insrt_test(dut):
             
         await RisingEdge(dut.clk)
 
-    # =========================
+    ############################################
     # SIGNATURE DUMP
-    # =========================
+    ############################################
 
     dump_dir = os.path.dirname(program_hex)
     dump_path = os.path.join(dump_dir, "DUT-holy_core.signature")
 
     with open(dump_path, 'w') as sig_file:
-        consecutive_zeros = 0
-        dumping = False
         collected_lines = []
 
         for addr in range(begin_signature, end_signature, 4):
