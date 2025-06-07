@@ -100,6 +100,25 @@ Remember : a CPU is meant to run software !
 
 Other editions are coming soon ! Stay tuned !
 
+## Core Resources Utilization
+
+Report from an implementation report made on Vivado for the Zybo-Z7-20 board featuring a Zynq Chip (we only use the PL) :
+
+| Module               | Slice LUTs | Slice Registers |
+|----------------------|------------|------------------|
+| `core`               | 6715       | 9809             |
+| └─ `control_unit`    | 175        | 7                |
+| └─ `data_cache`      | 2468       | 4383             |
+| └─ `holy_csr_file`   | 16         | 96               |
+| └─ `instr_cache`     | 3192       | 4247             |
+| └─ `ls_decode`       | 0          | 32               |
+| └─ `regfile`         | 856        | 992              |
+| └─ `sign_extender`   | 25         | 0                |
+
+Last update: 7th of june 2025.
+
+The Entire SoC is far larger and the total utilization is nearly 20_000 Luts and 25_500 Registers, Dominateed by the `AXI Smartconnect` and the `ILA` debugger.
+
 ## OPEN SOURCE and CONTRIBUTIONS
 
 Contributions are very welcome as I know I tend to make a lot of mistakes and typos (at least it proves it's not some half baked AI generated garbage haha).
