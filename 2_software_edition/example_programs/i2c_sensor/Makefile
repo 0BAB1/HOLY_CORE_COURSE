@@ -1,4 +1,4 @@
-# Makefile — Hello world
+# Makefile — sensor
 
 CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
@@ -6,9 +6,9 @@ OBJDUMP = riscv32-unknown-elf-objdump
 CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -Wall -Wextra -O2 -I../../hc_lib/include
 LDFLAGS = -T linker.ld -nostdlib
 
-all: hello.bin hello.hex
+all: sensor.bin sensor.hex sensor.tcl
 
-hello.elf: startup.o main.o
+sensor.elf: startup.o main.o
 	$(CC) -T linker.ld -nostdlib -o $@ $^ -L ../../hc_lib -lholycore
 
 %.o: %.c
@@ -17,14 +17,17 @@ hello.elf: startup.o main.o
 %.o: %.S
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-hello.bin: hello.elf
+sensor.bin: sensor.elf
 	$(OBJCOPY) -O binary $< $@
 
-hello.hex: hello.bin
+sensor.hex: sensor.bin
 	hexdump -v -e '1/4 "%08x\n"' $< > $@
 
-dump.txt: hello.elf
-	$(OBJDUMP) -D -M no-aliases hello.elf > dump.txt
+sensor.tcl: sensor.hex
+	python loader_gen.py
+
+dump.txt: sensor.elf
+	$(OBJDUMP) -D -M no-aliases sensor.elf > dump.txt
 
 clean:
-	rm -f *.o *.elf *.bin dump.txt *.hex
+	rm -f *.o *.elf *.bin dump.txt *.hex *.tcl

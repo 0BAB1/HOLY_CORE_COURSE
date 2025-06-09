@@ -2,7 +2,7 @@ ENTRY(_start)
 
 MEMORY
 {
-    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 32K
+    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 2K
 }
 
 SECTIONS

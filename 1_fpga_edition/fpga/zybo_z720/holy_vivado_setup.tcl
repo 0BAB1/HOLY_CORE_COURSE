@@ -16,26 +16,26 @@ create_project holy_soc_project ./HOLY_SOC -part xc7z020clg400-1 -force
 set_property board_part digilentinc.com:zybo-z7-20:part0:1.2 [current_project]
 
 # Add constraint file
-add_files -fileset constrs_1 -norecurse ./1_fpga_edition/fpga/zybo_z720/constraints.xdc
+add_files -fileset constrs_1 -norecurse ./fpga_edition/fpga/zybo_z720/constraints.xdc
 
 # Add source files
 add_files -norecurse {
-    ./1_fpga_edition/fpga/holy_wrapper.v
-    ./1_fpga_edition/src/holy_data_cache.sv
-    ./1_fpga_edition/src/holy_cache.sv
-    ./1_fpga_edition/src/control.sv
-    ./1_fpga_edition/src/reader.sv
-    ./1_fpga_edition/packages/axi_if.sv
-    ./1_fpga_edition/packages/axi_lite_if.sv
-    ./1_fpga_edition/packages/holy_core_pkg.sv
-    ./1_fpga_edition/src/regfile.sv
-    ./1_fpga_edition/src/external_req_arbitrer.sv
-    ./1_fpga_edition/src/alu.sv
-    ./1_fpga_edition/fpga/axi_details.sv
-    ./1_fpga_edition/src/holy_core.sv
-    ./1_fpga_edition/src/signext.sv
-    ./1_fpga_edition/src/load_store_decoder.sv
-    ./1_fpga_edition/src/csr_file.sv
+    ./fpga_edition/fpga/holy_wrapper.v
+    ./fpga_edition/src/holy_data_cache.sv
+    ./fpga_edition/src/holy_cache.sv
+    ./fpga_edition/src/control.sv
+    ./fpga_edition/src/reader.sv
+    ./fpga_edition/packages/axi_if.sv
+    ./fpga_edition/packages/axi_lite_if.sv
+    ./fpga_edition/packages/holy_core_pkg.sv
+    ./fpga_edition/src/regfile.sv
+    ./fpga_edition/src/external_req_arbitrer.sv
+    ./fpga_edition/src/alu.sv
+    ./fpga_edition/fpga/axi_details.sv
+    ./fpga_edition/src/holy_core.sv
+    ./fpga_edition/src/signext.sv
+    ./fpga_edition/src/load_store_decoder.sv
+    ./fpga_edition/src/csr_file.sv
 }
 
 # Update compile order
@@ -230,49 +230,8 @@ set_property offset 0x2800 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_uartl
 set_property offset 0x2000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
 set_property offset 0x2800 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
 
-#======================================
-# BRH 06/25 New SoC with I2C
-
-# add IIC AXI ip and automatically add IIC ongoing pins
-startgroup
-create_bd_cell -type ip -vlnv xilinx.com:ip:axi_iic:2.1 axi_iic_0
-endgroup
-set_property location {6 1876 618} [get_bd_cells axi_iic_0]
-apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {Custom} Manual_Source {Auto}}  [get_bd_intf_pins axi_iic_0/IIC]
-
-# Connect AXI IIC TO SMC, rst and clk
-startgroup
-set_property CONFIG.NUM_MI {4} [get_bd_cells axi_smc]
-endgroup
-connect_bd_intf_net [get_bd_intf_pins axi_smc/M03_AXI] [get_bd_intf_pins axi_iic_0/S_AXI]
-connect_bd_net [get_bd_pins axi_iic_0/s_axi_aresetn] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
-connect_bd_net [get_bd_pins axi_iic_0/s_axi_aclk] [get_bd_pins clk_wiz/clk_out1]
-
-# add ILA and configure it
-set_property HDL_ATTRIBUTE.DEBUG true [get_bd_intf_nets {axi_iic_0_IIC}]
-apply_bd_automation -rule xilinx.com:bd_rule:debug -dict [list \
-                                                          [get_bd_intf_nets axi_iic_0_IIC] {NON_AXI_SIGNALS "Data and Trigger" CLK_SRC "/clk_wiz/clk_out1" SYSTEM_ILA "New" } \
-                                                         ]
-
-set_property location {6 1997 812} [get_bd_cells system_ila_1]
-startgroup
-set_property CONFIG.C_DATA_DEPTH {65536} [get_bd_cells system_ila_1]
-endgroup
-save_bd_design
-regenerate_bd_layout
-
-# addressing for AXI IIC
-assign_bd_address
-set_property range 2K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_iic_0_Reg}]
-set_property offset 0x3000 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_iic_0_Reg}]
-set_property range 2K [get_bd_addr_segs {holy_wrapper_0/m_axi_lite/SEG_axi_iic_0_Reg}]
-set_property offset 0x3000 [get_bd_addr_segs {holy_wrapper_0/m_axi_lite/SEG_axi_iic_0_Reg}]
-set_property range 2K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_iic_0_Reg}]
-set_property offset 0x3000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_iic_0_Reg}]
-save_bd_design
-
-
 # Validate + wrapper
+
 validate_bd_design
 make_wrapper -files [get_files ./HOLY_SOC/holy_soc_project.srcs/sources_1/bd/design_1/design_1.bd] -top
 add_files -norecurse ./HOLY_SOC/holy_soc_project.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v
