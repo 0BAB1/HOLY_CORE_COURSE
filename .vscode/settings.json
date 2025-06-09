@@ -1,6 +1,8 @@
 {
     "files.associations": {
+        "holy_core_soc.h": "c",
+        "stdio.h": "c",
         "stdint.h": "c",
-        "stdint-gcc.h": "c"
+        "holycore.h": "c"
     }
 }
