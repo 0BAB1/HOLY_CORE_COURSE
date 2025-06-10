@@ -102,8 +102,47 @@ package holy_core_pkg;
     ALU_SRL = 4'b0110,
     ALU_SLTU = 4'b0111,
     ALU_XOR = 4'b1000,
-    ALU_SRA = 4'b1001
+    ALU_SRA = 4'b1001,
+    ALU_ERROR = 4'b1111 // to ditch once traps are implemented
   } alu_control_t;
+
+  // IMM sources
+  typedef enum logic [2:0] {
+    I_IMM_SOURCE = 3'b000,
+    S_IMM_SOURCE = 3'b001,
+    B_IMM_SOURCE = 3'b010,
+    J_IMM_SOURCE = 3'b011,
+    U_IMM_SOURCE = 3'b100,
+    CSR_IMM_SOURCE = 3'b101
+  } imm_source_t;
+
+  // WRITE BACK Sources
+  typedef enum logic [2:0] {
+    WB_SOURCE_ALU_RESULT = 3'b000,
+    WB_SOURCE_MEM_READ = 3'b001,
+    WB_SOURCE_PC_PLUS_FOUR = 3'b010,
+    WB_SOURCE_SECOND_ADD = 3'b011,
+    WB_SOURCE_CSR_READ = 3'b100
+  } wb_source_t;
+
+  // SECOND ADDER Sources (pc offsets operations)
+  typedef enum logic [1:0] {
+    SECOND_ADDER_SOURCE_PC = 2'b00,
+    SECOND_ADDER_SOURCE_ZERO = 2'b01,
+    SECOND_ADDER_SOURCE_RD = 2'b10
+  } second_add_source_t;
+
+  // CSR WRITE BACK SOURCE
+  typedef enum logic {
+    CSR_WB_SOURCE_RD = 1'b0,
+    CSR_WB_SOURCE_IMM = 1'b1
+  } csr_wb_source_t;
+
+  // ALU SECOND ARG SOURCE
+  typedef enum logic {
+    ALU_SOURCE_RD = 1'b0,
+    ALU_SOURCE_IMM = 1'b1
+  } alu_source_t;
 
   // Write_back signal
   typedef struct packed {

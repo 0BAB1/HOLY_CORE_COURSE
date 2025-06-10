@@ -17,7 +17,9 @@ module holy_core (
     axi_if.master m_axi,
     axi_lite_if.master m_axi_lite,
 
-    // OUTGOING DEBUG SIGNALS
+
+
+    // DEBUG SIGNALS FOR LOGIC ANALYSERS
     output logic [31:0] debug_pc,  
     output logic [31:0] debug_pc_next,
     output logic debug_pc_source,
@@ -54,6 +56,10 @@ assign debug_i_cache_stall = i_cache_stall;
 assign debug_d_cache_stall  = d_cache_stall; 
 assign debug_csr_flush_order = csr_flush_order;
 assign debug_pc_source = pc_source;
+assign debug_wb_data = mem_read_write_back_data;
+assign debug_mem_read = mem_read;
+assign debug_mem_byte_en = mem_byte_enable;
+// Note : Cache ILA debug signals are at cache declaration
 
 // others are assign directly to submodules outputs
 
@@ -101,9 +107,9 @@ end
 
 always_comb begin : second_add_select
     case (second_add_source)
-        2'b00 : pc_plus_second_add = pc + immediate;
-        2'b01 : pc_plus_second_add = immediate;
-        2'b10 : pc_plus_second_add = read_reg1 + immediate;
+        SECOND_ADDER_SOURCE_PC : pc_plus_second_add = pc + immediate;
+        SECOND_ADDER_SOURCE_ZERO : pc_plus_second_add = immediate;
+        SECOND_ADDER_SOURCE_RD: pc_plus_second_add = read_reg1 + immediate;
         default : pc_plus_second_add = 32'd0;
     endcase
 end
@@ -164,17 +170,17 @@ assign f7 = instruction[31:25];
 wire alu_zero;
 wire alu_last_bit;
 // out of control unit
-wire [3:0] alu_control;
-wire [2:0] imm_source;
+alu_control_t alu_control;
+imm_source_t imm_source;
 wire mem_write_enable;
 wire mem_read_enable;
 wire reg_write;
 // out muxes wires
-wire alu_source;
-wire [2:0] write_back_source;
+alu_source_t alu_source;
+wb_source_t write_back_source;
 wire pc_source;
-wire [1:0] second_add_source;
-wire csr_write_back_source;
+second_add_source_t second_add_source;
+csr_wb_source_t csr_write_back_source;
 
 control control_unit(
     .op(op),
@@ -191,7 +197,6 @@ control control_unit(
     .reg_write(reg_write),
     .csr_write_back_source(csr_write_back_source),
     .csr_write_enable(csr_write_enable),
-    // muxes out
     .alu_source(alu_source),
     .write_back_source(write_back_source),
     .pc_source(pc_source),
@@ -214,25 +219,25 @@ wire [31:0] read_reg2;
 logic wb_valid;
 
 logic [31:0] write_back_data;
-always_comb begin : write_back_source_select
+always_comb begin
     case (write_back_source)
-        3'b000: begin
+        WB_SOURCE_ALU_RESULT: begin
             write_back_data = alu_result;
             wb_valid = 1'b1;
         end
-        3'b001: begin
+        WB_SOURCE_MEM_READ: begin
             write_back_data = mem_read_write_back_data;
             wb_valid = mem_read_write_back_valid;
         end
-        3'b010: begin
+        WB_SOURCE_PC_PLUS_FOUR: begin
             write_back_data = pc_plus_four;
             wb_valid = 1'b1;
         end
-        3'b011: begin
+        WB_SOURCE_SECOND_ADD: begin
             write_back_data = pc_plus_second_add;
             wb_valid = 1'b1;
         end
-        3'b100: begin
+        WB_SOURCE_CSR_READ: begin
             write_back_data = csr_read_data;
             wb_valid = 1'b1;
         end
@@ -281,11 +286,10 @@ signext sign_extender(
 logic [31:0] csr_write_back_data;
 logic [31:0] csr_write_data;
 always_comb begin : csr_wb_mux
-    if(~csr_write_back_source) begin
-        csr_write_back_data = read_reg1;
-    end else begin
-        csr_write_back_data = immediate;
-    end
+    case (csr_write_back_source)
+        CSR_WB_SOURCE_RD : csr_write_back_data = read_reg1;
+        CSR_WB_SOURCE_IMM : csr_write_back_data = immediate;
+    endcase
 end
 
 logic [11:0] csr_address;
@@ -319,10 +323,10 @@ csr_file holy_csr_file(
 wire [31:0] alu_result;
 logic [31:0] alu_src2;
 
-always_comb begin : alu_source_select
+always_comb begin
     case (alu_source)
-        1'b1: alu_src2 = immediate;
-        default: alu_src2 = read_reg2;
+        ALU_SOURCE_IMM: alu_src2 = immediate;
+        ALU_SOURCE_RD: alu_src2 = read_reg2;
     endcase
 end
 
@@ -383,7 +387,7 @@ holy_data_cache data_cache (
     .axi_lite(m_axi_lite),
     .cache_state(d_cache_state),
 
-    //debug
+    // CACHE DEBUG SIGNAL
     .set_ptr_out(debug_d_set_ptr),
     .next_set_ptr_out(debug_d_next_set_ptr),
     .debug_seq_stall(debug_d_cache_seq_stall),
@@ -397,10 +401,6 @@ holy_data_cache data_cache (
 
 wire [31:0] mem_read_write_back_data;
 wire mem_read_write_back_valid;
-
-assign debug_mem_read = mem_read;
-assign debug_mem_byte_en = mem_byte_enable;
-assign debug_wb_data = mem_read_write_back_data;
 
 reader reader_inst(
     .mem_data(mem_read),

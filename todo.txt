@@ -31,26 +31,30 @@ Compile actual assembly for the cpu mem files
 Implement CSR for better dev experience (cache flush Zicsr)
 Simple sensor read on IIC. (note : that was a pain and vendor specific, we NEED libraries support)
 Compile programs from C. Be able to use picolibc.
+Add a IIC bare metal ASM exmple at the end of FPGA edition (bonus)
+Add halfword / byte writes / reads to non cachable range !
 
 ===================
 DOING
 ===================
 
 Software edition
-    Add basic utilities in a HOLY LIBRAIRY. (cache hadling, get counters, simplified MMIO access)
+    Clean codebase, add params, simplyfy data cache
+    Add gdb support
+    Add trap handling (crss...)
     Add an SD card controller in the SoC, make a bootloader.
-    Support gdb ? will need ecall ebreak and trap handling.
-    Add M support
 
 =======================
 NOT DONE - TODO MILESTONES
 =======================
 
-Implement CSR counters (Zicntr) and distilate performances metrics
-
 MAKE user docs (next logical step after quick start guides)
 
-Make a drone takeoff (for video).
+OS EDITION:
+    Port RTOS on the core
+
+DRONE:
+    Control a dron's flight
 
 PIELINED EDITION :
     Make a 2 stages pipeline.
@@ -60,16 +64,15 @@ PIELINED EDITION :
 NOT DONE - SIDEQUESTS
 =======================
 
-Add a IIC bare metal ASM exmple at the end of FPGA edition (bonus)
+Port on Arty S7 (spartan S7 + pmod SD)
 
-Add halfword / byte writes / reads to non cachable range !
-
-AXI wresp & rresp error handling (currently doing nothing).
-
-Holy C support would be insane. (or is it ?)
+Make basic AXI ICC drivers for holy core (hc_lib)
+    
+AXI wresp & rresp error handling (special trap handler ?).
 
 =======================
 NOT DONE - FORGOTTEN
 =======================
 
+Holy C support would be insane. (or is it ?)
 Figure out this tlast bug in simulation => Note 05/25 : SoC works fine without for now and it's only affecting simulation
