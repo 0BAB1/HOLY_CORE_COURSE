@@ -10,23 +10,23 @@
 
 module control (
     // IN
-    input logic [6:0] op,
+    input opcode_t op,
     input logic [2:0] func3,
     input logic [6:0] func7,
     input logic alu_zero,
     input logic alu_last_bit,
 
     // OUT
-    output logic [3:0] alu_control,
-    output logic [2:0] imm_source,
+    output alu_control_t alu_control,
+    output imm_source_t imm_source,
     output logic mem_write,
     output logic mem_read,
     output logic reg_write,
-    output logic alu_source,
-    output logic [2:0] write_back_source,
+    output alu_source_t alu_source,
+    output wb_source_t write_back_source,
     output logic pc_source,
-    output logic [1:0] second_add_source,
-    output logic csr_write_back_source,
+    output second_add_source_t second_add_source,
+    output csr_wb_source_t csr_write_back_source,
     output logic csr_write_enable
 );
 
@@ -37,20 +37,20 @@ logic illegal_instr;
 * MAIN DECODER
 */
 
-logic [1:0] alu_op;
+alu_op_t alu_op;
 logic branch;
 logic jump;
 
 always_comb begin
     // defaults
-    imm_source = 3'b000;
+    imm_source = I_IMM_SOURCE;
     mem_write = 1'b0;
     mem_read = 1'b0;
     reg_write = 1'b0;
-    alu_source = 1'b0;
-    write_back_source = 3'b000;
-    second_add_source = 2'b00;
-    csr_write_back_source = 1'b0;
+    alu_source = ALU_SOURCE_RD;
+    write_back_source = WB_SOURCE_ALU_RESULT;
+    second_add_source = SECOND_ADDER_SOURCE_PC;
+    csr_write_back_source = CSR_WB_SOURCE_IMM;
     csr_write_enable = 1'b0;
     illegal_instr = 1'b0;
 
@@ -58,23 +58,23 @@ always_comb begin
         // I-type
         OPCODE_I_TYPE_LOAD : begin
             reg_write = 1'b1;
-            imm_source = 3'b000;
+            imm_source = I_IMM_SOURCE;
             mem_write = 1'b0;
             mem_read = 1'b1;
-            alu_op = 2'b00;
-            alu_source = 1'b1; //imm
-            write_back_source = 3'b001; //memory_read
+            alu_op = ALU_OP_LOAD_STORE;
+            alu_source = ALU_SOURCE_IMM;
+            write_back_source = WB_SOURCE_MEM_READ;
             branch = 1'b0;
             jump = 1'b0;
             csr_write_enable = 1'b0;
         end
         // ALU I-type
         OPCODE_I_TYPE_ALU : begin
-            imm_source = 3'b000;
-            alu_source = 1'b1; //imm
+            imm_source = I_IMM_SOURCE;
+            alu_source = ALU_SOURCE_IMM; //imm
             mem_write = 1'b0;
-            alu_op = 2'b10;
-            write_back_source = 3'b000; //alu_result
+            alu_op = ALU_OP_MATH;
+            write_back_source = WB_SOURCE_ALU_RESULT; //alu_result
             mem_read = 1'b0;
             branch = 1'b0;
             jump = 1'b0;
@@ -99,11 +99,11 @@ always_comb begin
         // S-Type
         OPCODE_S_TYPE : begin
             reg_write = 1'b0;
-            imm_source = 3'b001;
+            imm_source = S_IMM_SOURCE;
             mem_read = 1'b0;
             mem_write = 1'b1;
-            alu_op = 2'b00;
-            alu_source = 1'b1; //imm
+            alu_op = ALU_OP_LOAD_STORE;
+            alu_source = ALU_SOURCE_IMM;
             branch = 1'b0;
             jump = 1'b0;
             csr_write_enable = 1'b0;
@@ -113,9 +113,9 @@ always_comb begin
             reg_write = 1'b1;
             mem_write = 1'b0;
             mem_read = 1'b0;
-            alu_op = 2'b10;
-            alu_source = 1'b0; //reg2
-            write_back_source = 3'b000; //alu_result
+            alu_op = ALU_OP_MATH;
+            alu_source = ALU_SOURCE_RD;
+            write_back_source = WB_SOURCE_ALU_RESULT;
             branch = 1'b0;
             jump = 1'b0;
             csr_write_enable = 1'b0;
@@ -123,61 +123,62 @@ always_comb begin
         // B-type
         OPCODE_B_TYPE : begin
             reg_write = 1'b0;
-            imm_source = 3'b010;
+            imm_source = B_IMM_SOURCE;
             mem_read = 1'b0;
-            alu_source = 1'b0;
+            alu_source = ALU_SOURCE_RD;
             mem_write = 1'b0;
-            alu_op = 2'b01;
+            alu_op = ALU_OP_BRANCHES;
             branch = 1'b1;
             jump = 1'b0;
-            second_add_source = 2'b00;
+            second_add_source = SECOND_ADDER_SOURCE_PC;
             csr_write_enable = 1'b0;
         end
         // J-type + JALR weird Hybrib
         OPCODE_J_TYPE, OPCODE_J_TYPE_JALR : begin
             reg_write = 1'b1;
-            imm_source = 3'b011;
+            imm_source = J_IMM_SOURCE;
             mem_read = 1'b0;
             mem_write = 1'b0;
-            write_back_source = 3'b010; //pc_+4
+            write_back_source = WB_SOURCE_PC_PLUS_FOUR;
             branch = 1'b0;
             jump = 1'b1;
             if(op[3]) begin// jal
-                second_add_source = 2'b00;
-                imm_source = 3'b011;
+                second_add_source = SECOND_ADDER_SOURCE_PC;
+                imm_source = J_IMM_SOURCE;
             end
             else if (~op[3]) begin // jalr
-                second_add_source = 2'b10;
-                imm_source = 3'b000;
+                second_add_source = SECOND_ADDER_SOURCE_RD;
+                imm_source = I_IMM_SOURCE;
             end
             csr_write_enable = 1'b0;
         end
         // U-type
         OPCODE_U_TYPE_LUI, OPCODE_U_TYPE_AUIPC : begin
-            imm_source = 3'b100;
+            imm_source = U_IMM_SOURCE;
             mem_write = 1'b0;
             mem_read = 1'b0;
             reg_write = 1'b1;
-            write_back_source = 3'b011;
+            write_back_source = WB_SOURCE_SECOND_ADD;
             branch = 1'b0;
             jump = 1'b0;
             case(op[5])
-                1'b1 : second_add_source = 2'b01; // lui
-                1'b0 : second_add_source = 2'b00; // auipc
+                1'b1 : second_add_source = SECOND_ADDER_SOURCE_ZERO; // lui
+                1'b0 : second_add_source = SECOND_ADDER_SOURCE_PC; // auipc
             endcase
             csr_write_enable = 1'b0;
         end
         // CSR instructions (SYSTEM OPCODE)
         OPCODE_CSR : begin
-            imm_source = 3'b101;
+            imm_source = CSR_IMM_SOURCE;
             mem_write = 1'b0;
             reg_write = 1'b1;
             jump = 1'b0;
-            write_back_source = 3'b100;
-            // Determine wb src from MSB of F3
+            write_back_source = WB_SOURCE_CSR_READ;
+            // Determine wb src from MSB of F3CSR_WB_SOURCE_IMM
             // 3'b0xx is for rs value
             // 3'b1xx is for imm extended value
-            csr_write_back_source = func3[2];
+            if(func3[2])    csr_write_back_source = CSR_WB_SOURCE_IMM;
+            if(~func3[2])   csr_write_back_source = CSR_WB_SOURCE_RD;
             csr_write_enable = 1'b1;
         end
         // EVERYTHING ELSE
@@ -190,7 +191,7 @@ always_comb begin
             branch = 1'b0;
             csr_write_enable = 1'b0;
             illegal_instr = 1'b1;
-            $display("CONTROL: Unknown/Unsupported OP CODE : %b", op);
+            $display("CONTROL: Unknown/Unsupported OP CODE : %b", op); // todo : TRAP ILLEGAL
         end
     endcase
 end
@@ -211,7 +212,7 @@ always_comb begin
                     // 2 scenarios here :
                     // - R-TYPE : either add or sub and we need to a check for that
                     // - I-Type : aadi -> we use add arithmetic
-                    if(op == 7'b0110011) begin // R-type
+                    if(op == OPCODE_R_TYPE) begin // R-type
                         alu_control = (func7 == F7_SUB)? ALU_SUB : ALU_ADD;
                     end else begin // I-Type
                         alu_control = ALU_ADD;
@@ -243,15 +244,15 @@ always_comb begin
         ALU_OP_BRANCHES : begin
             case (func3)
                 // BEQ, BNE
-                F3_BEQ, F3_BNE : alu_control = 4'b0001;
+                F3_BEQ, F3_BNE : alu_control = ALU_SUB;
                 // BLT, BGE
-                F3_BLT, F3_BGE : alu_control = 4'b0101;
+                F3_BLT, F3_BGE : alu_control = ALU_SLT;
                 // BLTU, BGEU
-                F3_BLTU, F3_BGEU : alu_control = 4'b0111;
-                default : alu_control = 4'b1111;
+                F3_BLTU, F3_BGEU : alu_control = ALU_SLTU;
+                default : alu_control = ALU_ERROR; // undefinied, todo : TRAP ILLEGAL
             endcase
         end
-        default : alu_control = 4'b1111;
+        default : alu_control = ALU_ERROR; // undefinied, todo : TRAP ILLEGAL
     endcase
 end
 

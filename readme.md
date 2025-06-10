@@ -20,13 +20,13 @@ This project is a course you can follow to build the HOLY CORE and everything th
 
 The course is divided in multiple blocks to learn different aspects of digital design. The table below indicates availability of these learning blocks.
 
-| Block Name            | Status |
-| ----------            | ------ |
-| Single cycle edition  | FINISHED |
-| FPGA edition          | FINISHED |
-| Software edition      | CURRENTLY BUILDING |
-| Pipelined edition     | ON MY TODO LIST |
-| OS edition            | ON MY TODO LIST |
+| Block Name              | Status |
+| ----------              | ------ |
+| Single cycle edition    | FINISHED |
+| FPGA edition            | FINISHED |
+| SoC & Software Edition  | CURRENTLY BUILDING |
+| Pipelined edition       | ON MY TODO LIST |
+| OS edition              | ON MY TODO LIST |
 
 > The code will always be **open-source**. I do give the option to donate for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
 
