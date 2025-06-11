@@ -11,6 +11,7 @@
 
 import os
 from pathlib import Path
+from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 
 from cocotb.runner import get_runner
 
@@ -59,11 +60,11 @@ def test_holy_cache():
 
 def test_holy_data_cache():
     proj_path = Path(__name__).resolve().parent.parent
-    generic_tb_runner("holy_data_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_cache/axi_translator.sv"])
+    generic_tb_runner("holy_data_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_data_cache/axi_translator.sv"])
 
 def test_holy_data_no_cache():
     proj_path = Path(__name__).resolve().parent.parent
-    generic_tb_runner("holy_data_no_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_cache/axi_translator.sv"])
+    generic_tb_runner("holy_data_no_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_data_no_cache/axi_translator.sv"])
 
 
 def test_external_req_arbitrer():

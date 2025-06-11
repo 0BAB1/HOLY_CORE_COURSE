@@ -6,7 +6,7 @@ TOPLEVEL_LANG ?= verilog
 EXTRA_ARGS += --trace --trace-structs
 WAVES = 1
 
-VERILOG_SOURCES += $(PWD)/../../src/holy_data_cache.sv
+VERILOG_SOURCES += $(PWD)/../../src/holy_data_no_cache.sv
 EXTRA_ARGS += $(PWD)/../../packages/holy_core_pkg.sv
 EXTRA_ARGS += $(PWD)/../../packages/axi_if.sv
 EXTRA_ARGS += $(PWD)/../../packages/axi_lite_if.sv

@@ -10,6 +10,12 @@
 
 
 module axi_translator (
+    // Cpu Clock and Reset
+    input  logic                     clk,
+    input  logic                     rst_n,
+
+    // Axi Clock
+    input  logic                     aclk,
 
     // ==========
     // AXI LITE
@@ -117,10 +123,7 @@ module axi_translator (
         .byte_enable(cpu_byte_enable),
         .read_data(cpu_read_data),
         .cache_stall(cpu_cache_stall),
-        .cache_state(cache_state),
-
-        // debug interface
-        .set_ptr_out(set_ptr_out)
+        .cache_state(cache_state)
     );
     /* verilator lint_on PINMISSING */
 
