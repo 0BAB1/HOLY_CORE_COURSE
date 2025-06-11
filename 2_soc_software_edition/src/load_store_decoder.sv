@@ -3,7 +3,10 @@
 *
 * BRH 10/24
 *
-* Sits before the data cache and allows to feed the right signals into the cache's cpu interface.
+* Description : Sits before the data cache and allows to generates the
+*               right Byte Enable (BE) mask. It aslo pre-shifts the data
+*               for it to be aligned in case of byte/halfword operations.
+*
 */
 
 `timescale 1ns/1ps

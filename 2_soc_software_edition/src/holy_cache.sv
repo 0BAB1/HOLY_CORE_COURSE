@@ -1,11 +1,14 @@
-/** CACHE MODULE
+/** CACHE MODULE (INSTRUCTION)
 *
 *   Author : BRH
 *   Project : Holy Core V2
 *   Description : A 1 way direct mapped cache.
-*   Implementing AXI to request data from outside main memory.
-*   With a CPU interface for basic core request with stall signal.
-*   The goal is to allow the user to connect its own memory on FPGA.
+*                 Implementing AXI to request data from outside main memory.
+*                 With a CPU interface for basic core request with stall signal.
+*                 This cache only fetches 128x32bits word blocks at a time.
+*                 So it's mainly used as a basic instruction cache. It supports
+*                 Write back (automatic and manual flueshes) so it may be used
+*                 as some basic non-coherent data cache.
 *
 *   Created 11/24
 *   Modification : 05/25 (add manual flush support from incomming csr flag)

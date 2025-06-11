@@ -3,12 +3,15 @@
 *   Author : BRH
 *   Project : Holy Core V2
 *   Description : A 1 way direct mapped cache.
-*   Implementing AXI to request data from outside main memory.
-*   With a CPU interface for basic core request with stall signal.
-*   The goal is to allow the user to connect its own memory on FPGA.
+*                 Implementing AXI to request data from outside main memory.
+*                 With a CPU interface for basic core request with stall signal.
+*                 The goal is to allow the user to connect its own memory on FPGA.
+*                 It also supports non cachable ranges, which the use can set
+*                 using CSRs.
 *
 *   Created 11/24
-*   Modification : 05/25 (add manual flush support from incomming csr flag)
+*   Modifications: 05/25 Add manual flush support (BRH)
+*                  06/25 Add non cachable range support (BRH)
 */
 
 import holy_core_pkg::*;

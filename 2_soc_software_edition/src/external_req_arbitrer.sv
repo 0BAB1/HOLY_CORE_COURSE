@@ -1,10 +1,10 @@
-/** External AXI requests arbitrer MODULE
+/** External AXI requests arbitrer
 *
 *   Author : BRH
 *   Project : Holy Core V2
 *   Description : A simple arbitrer that muxes incomming
-*   AXI requests from data and instruction caches to a single AXI
-*   interface.
+*                 AXI requests from data and instruction caches to a single AXI
+*                 interface (just a big mux).
 */
 
 import holy_core_pkg::*;

@@ -65,8 +65,8 @@ jobs:
           cd 1_fpga_edition/tb
           pytest test_runner.py
 
-      # Run tests in soc_and_software_edition
-      - name: Run Tests in fpga_edition
+      # Run tests in soc_software_edition
+      - name: Run Tests in soc_software_edition
         run: |
           cd 2_soc_software_edition/tb
           pytest test_runner.py
