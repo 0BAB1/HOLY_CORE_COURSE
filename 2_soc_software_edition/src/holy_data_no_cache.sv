@@ -1,7 +1,7 @@
 /** UNCACHED DATA MEMORY MODULE
 *
 *   Author : BRH
-*   Project : Holy Core V2
+*   Project : Holy Core SoC & Software edition
 *   Description : A module able to get request for the CPU and load / write from
 *                 an AXI LITE Slave directly. This system is very suited for
 *                 simple SoC with lots of MMIO operation and with tighlty coupled
@@ -66,7 +66,7 @@ module holy_data_no_cache #(
     // Stall is asserted async but deasserted in sync !
     // Thus the comb and seq stall logic.
     logic comb_stall, seq_stall;
-    assign comb_stall = (next_state != IDLE) && (read_enable | actual_write_enable));
+    assign comb_stall = (next_state != IDLE) && (read_enable | actual_write_enable);
     assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done;
 
     // =======================
@@ -247,26 +247,5 @@ module holy_data_no_cache #(
         {8{byte_enable[1]}},
         {8{byte_enable[0]}}
     };
-
-    // Invariant AXI Signals
-
-    // ADDRESS CHANNELS
-    // -----------------
-    // WRITE Burst sizes are fixed type & len
-    assign axi.awlen = CACHE_SIZE-1; // full cache reloaded each time
-    assign axi.awsize = 3'b010; // 2^<awsize> = 2^2 = 4 Bytes
-    assign axi.awburst = 2'b01; // INCREMENT
-    // READ Burst sizes are fixed type & len
-    assign axi.arlen = CACHE_SIZE-1; // full cache reloaded each time
-    assign axi.arsize = 3'b010; // 2^<arsize> = 2^2 = 4 Bytes
-    assign axi.arburst = 2'b01; // INCREMENT
-    // W/R ids are always 0 (TODO maybe not)
-    assign axi.awid = 4'b0000;
-    assign axi.arid = 4'b0000;
-
-    // DATA CHANNELS
-    // -----------------
-    // Write data
-    assign axi.wstrb = 4'b1111; // We handle data masking in cache itself
 
 endmodule

@@ -1,9 +1,12 @@
-/*
-* HOLY CORE Control Status Register FILE
+/** CSR File
 *
-* BRH 05/25
+*   Author : BRH
+*   Project : Holy Core Fpga_edition
+*   Description : A simple arbitrer that muxes incomming
+*                 AXI requests from data and instruction caches to a single AXI
+*                 interface (just a big mux).
 *
-* CSR File to implement Zicsr & Zicntr
+*   Created 05/25
 */
 
 `timescale 1ns/1ps

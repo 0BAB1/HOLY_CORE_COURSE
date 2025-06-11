@@ -10,7 +10,7 @@
 
 module alu (
     // IN
-    input logic [3:0] alu_control,
+    input alu_control_t alu_control,
     input logic [31:0] src1,
     input logic [31:0] src2,
     // OUT

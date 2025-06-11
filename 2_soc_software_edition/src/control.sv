@@ -3,7 +3,7 @@
 *
 * BRH 10/24
 *
-* Generic control unit. Refer to the schematics.
+* Generic control unit. Refer to the schematics or pkg file.
 */
 
 `timescale 1ns/1ps

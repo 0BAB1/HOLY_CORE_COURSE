@@ -3,14 +3,21 @@
 *
 * BRH 10/24
 *
-* holy_core cpu. A simple core to solve simple problems. Thus the holyness ;)
-*
-* Yea, though I walk through the valley of the shadow of death,I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.
+* Description: Holy_core cpu top module.
+*              A simple core to solve simple problems. Thus the holyness ;)
+*              This top module may need wrappers to be implemented in SoCs.
+*              "Yea, though I walk through the valley of the shadow of death
+*              I will fear no evil: for thou art with me;
+*              thy rod and thy staff they comfort me."
 */
 
 `timescale 1ns/1ps
 
-module holy_core (
+module holy_core #(
+    // IF DCACHE_EN is 0, we only enerate the non cache version.
+    // Which is lighter, less complex and more suited to simple FPGA SoCs.
+    parameter DCACHE_EN = 0
+)(
     input logic clk,
     input logic rst_n,
     // AXI Interface for external requests
@@ -71,13 +78,71 @@ assign debug_mem_byte_en = mem_byte_enable;
 axi_if m_axi_data();
 axi_if m_axi_instr();
 
-external_req_arbitrer mr_l_arbitre(
-    .m_axi(m_axi),
-    .s_axi_instr(m_axi_instr),
-    .i_cache_state(i_cache_state),
-    .s_axi_data(m_axi_data),
-    .d_cache_state(d_cache_state)
-);
+generate
+    if (DCACHE_EN) begin : with_dcache
+        external_req_arbitrer mr_l_arbitre(
+            .m_axi(m_axi),
+            .s_axi_instr(m_axi_instr),
+            .i_cache_state(i_cache_state),
+            .s_axi_data(m_axi_data),
+            .d_cache_state(d_cache_state)
+        );
+    end else begin : no_dcache
+        // Directly assign m_axi_instr to m_axi
+        // manually because synthesis would not
+        // be happy otherwise
+        assign m_axi.awvalid = m_axi_instr.awvalid;
+        assign m_axi.awaddr  = m_axi_instr.awaddr;
+        assign m_axi.awprot  = m_axi_instr.awprot;
+        assign m_axi.awid    = m_axi_instr.awid;
+        assign m_axi.awlen   = m_axi_instr.awlen;
+        assign m_axi.awsize  = m_axi_instr.awsize;
+        assign m_axi.awburst = m_axi_instr.awburst;
+        assign m_axi.awlock  = m_axi_instr.awlock;
+        assign m_axi.awcache = m_axi_instr.awcache;
+        assign m_axi.awqos   = m_axi_instr.awqos;
+        assign m_axi.awregion= m_axi_instr.awregion;
+        assign m_axi.awuser  = m_axi_instr.awuser;
+
+        assign m_axi.wvalid  = m_axi_instr.wvalid;
+        assign m_axi.wdata   = m_axi_instr.wdata;
+        assign m_axi.wstrb   = m_axi_instr.wstrb;
+        assign m_axi.wlast   = m_axi_instr.wlast;
+        assign m_axi.wuser   = m_axi_instr.wuser;
+
+        assign m_axi.bready  = m_axi_instr.bready;
+
+        assign m_axi.arvalid = m_axi_instr.arvalid;
+        assign m_axi.araddr  = m_axi_instr.araddr;
+        assign m_axi.arprot  = m_axi_instr.arprot;
+        assign m_axi.arid    = m_axi_instr.arid;
+        assign m_axi.arlen   = m_axi_instr.arlen;
+        assign m_axi.arsize  = m_axi_instr.arsize;
+        assign m_axi.arburst = m_axi_instr.arburst;
+        assign m_axi.arlock  = m_axi_instr.arlock;
+        assign m_axi.arcache = m_axi_instr.arcache;
+        assign m_axi.arqos   = m_axi_instr.arqos;
+        assign m_axi.arregion= m_axi_instr.arregion;
+        assign m_axi.aruser  = m_axi_instr.aruser;
+
+        assign m_axi_instr.awready = m_axi.awready;
+        assign m_axi_instr.wready  = m_axi.wready;
+        assign m_axi_instr.bvalid  = m_axi.bvalid;
+        assign m_axi_instr.bid     = m_axi.bid;
+        assign m_axi_instr.bresp   = m_axi.bresp;
+        assign m_axi_instr.buser   = m_axi.buser;
+
+        assign m_axi_instr.arready = m_axi.arready;
+        assign m_axi_instr.rvalid  = m_axi.rvalid;
+        assign m_axi_instr.rdata   = m_axi.rdata;
+        assign m_axi_instr.rresp   = m_axi.rresp;
+        assign m_axi_instr.rlast   = m_axi.rlast;
+        assign m_axi_instr.rid     = m_axi.rid;
+        assign m_axi_instr.ruser   = m_axi.ruser;
+
+        assign m_axi.rready = m_axi_instr.rready;
+    end
+endgenerate
 
 /**
 * PROGRAM COUNTER 
@@ -362,38 +427,69 @@ load_store_decoder ls_decode(
 wire [31:0] mem_read;
 cache_state_t d_cache_state;
 
-holy_data_cache data_cache (
-    .clk(clk),
-    .rst_n(rst_n),
+// IF DCACHE_EN is 0, we only enerate the non cache version.
+// Which is lighter, less complex and more suited to simple FPGA SoCs.
+generate
+    if (DCACHE_EN) begin : gen_data_cache
+        holy_data_cache data_cache (
+            .clk(clk),
+            .rst_n(rst_n),
 
-    .aclk(m_axi.aclk),
+            .aclk(m_axi.aclk),
 
-    // CPU IF
-    .address(alu_result),
-    .write_data(mem_write_data),
-    .read_enable(mem_read_enable),
-    .write_enable(mem_write_enable),
-    .byte_enable(mem_byte_enable),
-    .read_data(mem_read),
-    .cache_stall(d_cache_stall),
+            // CPU IF
+            .address(alu_result),
+            .write_data(mem_write_data),
+            .read_enable(mem_read_enable),
+            .write_enable(mem_write_enable),
+            .byte_enable(mem_byte_enable),
+            .read_data(mem_read),
+            .cache_stall(d_cache_stall),
 
-    // Incomming CSR orders
-    .csr_flush_order(csr_flush_order),
-    .non_cachable_base(csr_non_cachable_base),
-    .non_cachable_limit(csr_non_cachable_limit),
+            // CSR
+            .csr_flush_order(csr_flush_order),
+            .non_cachable_base(csr_non_cachable_base),
+            .non_cachable_limit(csr_non_cachable_limit),
 
-    // M_AXI EXERNAL REQ IF
-    .axi(m_axi_data),
-    .axi_lite(m_axi_lite),
-    .cache_state(d_cache_state),
+            // AXI
+            .axi(m_axi_data),
+            .axi_lite(m_axi_lite),
+            .cache_state(d_cache_state),
 
-    // CACHE DEBUG SIGNAL
-    .set_ptr_out(debug_d_set_ptr),
-    .next_set_ptr_out(debug_d_next_set_ptr),
-    .debug_seq_stall(debug_d_cache_seq_stall),
-    .debug_comb_stall(debug_d_cache_comb_stall),
-    .debug_next_cache_state(debug_d_cache_next_state)
-);
+            // Debug
+            .set_ptr_out(debug_d_set_ptr),
+            .next_set_ptr_out(debug_d_next_set_ptr),
+            .debug_seq_stall(debug_d_cache_seq_stall),
+            .debug_comb_stall(debug_d_cache_comb_stall),
+            .debug_next_cache_state(debug_d_cache_next_state)
+        );
+    end else begin : gen_data_no_cache
+        holy_data_no_cache data_no_cache (
+            .clk(clk),
+            .rst_n(rst_n),
+
+            .aclk(m_axi.aclk),
+
+            // CPU IF
+            .address(alu_result),
+            .write_data(mem_write_data),
+            .read_enable(mem_read_enable),
+            .write_enable(mem_write_enable),
+            .byte_enable(mem_byte_enable),
+            .read_data(mem_read),
+            .cache_stall(d_cache_stall),
+
+            // AXI LITE only
+            .axi_lite(m_axi_lite),
+            .cache_state(d_cache_state),
+
+            // Debug
+            .debug_seq_stall(debug_d_cache_seq_stall),
+            .debug_comb_stall(debug_d_cache_comb_stall),
+            .debug_next_cache_state(debug_d_cache_next_state)
+        );
+    end
+endgenerate
 
 /**
 * READER
