@@ -81,7 +81,6 @@ module holy_data_no_cache #(
             axi_lite_tx_done <= 1'b0;
         end else begin
             seq_stall <= comb_stall;
-            csr_flushing <= next_csr_flushing;
             axi_lite_tx_done <= next_axi_lite_tx_done;
 
             if(axi_lite.rvalid && state == LITE_RECEIVING_READ_DATA && axi_lite.rready) begin
@@ -95,6 +94,8 @@ module holy_data_no_cache #(
     always_ff @(posedge aclk) begin
         if (~rst_n) begin
             state <= IDLE;
+        end else begin
+            state <= next_state;
         end
     end
 
@@ -104,11 +105,21 @@ module holy_data_no_cache #(
     always_comb begin
         // State transition 
         next_state = state; // Default
-        next_cache_valid = cache_valid;
         next_axi_lite_tx_done = axi_lite_tx_done;
 
         // AXI LITE DEFAULT
-        axi_lite.wstrb = 4'b1111; // we write all by default.
+        axi_lite.wstrb = byte_enable;
+        axi_lite.araddr  = address;
+        axi_lite.wdata   = write_data;
+        axi_lite.awaddr  = {address[31:2],2'b00};
+        axi_lite.arvalid = 0;
+        axi_lite.awvalid = 0;
+        axi_lite.wvalid  = 0;
+        axi_lite.bready  = 0;
+        axi_lite.rready  = 0;
+
+        // READ DATA ALWAYS OUT
+        read_data = axi_lite_read_result;
 
         case (state)
             IDLE: begin
@@ -118,12 +129,10 @@ module holy_data_no_cache #(
                     next_state = LITE_SENDING_READ_REQ;
                 end
 
-                else if ( write_enable & ~axi_lite_tx_done ) begin
+                else if ( actual_write_enable & ~axi_lite_tx_done ) begin
                     next_state = LITE_SENDING_WRITE_REQ;
                 end
 
-                // READ DATA ALWAYS OUT
-                read_data = axi_lite_read_result;
 
                 // -----------------------------------
                 // IDLE AXI LITE SIGNALS : no request
@@ -199,9 +208,6 @@ module holy_data_no_cache #(
             end
 
             LITE_SENDING_READ_REQ : begin
-                // HANDLE MISS : Read
-                axi_lite.araddr = address;
-                
                 if(axi_lite.arready) begin
                     next_state = LITE_RECEIVING_READ_DATA;
                 end
