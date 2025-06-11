@@ -93,44 +93,34 @@ generate
         // be happy otherwise
         assign m_axi.awvalid = m_axi_instr.awvalid;
         assign m_axi.awaddr  = m_axi_instr.awaddr;
-        assign m_axi.awprot  = m_axi_instr.awprot;
         assign m_axi.awid    = m_axi_instr.awid;
         assign m_axi.awlen   = m_axi_instr.awlen;
         assign m_axi.awsize  = m_axi_instr.awsize;
         assign m_axi.awburst = m_axi_instr.awburst;
         assign m_axi.awlock  = m_axi_instr.awlock;
-        assign m_axi.awcache = m_axi_instr.awcache;
         assign m_axi.awqos   = m_axi_instr.awqos;
-        assign m_axi.awregion= m_axi_instr.awregion;
-        assign m_axi.awuser  = m_axi_instr.awuser;
 
         assign m_axi.wvalid  = m_axi_instr.wvalid;
         assign m_axi.wdata   = m_axi_instr.wdata;
         assign m_axi.wstrb   = m_axi_instr.wstrb;
         assign m_axi.wlast   = m_axi_instr.wlast;
-        assign m_axi.wuser   = m_axi_instr.wuser;
 
         assign m_axi.bready  = m_axi_instr.bready;
 
         assign m_axi.arvalid = m_axi_instr.arvalid;
         assign m_axi.araddr  = m_axi_instr.araddr;
-        assign m_axi.arprot  = m_axi_instr.arprot;
         assign m_axi.arid    = m_axi_instr.arid;
         assign m_axi.arlen   = m_axi_instr.arlen;
         assign m_axi.arsize  = m_axi_instr.arsize;
         assign m_axi.arburst = m_axi_instr.arburst;
         assign m_axi.arlock  = m_axi_instr.arlock;
-        assign m_axi.arcache = m_axi_instr.arcache;
         assign m_axi.arqos   = m_axi_instr.arqos;
-        assign m_axi.arregion= m_axi_instr.arregion;
-        assign m_axi.aruser  = m_axi_instr.aruser;
 
         assign m_axi_instr.awready = m_axi.awready;
         assign m_axi_instr.wready  = m_axi.wready;
         assign m_axi_instr.bvalid  = m_axi.bvalid;
         assign m_axi_instr.bid     = m_axi.bid;
         assign m_axi_instr.bresp   = m_axi.bresp;
-        assign m_axi_instr.buser   = m_axi.buser;
 
         assign m_axi_instr.arready = m_axi.arready;
         assign m_axi_instr.rvalid  = m_axi.rvalid;
@@ -138,8 +128,6 @@ generate
         assign m_axi_instr.rresp   = m_axi.rresp;
         assign m_axi_instr.rlast   = m_axi.rlast;
         assign m_axi_instr.rid     = m_axi.rid;
-        assign m_axi_instr.ruser   = m_axi.ruser;
-
         assign m_axi.rready = m_axi_instr.rready;
     end
 endgenerate
