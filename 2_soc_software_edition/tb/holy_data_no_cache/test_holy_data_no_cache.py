@@ -68,11 +68,6 @@ async def reset(dut):
 
     print("reset done !")
 
-    # Assert all is 0 after reset
-    for cache_line in range(dut.cache_system.CACHE_SIZE.value):
-        assert read_cache(dut.cache_system.cache_data, cache_line) == 0
-        #assert int(dut.cache_system.cache_data[cache_line].value) == 0
-
     #dump_cache(dut.cache_system.cache_data, "*")
 
 @cocotb.test()
@@ -130,24 +125,17 @@ async def main_test(dut):
         # NON CACHED WRITE TEST
         # ==================================
 
-        # Set the non cachable range that will use AXI LITE for communication with axi_lite_ram tb slave
-        # Set cachable range to 0 for now to fully test the cache
-        dut.cache_system.non_cachable_base.value = 0x0000_0000
-        dut.cache_system.non_cachable_limit.value = 0x0000_0800
-        dut.cpu_byte_enable.value = 0b1111 # We fix write to full words for now. TODO : set axi_lite.wstrb to siupport this ! 10min job !
-        await Timer(1, units="ns")
-
         # Now prepare a write request from the CPU, state should go towards LITE_SENDING_WRITE_REQ
         # TEST CORRECTION BRH : also get addres out ouf cached to test edge case on hit signal...
         dut.cpu_address.value = 0x404 # in the non cachable range ! AND not cached as well
         dut.cpu_write_enable.value = 0b1
         dut.cpu_read_enable.value = 0b0
+        dut.cpu_byte_enable.value = 0b1111
         dut.cpu_write_data.value = 0xABCDABCD # data we are looking to write ...
         await Timer(1, units="ns") # propagate ...
 
         # whithout a clock cycle, the core should stall and next state should be LITE_SENDING_WRITE_REQ
         assert dut.cpu_cache_stall.value == 0b1
-        assert dut.cache_system.non_cachable.value == 0b1
         assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_REQ
 
         # Then we switch to AXI LITE write
@@ -155,7 +143,6 @@ async def main_test(dut):
         await Timer(1, units="ns")
         
         assert dut.cpu_cache_stall.value == 0b1
-        assert dut.cache_system.non_cachable.value == 0b1
         assert dut.cache_system.state.value == LITE_SENDING_WRITE_REQ
 
         # Assuming memory is ready, request is acknowledged and we are about to sed data
@@ -239,7 +226,6 @@ async def main_test(dut):
 
         # cpu should stall immediatly and prepare to switch state to LITE_SENDING_READ_REQ
         assert dut.cpu_cache_stall.value == 0b1
-        assert dut.cache_system.non_cachable.value == 0b1
         assert dut.cache_system.next_state.value == LITE_SENDING_READ_REQ
         # should immediatly start outputtin the data in axi_read_result,(even if its outdated)
         old_data_in_axi_read_result = dut.cache_system.axi_lite_read_result.value
