@@ -2345,7 +2345,7 @@ The clock speed is set to 50MHz in my example.
 
 We can now launch bitstream generation & flash the said bitstream onto the board. We'll be greeted by the ILA dubugger that we can leverage to check on our live debug signals.
 
-![ila debugging](../images/ila.png)
+![ila debugging](../images/ila2.png)
 
 > If you are not familiar with ILA debugging yet, it is a very powerful tool that you should learn. See the resources to learn more.
 
