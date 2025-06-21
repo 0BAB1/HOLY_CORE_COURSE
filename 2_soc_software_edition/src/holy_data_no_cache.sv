@@ -244,8 +244,6 @@ module holy_data_no_cache #(
         endcase
     end
 
-    logic [6:0] set_ptr;
-    logic [6:0] next_set_ptr;
     wire [31:0] byte_enable_mask;
     assign byte_enable_mask = {
         {8{byte_enable[3]}},

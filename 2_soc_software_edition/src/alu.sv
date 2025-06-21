@@ -8,6 +8,8 @@
 
 `timescale 1ns/1ps
 
+import holy_core_pkg::*;
+
 module alu (
     // IN
     input alu_control_t alu_control,
@@ -18,8 +20,6 @@ module alu (
     output logic zero,
     output logic last_bit
 );
-
-import holy_core_pkg::*;
 
 wire [4:0] shamt = src2[4:0];
 
