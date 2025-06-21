@@ -8,6 +8,8 @@
 
 `timescale 1ns/1ps
 
+import holy_core_pkg::*;
+
 module control (
     // IN
     input opcode_t op,
@@ -30,7 +32,6 @@ module control (
     output logic csr_write_enable
 );
 
-import holy_core_pkg::*;
 logic illegal_instr;
 
 /**
