@@ -52,8 +52,8 @@ Before diving into the tutorials, it is **mandatory** to setup your environment 
 Once the setup is done you can start working on the *single cycle edition* tutorial.
 
 1. [Setup your project](./setup.md)
-2. [Build a basic single core](./single_cycle_edition/single_cycle_edition.md)
-3. [Add memory and GPIO interfacing (Cache + AXI) / Use Vivado to impl on FPGA / Run real software](./fpga_edition/fpga_edition.md)
+2. [Build a basic single core](./0_single_cycle_edition/single_cycle_edition.md)
+3. [Add memory and GPIO interfacing (Cache + AXI) / Use Vivado to impl on FPGA / Run real software](./1_fpga_edition/fpga_edition.md)
 
 Happy learning !
 
@@ -106,6 +106,19 @@ Report from an implementation report made on Vivado for the Zybo-Z7-20 board fea
 
 | Module               | Slice LUTs | Slice Registers |
 |----------------------|------------|------------------|
+| `core`               | 3962       | 5463             |
+| └─ `control_unit`    | 88         | 7                |
+| └─ `data_no_cache`   | 47         | 37               |
+| └─ `holy_csr_file`   | 1          | 96               |
+| └─ `instr_cache`     | 3096       | 4247             |
+| └─ `ls_decode`       | 0          | 32               |
+| └─ `regfile`         | 772        | 992              |
+| └─ `sign_extender`   | 27         | 0                |
+
+And with `DCACHE_EN = 1`, enabling the data cache :
+
+| Module               | Slice LUTs | Slice Registers |
+|----------------------|------------|------------------|
 | `core`               | 6715       | 9809             |
 | └─ `control_unit`    | 175        | 7                |
 | └─ `data_cache`      | 2468       | 4383             |
@@ -115,7 +128,9 @@ Report from an implementation report made on Vivado for the Zybo-Z7-20 board fea
 | └─ `regfile`         | 856        | 992              |
 | └─ `sign_extender`   | 25         | 0                |
 
-Last update: 7th of june 2025.
+Last update: 22nd of june 2025.
+
+> Side note: The original *fpga_edition*'s data cache, which behavior can be control at runtime via CSRs is not very efficient and can cause non-coherence problem on larger applications, it was made for learning purposes but it's not recommended to use it on real embedded projects, unless it's computation heavy over very small memory ranges.
 
 The Entire SoC is far larger and the total utilization is nearly 20_000 Luts and 25_500 Registers, Dominateed by the `AXI Smartconnect` and the `ILA` debugger.
 
