@@ -38,11 +38,11 @@ AAA9EA13  //ORI TEST START :    ori x20 x19 0xAAA   | x20 <= FFFFFEEF
 FFFAF993  //                    andi x19 x21 0xFFF  | x19 <= FFFFFEEF
 000AFA13  //                    andi x20 x21 0x000  | x20 <= 00000000
 00499993  //SLLI TEST START :   slli x19 x19 0x4    | x19 <= FFFFEEF0
-02499993  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SL)
+00000013  //NOP
 0049DA13  //SRLI TEST START :   srli x20 x19 0x4    | x20 <= 0FFFFEEF
-0249DA13  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
+00000013  //NOP
 404ADA93  //SRAI TEST START :   srai x21 x21 0x4    | x21 <= FFFFFFEE
-424ADA93  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
+00000013  //NOP
 412A8933  //SUB TEST START :    sub x18 x21 x18     | x18 <= FFFFF8FF
 00800393  //SLL TEST START :    addi x7 x0 0x8      | x7  <= 00000008
 00791933  //                    sll x18 x18 x7      | x18 <= FFF8FF00
@@ -98,7 +98,7 @@ ABCD1B37  //                    lui x22 0xABCD1     | x22 <= ABCD1000
 016A2023  //                    sw x22 0(x20)       | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
 004A2B03  //                    lw x22 4(x20)       | x22 <= 00000000 / AXI LITE TX
 000A2B03  //                    lw x22 0(x20)       | x22 <= ABCD1111 / AXI LITE TX
-00000013  //NOP
+00000013  // 
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

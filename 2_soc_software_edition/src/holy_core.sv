@@ -24,12 +24,10 @@ module holy_core #(
     axi_if.master m_axi,
     axi_lite_if.master m_axi_lite,
 
-
-
     // DEBUG SIGNALS FOR LOGIC ANALYSERS
     output logic [31:0] debug_pc,  
     output logic [31:0] debug_pc_next,
-    output logic debug_pc_source,
+    output logic [1:0] debug_pc_source,
     output logic [31:0] debug_instruction,  
     output logic [3:0] debug_i_cache_state,  
     output logic [3:0] debug_d_cache_state,
@@ -148,14 +146,20 @@ logic i_cache_stall;
 assign stall = d_cache_stall | i_cache_stall;
 
 always_comb begin : pc_select
-    case(stall)
-        1'b0 : pc_plus_four = pc + 32'd4;
-        1'b1 : pc_plus_four = pc + 32'd0;
-    endcase
-    case (pc_source & ~stall)
-        1'b0 : pc_next = pc_plus_four; // pc + 4
-        1'b1 : pc_next = pc_plus_second_add;
-    endcase
+    pc_plus_four = pc + 4;
+
+    // STALL has PRIORITY over all PC selection, when it is high, next pc
+    // Will stay the excat same !
+    if(stall)begin
+        pc_next = pc;
+    end else begin
+        case (pc_source)
+            SOURCE_PC_PLUS_4 : pc_next = pc_plus_four;
+            SOURCE_PC_SECOND_ADD : pc_next = pc_plus_second_add;
+            SOURCE_PC_MTVEC : pc_next = csr_mtvec;
+            SOURCE_PC_MEPC : pc_next = csr_mepc;
+        endcase
+    end
 end
 
 always_comb begin : second_add_select
@@ -228,32 +232,53 @@ imm_source_t imm_source;
 wire mem_write_enable;
 wire mem_read_enable;
 wire reg_write;
+// trap (exception and return) related outs
+logic m_ret;
+logic exception;
+logic [30:0] exception_cause;
 // out muxes wires
 alu_source_t alu_source;
 wb_source_t write_back_source;
-wire pc_source;
+pc_source_t pc_source;
 second_add_source_t second_add_source;
 csr_wb_source_t csr_write_back_source;
 
 control control_unit(
+    .instr(instruction),
     .op(op),
     .func3(f3),
-    .func7(f7), // we still don't use f7 (YET)
+    .func7(f7),
     .alu_zero(alu_zero),
     .alu_last_bit(alu_last_bit),
 
-    // OUT
+    // CONTROL OUT
     .alu_control(alu_control),
     .imm_source(imm_source),
     .mem_write(mem_write_enable),
     .mem_read(mem_read_enable),
     .reg_write(reg_write),
     .csr_write_back_source(csr_write_back_source),
-    .csr_write_enable(csr_write_enable),
     .alu_source(alu_source),
     .write_back_source(write_back_source),
     .pc_source(pc_source),
-    .second_add_source(second_add_source)
+    .second_add_source(second_add_source),
+    .csr_write_enable(csr_write_enable),
+
+    // TRAP HANDLING INFOS IN
+    // to handle traps, control and csr work toghter.
+    // note : clk and rst used to keep track of
+    //  pending traps when stalling.
+    .clk(clk),
+    .rst_n(rst_n),
+    .trap(trap),
+    .stall(stall),
+
+    // TRAP INFOS OUT
+    // these communicate informations on sync exceptions
+    // and return to csr file.
+    .m_ret(m_ret),
+    .exception(exception),
+    .exception_cause(exception_cause)
 );
 
 /**
@@ -350,6 +375,12 @@ assign csr_address = instruction[31:20];
 logic [31:0] csr_read_data;
 logic csr_write_enable;
 
+// Trap related signals
+logic trap;
+logic [31:0] csr_mtvec;
+logic [31:0] csr_mepc;
+
+
 // csr orders
 logic csr_flush_order;
 logic [31:0] csr_non_cachable_base;
@@ -363,11 +394,33 @@ csr_file holy_csr_file(
     .write_data(csr_write_back_data),
     .write_enable(csr_write_enable),
     .address(csr_address),
-    //out
+    .current_core_pc(pc),
+
+    // interrupts in
+    .timer_itr(1'b0),
+    .soft_itr(1'b0),
+    .ext_itr(1'b0),
+
+    // infos from control
+    .m_ret(m_ret),
+    .exception(exception),
+    .exception_cause(exception_cause),
+
+    // out
     .read_data(csr_read_data),
     .flush_cache_flag(csr_flush_order),
     .non_cachable_base_addr(csr_non_cachable_base),
-    .non_cachable_limit_addr(csr_non_cachable_limit)
+    .non_cachable_limit_addr(csr_non_cachable_limit),
+
+    // trap request signal
+    // This trap flag is high for 1 cycle and until
+    // m_ret is asserted, the CSR will not be able to
+    // recreate a trap request.
+    // No handshake, this simple design assumes control will
+    // register it and adapt pc_next accordignly
+    .trap(trap),
+    .csr_mtvec(csr_mtvec),
+    .csr_mepc(csr_mepc)
 );
 
 /**

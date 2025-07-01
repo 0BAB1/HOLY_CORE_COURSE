@@ -3,7 +3,12 @@
 *
 * BRH 10/24
 *
-* Generic control unit. Refer to the schematics or pkg file.
+* Description : Generic control unit. 
+*               Refer to the schematics or pkg file.
+*               It also sends exception infos, consmed by CSR file.
+*               It also get trap confirmation from csr_file to set
+*               control signals accordingly.
+* 
 */
 
 `timescale 1ns/1ps
@@ -189,6 +194,7 @@ always_comb begin
             case (func3)
                 // === ECALL & EBREAK ===
                 3'b000: begin
+                    csr_write_enable = 1'b0; // set to one in case if csr realted
                     exception = 0;
                     // Check immediate field to know if ECALL or EBREAK
                     if (instr[31:20] == 12'b0000_0000_0000) begin
@@ -222,11 +228,22 @@ always_comb begin
                     if(~func3[2])   csr_write_back_source = CSR_WB_SOURCE_RD;
                     csr_write_enable = 1'b1;
                 end
-                default:;
+                default: begin
+                    csr_write_enable = 1'b0;
+                end
             endcase
         end
         default:;
     endcase
+
+    // Final validation => if an exception is detected, CPU state should NOT be affected !
+    if(trap || trap_pending) begin
+        csr_write_enable = 1'b0;
+        reg_write = 1'b0;
+        mem_write = 1'b0;
+        jump = 1'b0;
+        branch = 1'b0;
+    end
 end
 
 /**
@@ -313,6 +330,8 @@ always_comb begin : pc_source_select
     pc_source = SOURCE_PC_PLUS_4;
     if (trap || trap_pending) begin
         pc_source = SOURCE_PC_MTVEC;
+    end else if (m_ret) begin
+        pc_source = SOURCE_PC_MEPC;
     end
     else if (op == OPCODE_B_TYPE && assert_branch) begin
         pc_source = SOURCE_PC_SECOND_ADD;
@@ -334,7 +353,7 @@ end
 // This is safe because our core is simple and fully synchronous.
 // This may be a concern for more complex pipelined designs.
 
-always_ff @( posedge clk ) begin : trap_latch
+always_ff @( posedge clk ) begin : trap_latch_logic
     if(~rst_n) begin
         trap_pending <= 1'b0;
     end else begin
@@ -355,7 +374,7 @@ end
 * DEFINE "VALID" WIRES
 */
 
-// TODO : declare all in pkg. But fuck that for now...
+// TODO : declare all in pkg. But f̶u̶c̶k̶ screw that for now...
     
 // === VALID FUNC3 / FUNC7 for RV32I ===
 
@@ -373,11 +392,11 @@ wire valid_store_func3 = (func3 == 3'b000) || // SB
 
 // ALU I-type ops (ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
 wire valid_alu_func3 = (func3 == 3'b000) || // ADDI
-                       (func3 == 3'b001) || // SLLI (shift left logical immediate)
+                       (func3 == 3'b001 && func7 == 7'h00 ) || // SLLI (shift left logical immediate)
                        (func3 == 3'b010) || // SLTI
                        (func3 == 3'b011) || // SLTIU
                        (func3 == 3'b100) || // XORI
-                       (func3 == 3'b101) || // SRLI and SRAI (distinguished by func7)
+                       (func3 == 3'b101 && (func7 == 7'h00|| func7 == 7'h20)) || // SRLI and SRAI (distinguished by func7)
                        (func3 == 3'b110) || // ORI
                        (func3 == 3'b111);   // ANDI
 

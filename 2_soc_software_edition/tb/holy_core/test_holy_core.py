@@ -110,7 +110,7 @@ async def cpu_insrt_test(dut):
 
     ##################
     # SAVE BASE ADDR IN X3
-    # 00000193  //DATA ADDR STORE                         | x3  <= 00001000
+    # 000011B7  //DATA ADDR STORE                         | x3  <= 00001000
     ##################
     print("\n\nSAVING DATA BASE ADDR\n\n")
 
@@ -119,6 +119,7 @@ async def cpu_insrt_test(dut):
         await RisingEdge(dut.clk)
 
     await RisingEdge(dut.clk) # lui x3 0x1
+    await Timer(1, units="ns")
     # Check the value of reg x18
     assert binary_to_hex(dut.core.regfile.registers[3].value) == "00001000"
 
@@ -420,7 +421,7 @@ async def cpu_insrt_test(dut):
     
     ##################
     # 00499993  //SLLI TEST START :   slli x19 x19 0x4    | x19 <= FFFFEEF0
-    # 02499993  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SL)
+    # OP
     ##################
     print("\n\nTESTING SLLI\n\n")
 
@@ -430,14 +431,11 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # slli x19 x19 0x4
     assert binary_to_hex(dut.core.regfile.registers[19].value) == "FFFFEEF0"
 
-    # the op is invalid ! reg_write should be 0 in order not to alter CPU state
-    assert dut.core.reg_write.value == "0" 
-    await RisingEdge(dut.clk) # invalid op test
-    assert binary_to_hex(dut.core.regfile.registers[19].value) == "FFFFEEF0"
+    await RisingEdge(dut.clk) # NOP
 
     ##################
     # 0049DA13  //SRLI TEST START :   srli x20 x19 0x4    | x20 <= 0FFFFEEF
-    # 0249DA13  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
+    # NOP
     ##################
     print("\n\nTESTING SRLI\n\n")
 
@@ -447,14 +445,12 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # srli x20 x19 0x4
     assert binary_to_hex(dut.core.regfile.registers[20].value) == "0FFFFEEF"
 
-    # the op is invalid ! reg_write should be 0 in order not to alter CPU state
-    assert dut.core.reg_write.value == "0" 
-    await RisingEdge(dut.clk) # invalid op test
-    assert binary_to_hex(dut.core.regfile.registers[20].value) == "0FFFFEEF"
+    await RisingEdge(dut.clk) # NOP
+
 
     ##################
     # 404ADA93  //SRAI TEST START :   srai x21 x21 0x4    | x21 <= FFFFFFEE
-    # 424ADA93  //                    invalid op test     | NO CHANGE ! (wrong "F7" for SR)
+    # NOP
     ##################
     print("\n\nTESTING SRAI\n\n")
 
@@ -464,10 +460,7 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # srai x21 x21 0x4
     assert binary_to_hex(dut.core.regfile.registers[21].value) == "FFFFFFEE"
 
-    # the op is invalid ! reg_write should be 0 in order not to alter CPU state
-    assert dut.core.reg_write.value == "0" 
-    await RisingEdge(dut.clk) # invalid op test
-    assert binary_to_hex(dut.core.regfile.registers[21].value) == "FFFFFFEE"
+    await RisingEdge(dut.clk) # NOP
 
     ##################
     # 412A8933  //SUB TEST START :    sub x18 x21 x18     | x18 <= FFFFF8FF

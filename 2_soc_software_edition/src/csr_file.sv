@@ -44,7 +44,9 @@ module csr_file (
     output logic [31:0]  non_cachable_limit_addr,
 
     // Trap handling
-    output logic trap
+    output logic trap,
+    output logic [31:0] csr_mtvec,
+    output logic [31:0] csr_mepc
 );
 
 /*  
