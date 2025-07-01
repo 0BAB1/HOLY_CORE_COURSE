@@ -6,7 +6,7 @@ Welcome back ! Let's get you up to speed how how we'll setup our project to star
 
 ### Prerequisites
 
-I suggest you use **LINUX** as the tech stack used is fully open source, meaning most of the support is towards linux. Windows might work, but I did not even try.
+I suggest you use **LINUX** (or MacOS) as the tech stack used is fully open source, meaning most of the support is towards linux. Windows might work, but I did not even try.
 
 You also need to install the stack described below.
 

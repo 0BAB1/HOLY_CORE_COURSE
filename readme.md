@@ -41,6 +41,8 @@ To start this course you need to have these basics down :
 - SystemVerilog / HDL knowledge.
 - Have a linux distro (you can do it on windows, glhf)
 
+> Side note : the cocotb / verilator testing tools works fine on MacOS
+
 **Please check out the [setup manual](./setup.md) before starting the course !**
 
 Use it to setup your environment properly before working on the tutorial

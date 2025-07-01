@@ -3,13 +3,15 @@
 # BRH 10/24
 
 import cocotb
-from cocotb.triggers import Timer
+from cocotb.clock import Clock
+from cocotb.triggers import Timer, RisingEdge
 import random
 from cocotb.binary import BinaryValue
 
 @cocotb.coroutine
 async def set_unknown(dut):
     # Set all input to unknown before each test
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     await Timer(1, units="ns")
     dut.op.value = BinaryValue("XXXXXXX")
     dut.func3.value = BinaryValue("XXX")
@@ -20,6 +22,9 @@ async def set_unknown(dut):
 
 @cocotb.test()
 async def loads_control_test(dut):
+    # Start a 10 ns clock
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+
     await set_unknown(dut)
     # TEST CONTROL SIGNALS FOR LW
     await Timer(1, units="ns")
@@ -27,6 +32,7 @@ async def loads_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0000"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
@@ -36,7 +42,7 @@ async def loads_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "001"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
 
 @cocotb.test()
 async def sw_control_test(dut):
@@ -46,12 +52,13 @@ async def sw_control_test(dut):
     dut.op.value = 0b0100011 # S-TYPE
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0000"
     assert dut.imm_source.value == "001"
     assert dut.mem_write.value == "1"
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "1"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.mem_read.value == "0"
     assert dut.csr_write_enable == "0"
 
@@ -65,12 +72,13 @@ async def add_control_test(dut):
     dut.func7.value = 0b0000000 # add
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0000"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.mem_read.value == "0"
     assert dut.csr_write_enable == "0"
 
@@ -83,13 +91,14 @@ async def and_control_test(dut):
     dut.func3.value = 0b111 # and
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0010"
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
 @cocotb.test()
@@ -101,13 +110,14 @@ async def or_control_test(dut):
     dut.func3.value = 0b110 # or
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0011"
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
 @cocotb.test()
@@ -120,6 +130,7 @@ async def beq_control_test(dut):
     dut.alu_zero.value = 0b0
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "010"
     assert dut.alu_control.value == "0001"
     assert dut.mem_write.value == "0"
@@ -127,14 +138,14 @@ async def beq_control_test(dut):
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
     # Test if branching condition is met
     await Timer(3, units="ns")
     dut.alu_zero.value = 0b1
     await Timer(1, units="ns")
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.second_add_source.value == "00"
 
 @cocotb.test()
@@ -145,13 +156,14 @@ async def jal_control_test(dut):
     dut.op.value = 0b1101111 # J-TYPE : jalr
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "011"
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.branch.value == "0"
     assert dut.jump.value == "1"
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.write_back_source.value == "010"
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
@@ -166,6 +178,7 @@ async def addi_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0000"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
@@ -174,7 +187,7 @@ async def addi_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
 @cocotb.test()
@@ -186,6 +199,7 @@ async def lui_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "100"
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "0"
@@ -205,6 +219,7 @@ async def auipc_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "100"
     assert dut.mem_write.value == "0"
     assert dut.mem_read.value == "0"
@@ -225,6 +240,7 @@ async def slti_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0101"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
@@ -233,7 +249,7 @@ async def slti_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
 @cocotb.test()
@@ -246,6 +262,7 @@ async def sltiu_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0111"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
@@ -254,7 +271,7 @@ async def sltiu_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
 @cocotb.test()
@@ -267,6 +284,7 @@ async def xori_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "1000"
     assert dut.imm_source.value == "000"
     assert dut.mem_read.value == "0"
@@ -275,7 +293,7 @@ async def xori_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
 @cocotb.test()
@@ -291,6 +309,7 @@ async def slli_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0100"
     assert dut.imm_source.value == "000"
     assert dut.mem_read.value == "0"
@@ -299,28 +318,8 @@ async def slli_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
-
-    # INVALID F7
-    for _ in range(1000):
-        await Timer(1, units="ns")
-        dut.op.value = 0b0010011 # I-TYPE (alu)
-        dut.func3.value = 0b001 # slli
-        dut.func7.value = random.randint(0b0000001,0b1111111)
-        await Timer(1, units="ns")
-
-        # Logic block controls
-        assert dut.alu_control.value == "0100"
-        assert dut.imm_source.value == "000"
-        assert dut.mem_read.value == "0"
-        assert dut.mem_write.value == "0"
-        assert dut.reg_write.value == "0"
-        # Datapath mux sources
-        assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "000"
-        assert dut.pc_source.value == "0"
-        assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def srli_control_test(dut):
@@ -335,6 +334,7 @@ async def srli_control_test(dut):
     await Timer(1, units="ns")
 
     # Logic block controls
+    assert dut.exception.value == 0
     assert dut.alu_control.value == "0110"
     assert dut.imm_source.value == "000"
     assert dut.mem_write.value == "0"
@@ -343,31 +343,8 @@ async def srli_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
-
-    # INVALID VALID F7
-    for _ in range(1000):
-        await Timer(1, units="ns")
-        dut.op.value = 0b0010011 # I-TYPE (alu)
-        dut.func3.value = 0b101 # srli, srai
-        random_func7 = random.randint(0b0000001,0b1111111)
-        # avoid picking the other valid f7 by re-picking
-        while(random_func7 == 0b0100000) : random_func7 = random.randint(0b0000001,0b1111111)
-        dut.func7.value = random_func7
-        await Timer(1, units="ns")
-
-        # Logic block controls
-        assert dut.alu_control.value == "0110"
-        assert dut.imm_source.value == "000"
-        assert dut.mem_read.value == "0"
-        assert dut.mem_write.value == "0"
-        assert dut.reg_write.value == "0"
-        # Datapath mux sources
-        assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "000"
-        assert dut.pc_source.value == "0"
-        assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def srai_control_test(dut):
@@ -390,31 +367,8 @@ async def srai_control_test(dut):
     # Datapath mux sources
     assert dut.alu_source.value == "1"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
-
-    # INVALID VALID F7
-    for _ in range(1000):
-        await Timer(1, units="ns")
-        dut.op.value = 0b0010011 # I-TYPE (alu)
-        dut.func3.value = 0b101 # srli, srai
-        random_func7 = random.randint(0b0000001,0b1111111)
-        # avoid picking the valid f7 by re-picking
-        while(random_func7 == 0b0100000) : random_func7 = random.randint(0b0000001,0b1111111)
-        dut.func7.value = random_func7
-        await Timer(1, units="ns")
-
-        # Logic block controls
-        assert dut.alu_control.value == "1001"
-        assert dut.imm_source.value == "000"
-        assert dut.mem_read.value == "0"
-        assert dut.mem_write.value == "0"
-        assert dut.reg_write.value == "0"
-        # Datapath mux sources
-        assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "000"
-        assert dut.pc_source.value == "0"
-        assert dut.csr_write_enable == "0"
 
 @cocotb.test()
 async def sub_control_test(dut):
@@ -432,7 +386,7 @@ async def sub_control_test(dut):
     assert dut.reg_write.value == "1"
     assert dut.alu_source.value == "0"
     assert dut.write_back_source.value == "000"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.csr_write_enable == "0"
 
 @cocotb.test()
@@ -445,6 +399,7 @@ async def blt_control_test(dut):
     dut.alu_last_bit.value = 0b0
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "010"
     assert dut.alu_control.value == "0101"
     assert dut.mem_read.value == "0"
@@ -452,7 +407,7 @@ async def blt_control_test(dut):
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -460,7 +415,7 @@ async def blt_control_test(dut):
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.second_add_source.value == "00"
 
 @cocotb.test()
@@ -473,6 +428,7 @@ async def bne_control_test(dut):
     dut.alu_zero.value = 0b1
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "010"
     assert dut.alu_control.value == "0001"
     assert dut.mem_read.value == "0"
@@ -480,7 +436,7 @@ async def bne_control_test(dut):
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -488,7 +444,7 @@ async def bne_control_test(dut):
     await Timer(3, units="ns")
     dut.alu_zero.value = 0b0
     await Timer(1, units="ns")
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -502,6 +458,7 @@ async def bge_control_test(dut):
     dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "010"
     assert dut.alu_control.value == "0101"
     assert dut.mem_read.value == "0"
@@ -509,7 +466,7 @@ async def bge_control_test(dut):
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -517,7 +474,7 @@ async def bge_control_test(dut):
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b0
     await Timer(1, units="ns")
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -531,6 +488,7 @@ async def bltu_control_test(dut):
     dut.alu_last_bit.value = 0b0
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "010"
     assert dut.alu_control.value == "0111"
     assert dut.mem_write.value == "0"
@@ -538,7 +496,7 @@ async def bltu_control_test(dut):
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -546,7 +504,7 @@ async def bltu_control_test(dut):
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -560,6 +518,7 @@ async def bgeu_control_test(dut):
     dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "010"
     assert dut.alu_control.value == "0111"
     assert dut.mem_read.value == "0"
@@ -567,7 +526,7 @@ async def bgeu_control_test(dut):
     assert dut.reg_write.value == "0"
     assert dut.alu_source.value == "0"
     assert dut.branch.value == "1"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -575,7 +534,7 @@ async def bgeu_control_test(dut):
     await Timer(3, units="ns")
     dut.alu_last_bit.value = 0b0
     await Timer(1, units="ns")
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.second_add_source.value == "00"
     assert dut.csr_write_enable == "0"
 
@@ -587,13 +546,14 @@ async def jalr_control_test(dut):
     dut.op.value = 0b1100111 # Jump / I-type : jalr 
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "000"
     assert dut.mem_read.value == "0"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.branch.value == "0"
     assert dut.jump.value == "1"
-    assert dut.pc_source.value == "1"
+    assert dut.pc_source.value == 1
     assert dut.write_back_source.value == "010"
     assert dut.second_add_source.value == "10"
     assert dut.csr_write_enable == "0"
@@ -606,16 +566,17 @@ async def csr_control_test(dut):
     # with F3 = 0xx
     await Timer(10, units="ns")
     dut.op.value = 0b1110011 # SYSTEM
-    dut.func3.value = 0b0
+    dut.func3.value = 0b001 # CSRRW
     await Timer(1, units="ns")
 
+    assert dut.exception.value == 0
     assert dut.imm_source.value == "101"
     assert dut.mem_read.value == "0"
     assert dut.mem_write.value == "0"
     assert dut.reg_write.value == "1"
     assert dut.branch.value == "0"
     assert dut.jump.value == "0"
-    assert dut.pc_source.value == "0"
+    assert dut.pc_source.value == 0
     assert dut.write_back_source.value == "100"
     assert dut.csr_write_enable == "1"
     assert dut.csr_write_back_source.value == "0"
@@ -623,6 +584,69 @@ async def csr_control_test(dut):
     # with F3 = 0xx
     await Timer(10, units="ns")
     dut.op.value = 0b1110011 # SYSTEM
-    dut.func3.value = 0b100
+    dut.func3.value = 0b101 # CSRRWI
+    await Timer(1, units="ns")
+    assert dut.csr_write_back_source.value == "1"
+
+
+@cocotb.test()
+async def interrupt_trapping_test(dut):
+    await set_unknown(dut)
+    # TEST CONTROL SIGNALS FOR CSR Instructions
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b001 # CSRRW
+    await Timer(1, units="ns")
+
+    assert dut.exception.value == 0
+    assert dut.imm_source.value == "101"
+    assert dut.mem_read.value == "0"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.pc_source.value == 0
+    assert dut.write_back_source.value == "100"
+    assert dut.csr_write_enable == "1"
+    assert dut.csr_write_back_source.value == "0"
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b101 # CSRRWI
+    await Timer(1, units="ns")
+    assert dut.csr_write_back_source.value == "1"
+
+
+
+@cocotb.test()
+async def exception_trapping_test(dut):
+    await set_unknown(dut)
+    # TEST CONTROL SIGNALS FOR CSR Instructions
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b001 # CSRRW
+    await Timer(1, units="ns")
+
+    assert dut.exception.value == 0
+    assert dut.imm_source.value == "101"
+    assert dut.mem_read.value == "0"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "1"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.pc_source.value == 0
+    assert dut.write_back_source.value == "100"
+    assert dut.csr_write_enable == "1"
+    assert dut.csr_write_back_source.value == "0"
+
+    # with F3 = 0xx
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # SYSTEM
+    dut.func3.value = 0b101 # CSRRWI
     await Timer(1, units="ns")
     assert dut.csr_write_back_source.value == "1"

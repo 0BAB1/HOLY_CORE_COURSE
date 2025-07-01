@@ -9,6 +9,9 @@ import random
 import numpy as np
 from copy import deepcopy
 
+# For basic R/W randomized testing
+RW_REGS = [0x7C0, 0x7C1, 0x7C2, 0x300, 0x304, 0x305, 0x341]
+
 @cocotb.test()
 async def test_csr_file(dut):
     # Start a 10 ns clock
@@ -16,16 +19,28 @@ async def test_csr_file(dut):
 
     # map each address to a register
     def get_csr_value(addr):
-        if(addr == 0x7C0):
+        if addr == 0x7C0:
             return dut.flush_cache.value
-        elif(addr == 0x7C1):
+        elif addr == 0x7C1:
             return dut.non_cachable_base.value
-        elif(addr == 0x7C2):
+        elif addr == 0x7C2:
             return dut.non_cachable_limit.value
+        elif addr == 0x300:
+            return dut.mstatus.value
+        elif addr == 0x304:
+            return dut.mie.value
+        elif addr == 0x344:
+            return dut.mip.value
+        elif addr == 0x305:
+            return dut.mtvec.value
+        elif addr == 0x341:
+            return dut.mepc.value
+        elif addr == 0x342:
+            return dut.mcause.value
         else:
             return 0
 
-    for addr in [0x7C0, 0x7C1, 0x7C2]:
+    for addr in RW_REGS:
         # ==================
         # BASIC R/W TESTS
         # ==================
@@ -107,7 +122,116 @@ async def test_csr_file(dut):
         await Timer(1, units="ns")
 
     # ======================================
-    # test registers behavior
+    # Traps CSRs behavior
+    # ======================================
+
+    # --------------------------------------
+    # SIMPLE INTERUPTS TEST
+    # --------------------------------------
+
+    # No interrupt in sight => no trap
+    await RisingEdge(dut.clk)
+    assert dut.trap.value == 0
+    await RisingEdge(dut.clk)
+
+    # We set an interrupt
+    dut.timer_itr.value = 1
+    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
+
+    # All should be 0 because interrupts are not enabled
+    assert dut.trap.value == 0
+    assert dut.mcause.value == 0
+    assert dut.mip.value == 1 << 7
+    await RisingEdge(dut.clk)
+
+    # we then enable interrupts
+    dut.mstatus.value = dut.mstatus.value | 1 << 3
+    dut.mie.value = 1 << 3 | 1 << 7 | 1 << 11
+    # we also set test PCs for later assertion
+    dut.current_core_pc.value = 0x8000
+    dut.mtvec.value = 0x4000
+    await RisingEdge(dut.clk)
+
+    # should tigger the trapping flag
+    assert dut.trap.value == 1
+    await RisingEdge(dut.clk)
+
+    # one the clock cycle after that, trap is taken
+    # and new context is in !
+    # mepc = old pc
+    assert dut.mcause.value == 1 << 31 | 7
+    assert dut.mtvec.value == 0x4000
+    assert dut.mepc.value == 0x8000
+    # MIE = 0, only MPIE = 1
+    assert dut.mstatus.value == 1 << 7
+
+    # we wait an arbitrary 50 clock cycles
+    # Druing which the handler executes and clears the itr
+    # and then another 50 cycles
+    for _ in range(50):
+        await RisingEdge(dut.clk)
+
+    dut.timer_itr.value = 0
+
+    for _ in range(50):
+        await RisingEdge(dut.clk)
+
+    # We get return order
+    dut.m_ret.value = 1
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    dut.m_ret.value = 0
+    await Timer(2, units="ns")
+
+    # MIE should be back to normal
+    # MIE = 1, only MPIE = X (1 in our scenario)
+    assert dut.mstatus.value == 1 << 7 | 1 << 3
+
+    # --------------------------------------
+    # SIMPLE EXCEPTION TEST
+    # --------------------------------------
+
+    # No interrupt in sight => no trap
+    await RisingEdge(dut.clk)
+    assert dut.trap.value == 0
+    await RisingEdge(dut.clk)
+
+    # Control fetches an ecall and signals some exception
+    dut.exception_cause.value = 11 # ecall
+    dut.exception.value = 0b1
+    await Timer(1, units="ns")
+
+    assert dut.trap.value == 0b1
+    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
+
+    # Check how the CSRS react
+    assert dut.mcause.value == 11
+    assert dut.mepc.value == 0x8000
+    # MIE = 0, only MPIE = 1
+    assert dut.mstatus.value == 1 << 7
+
+    # By the way, the CPU does not fetch ecall anymore !
+    dut.exception.value = 0b0
+
+    # we wait an arbitrary 50 clock cycles to emulate an handler
+    for _ in range(50):
+        await RisingEdge(dut.clk)
+
+    # control signals mret is fetched
+    dut.m_ret.value = 1
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    dut.m_ret.value = 0
+    await Timer(2, units="ns")
+
+    # MIE should be back to normal
+    # MIE = 1, only MPIE = X (1 in our scenario)
+    assert dut.mstatus.value == 1 << 7 | 1 << 3
+
+    # ======================================
+    # Custom CSRs behavior
     # ======================================
 
     # ----------------------------------

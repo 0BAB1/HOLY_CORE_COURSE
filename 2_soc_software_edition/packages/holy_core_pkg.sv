@@ -38,7 +38,7 @@ package holy_core_pkg;
     OPCODE_U_TYPE_AUIPC   = 7'b0010111,
     OPCODE_J_TYPE         = 7'b1101111,
     OPCODE_J_TYPE_JALR    = 7'b1100111,
-    OPCODE_CSR            = 7'b1110011
+    OPCODE_SYSTEM         = 7'b1110011
   } opcode_t;
 
   // ALU OPs for ALU DECODER
@@ -143,6 +143,14 @@ package holy_core_pkg;
     ALU_SOURCE_RD = 1'b0,
     ALU_SOURCE_IMM = 1'b1
   } alu_source_t;
+
+  // PC SOURCES
+  typedef enum logic [1:0] {
+    SOURCE_PC_PLUS_4 = 2'b00,
+    SOURCE_PC_SECOND_ADD = 2'b01,
+    SOURCE_PC_MTVEC = 2'b10,
+    SOURCE_PC_MEPC = 2'b11
+  } pc_source_t;
 
   // Write_back signal
   typedef struct packed {
