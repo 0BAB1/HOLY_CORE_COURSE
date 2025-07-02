@@ -28,3 +28,4 @@ my.*
 hello.hex
 *.o
 *.a
+test.sh
