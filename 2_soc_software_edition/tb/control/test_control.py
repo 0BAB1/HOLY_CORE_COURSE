@@ -673,6 +673,8 @@ async def ecall_test(dut):
     dut.op.value = 0b1110011
     dut.func3.value = 0b000
     dut.instr.value = (0b000000000000 << 20)  # upper immediate field [31:20] = 0
+    # trap is high, set with comb logic by csr_file
+    dut.trap.value = 0b1
     await Timer(1, units="ns")
 
     # assert dut.imm_source.value == "101"
@@ -681,7 +683,6 @@ async def ecall_test(dut):
     assert dut.reg_write.value == "0"
     assert dut.branch.value == "0"
     assert dut.jump.value == "0"
-    assert dut.pc_source.value == 0
     assert dut.write_back_source.value == "000"
     assert dut.csr_write_enable == "0"
     # assert dut.csr_write_back_source.value == "0"
@@ -689,6 +690,7 @@ async def ecall_test(dut):
     assert dut.exception.value == 1
     assert dut.exception_cause.value == 11
     assert dut.m_ret.value == 0
+    assert dut.pc_source.value == 0b10 # SOURCE_PC_MTVEC
 
 @cocotb.test()
 async def ebreak_test(dut):
@@ -699,6 +701,8 @@ async def ebreak_test(dut):
     dut.op.value = 0b1110011  # SYSTEM opcode
     dut.func3.value = 0b000   # SYSTEM func3
     dut.instr.value = (0b000000000001 << 20)
+    # trap is high, set with comb logic by csr_file
+    dut.trap.value = 0b1
     await Timer(1, units="ns")
 
     # Assetions
@@ -713,6 +717,7 @@ async def ebreak_test(dut):
     assert dut.exception.value == 1
     assert dut.exception_cause.value == 3  # EBREAK
     assert dut.m_ret.value == 0
+    assert dut.pc_source.value == 0b10 # SOURCE_PC_MTVEC
 
 @cocotb.test()
 async def illegal_instr_test(dut):
@@ -723,6 +728,8 @@ async def illegal_instr_test(dut):
     dut.op.value = 0b0000000  # INVILD !
     dut.func3.value = 0b000
     dut.instr.value = 0
+    # trap is high, set with comb logic by csr_file
+    dut.trap.value = 0b1
     await Timer(1, units="ns")
 
     assert dut.exception.value == 1
@@ -740,6 +747,8 @@ async def illegal_instr_test(dut):
     dut.op.value = 0b100011  # S-type
     dut.func3.value = 0b111 # invalid !
     dut.instr.value = (0 << 20)
+    # trap is high, set with comb logic by csr_file
+    dut.trap.value = 0b1
     await Timer(1, units="ns")
 
     assert dut.exception.value == 1
@@ -760,6 +769,8 @@ async def illegal_instr_test(dut):
     dut.op.value = 0b0110011  # R-type
     dut.func3.value = 0b000   # ADD/SUB
     dut.func7.value = 0b1110111 # Invalid !
+    # trap is high, set with comb logic by csr_file
+    dut.trap.value = 0b1
     await Timer(1, units="ns")
 
     assert dut.exception.value == 1
