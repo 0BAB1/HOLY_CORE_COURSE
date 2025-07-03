@@ -784,6 +784,26 @@ async def illegal_instr_test(dut):
     assert dut.jump.value == "0"
     assert dut.mem_write.value == "0"
 
+    # === 4) Legal opcode + func3 but illegal func7 for shift immediate ===
+    await Timer(10, units="ns")
+    dut.op.value = 0b0010011 # I-type ALU
+    dut.func3.value = 0b101   # SRLI/SRAI
+    dut.func7.value = 0b1110111 # Invalid !
+    # trap is high, set with comb logic by csr_file
+    dut.trap.value = 0b1
+    await Timer(1, units="ns")
+
+    assert dut.exception.value == 1
+    assert dut.exception_cause.value == 2
+    assert dut.pc_source.value == 0b10 # SOURCE_PC_MTVEC
+
+    # should not alter cpu state !
+    assert dut.reg_write.value == "0"
+    assert dut.csr_write_enable.value == "0"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.mem_write.value == "0"
+
 @cocotb.test()
 async def simple_trap_request_test(dut):
     await set_unknown(dut)

@@ -4,6 +4,8 @@
 
 An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailed tutorials as a reference.
 
+RISC-V is open source, but the digital design field is more about giving headaches than real solutions. Engineers **LOVE** making everything overcomplicated. This course aims at showing than anyone can do it, with just some will power, patience and an FPGA.
+
 ## Features
 
 This project is a course you can follow to build the HOLY CORE and everything that comes with it, and the final product of your work will feature :
@@ -31,6 +33,8 @@ The course is divided in multiple blocks to learn different aspects of digital d
 > The code will always be **open-source**. I do give the option to donate for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
 
 Link : [support using PDF Versions](https://babinriby.gumroad.com/l/holy_core)
+
+> Side note: please checkout the end of this document regarding the future of this situation.
 
 ## Prerequisites
 
@@ -153,4 +157,6 @@ So yes, it was made **by** a "begginer" **for** "begginers". If you decide somet
 
 Nevertheless, I am still very open to meaningful and constructive criticism, in which case I will be more than happy to consider your opinion.
 
-> Side note : After seeing copies of my work on linkedin, I would also like to add that **stealing a codebase** and making your own **very bad** pdf using an AI generator, just to make a linkedin post **without ever mentionning this project** is extremely pittyful. But I hope you'll realise, once you start trying to "vibe code" your way into the digital design world and get fired because you can't get anything done execpt AI prompted stuff, that doing so was a bad idea. Hell is real and stealing leads you there ;) have a good day (not)
+> **SIDE NOTE 1 REGARDING DUDES COPY PASTING AI GARBAGE MIXED WITH HOLY CORE WITHOUT MENTION:** After seeing copies of my work on linkedin, I would also like to add that **stealing a codebase** and making your own **very bad** pdf using an AI generator, just to make a linkedin post **without ever mentionning this project** is extremely pittyful. But I hope you'll realise, once you start trying to "vibe code" your way into the digital design world and get fired because you can't get anything done execpt AI prompted stuff, that doing so was a bad idea. Hell is real and stealing leads you there ;) have a good day (not)
+
+> **SIDE NOTE 2 REGARDING THE FUTURE OF THE OPEN SOURCE STATE:** Just note that in a near future more advanced detailed tutorials will not be on github but in closed and restricted access one. This is to avoid **the knowledge from being pulled by LLMs** but by real humans (you) instead. As for now, LLMs has not been quite able to really "tokenize" deep digital design subjects and still struggle to produce code the just works. Let's keep it that way and hope that, in a vain effort to spread AI tools to everything to stay relevant, the AI bubble burst sooner than later ;)

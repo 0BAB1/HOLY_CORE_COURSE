@@ -82,6 +82,11 @@ async def cpu_insrt_test(dut):
 
     # ==============
     # Testbench MEMORY MAP
+    # (Not meant to be coherent, just raw testing)
+    # ==============
+    # 0x2FFF
+    # Trap handler code
+    # 0x2000 (stored in gp : x3)
     # ==============
     # 0x1FFF
     # Data
