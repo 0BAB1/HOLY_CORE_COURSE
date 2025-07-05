@@ -12,20 +12,29 @@
 package holy_core_pkg;
 
   typedef enum logic [3:0] { 
-      IDLE, // Acts as simple BRAM array
-      // AXI FULL STATES
-      SENDING_WRITE_REQ,
-      SENDING_WRITE_DATA,
-      WAITING_WRITE_RES,
-      SENDING_READ_REQ, // Data miss ! We have to fetch from memory ! State for as long as the req has not been acknowleged by memory slave
-      RECEIVING_READ_DATA,  // Once REQ is acknowleged, we wait for full response. (tlast)
-      // AXI LITE VERSIONS
-      LITE_SENDING_WRITE_REQ,
-      LITE_SENDING_WRITE_DATA,
-      LITE_WAITING_WRITE_RES,
-      LITE_SENDING_READ_REQ,
-      LITE_RECEIVING_READ_DATA
+    IDLE,
+    // AXI FULL STATES
+    SENDING_WRITE_REQ,
+    SENDING_WRITE_DATA,
+    WAITING_WRITE_RES,
+    SENDING_READ_REQ, // Data miss ! We have to fetch from memory ! State for as long as the req has not been acknowleged by memory slave
+    RECEIVING_READ_DATA,  // Once REQ is acknowleged, we wait for full response. (tlast)
+    // AXI LITE VERSIONS
+    LITE_SENDING_WRITE_REQ,
+    LITE_SENDING_WRITE_DATA,
+    LITE_WAITING_WRITE_RES,
+    LITE_SENDING_READ_REQ,
+    LITE_RECEIVING_READ_DATA
   } cache_state_t;
+
+  typedef enum logic [1:0] { 
+    IDLE,
+    // WRITE REQ
+    LITE_RECEIVING_WRITE_DATA,
+    LITE_SENDING_WRITE_RES,
+    // READ REQ
+    LITE_SENDING_READ_DATA
+  }axi_state_slave_t;
 
   // INSTRUCTION OP CODES
   typedef enum logic [6:0] {

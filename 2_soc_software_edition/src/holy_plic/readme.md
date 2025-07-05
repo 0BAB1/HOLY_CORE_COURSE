@@ -9,7 +9,7 @@ Want more cores ? Womp Womp. Then that means who work in the industry, which mea
 Exit the unreadable codebases. This PLIC goes straight to the point:
 
 - 5 external interrupts lines by default
-  - can add more or less. Who cares ? its **SIMPLE** & **TRANSPARENT** !
+  - can add more or less. Who cares ? its **SIMPLE** & **TRANSPARENT** ! Just change `NUM_IRQS`.
   - Priorities ? `itr5` has priority over `itr4`. And so on... Thats it.
   - IDs range from 1 to 5 (0 -> no interrupt if polling)
 - 1 `ext_itr` ouput, that goes to the core.
@@ -19,7 +19,7 @@ Exit the unreadable codebases. This PLIC goes straight to the point:
 
 | Address Offset | Register                  | Description                                                                            |
 | -------------- | ------------------------- | -------------------------------------------------------------------------------------- |
-| `0x0000`       | `ENABLE`                  | Bitmask: enables/disables each interrupt source. Bits `[4:0]`.                         |
+| `0x0000`       | `ENABLE`                  | Bitmask: enables/disables each interrupt source. Bits `[NUM_IRQS-1:0]`.                         |
 | `0x0004`       | `CONTEXT_CLAIM_COMPLETE`  | Read: claim highest priority pending IRQ. Write: complete IRQ by writing same ID back. |
 
 > Yes, there is no interrupt threshold (**bloat !**). If you wanna stop using an interrupt then just unplug it or use the `ENABLE` mask. If you want to add such a feature, **contributions are welcome.**

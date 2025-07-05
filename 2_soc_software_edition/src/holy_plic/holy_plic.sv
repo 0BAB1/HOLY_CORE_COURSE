@@ -1,90 +1,253 @@
+/** Simple Platform Level Interrupt Controller
+*
+*   Author : BRH
+*   Project : Holy Core SoC & Software edition
+*   Description : A PLIC for the HOLY CORE target. works around AXI-LITE.
+*                 and supports async interrupts. Runs on a single clk (axi clock).
+*                 meaning output interrupt request is synced to the AXI clock.
+*                 in HOLY CORE its okay as there is a single clock domain for
+*                 the whole SoC.
+*                 Sync reset.
+*
+*   Created 07/25
+*/
+
+import holy_core_pkg::*;
+
 module holy_plic #(
     parameter int NUM_IRQS = 5
 ) (
     input  logic                  clk,
     input  logic                  rst_n,
 
-    // External interrupt inputs (assumed synchronized)
+    // Async interrupt in
     input  logic [NUM_IRQS-1:0]  irq_in,
 
     // AXI Lite slave interface (simplified)
-    input  logic                 axi_awvalid,
-    output logic                 axi_awready,
-    input  logic [31:0]          axi_awaddr,
-
-    input  logic                 axi_wvalid,
-    output logic                 axi_wready,
-    input  logic [31:0]          axi_wdata,
-
-    output logic [31:0]          axi_rdata,
-    input  logic                 axi_rvalid,
-    output logic                 axi_rready,
-    input  logic [31:0]          axi_araddr,
-    input  logic                 axi_arvalid,
-    output logic                 axi_arready,
+    axi_lite_if.slave s_axi_lite,
 
     // Interrupt output to core
     output logic                 ext_irq_o
 );
 
-    // Registers for enable and pending interrupts
-    logic [NUM_IRQS-1:0] enabled;
-    logic [NUM_IRQS-1:0] pending;
+    // REGISTERS MAP
+    localparam ENABLE = 32'd0;
+    localparam CONTEXT_CLAIM_COMPLETE = 32'd4;
 
-    // AXI ready signals - always ready
-    assign axi_awready = 1'b1;
-    assign axi_wready  = 1'b1;
-    assign axi_arready = 1'b1;
-    assign axi_rready  = axi_rvalid;
+    /**
+    *   GATEWAYS
+    */
 
-    // Latch IRQ inputs into pending, handle writes
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            enabled <= '0;
-            pending <= '0;
+    // The role of this gateway is to sync interrupt signals
+    // and set the pending signals accordingly.
+    logic [NUM_IRQS-1:0] ip; //Interrupt Pending...
+    logic [NUM_IRQS-1:0]  irq_meta;
+    logic [NUM_IRQS-1:0]  irq_req;
+
+    // Synchronise the incomming interupts
+    // (coming from different clock domains)
+    always_ff @(posedge clk) begin
+        if (~rst_n) begin
+            for(int i = 0; i < NUM_IRQS; i++)begin
+                irq_meta[i] <= 1'b0;
+                irq_req[i] <= 1'b0;
+            end
         end else begin
-            // Latch new interrupts
-            pending <= pending | irq_in;
-
-            // Write access
-            if (axi_awvalid && axi_wvalid) begin
-                case (axi_awaddr[3:0])
-                    4'h0: enabled <= axi_wdata[NUM_IRQS-1:0]; // ENABLE register
-                    4'h4: begin
-                        // CLAIM_COMPLETE register: clear pending bit of IRQ ID written
-                        if ((axi_wdata[4:0] != 0) && (axi_wdata[4:0] <= NUM_IRQS)) begin
-                            pending[axi_wdata[4:0] - 1] <= 1'b0;
-                        end
-                    end
-                    default: /* no op */;
-                endcase
+            for(int i = 0; i < NUM_IRQS; i++)begin
+                irq_meta[i] <= irq_in[i];
+                irq_req[i] <= irq_meta[i];
             end
         end
     end
 
-    // Read logic combinational
-    always_comb begin
-        case (axi_araddr[3:0])
-            4'h0: axi_rdata = {{(32-NUM_IRQS){1'b0}}, enabled};
-            4'h4: begin
-                axi_rdata = 32'd0;
-                // Return highest priority IRQ ID pending & enabled (ID=1 is highest priority)
-                for (int i = NUM_IRQS-1; i >= 0; i--) begin
-                    if (pending[i] && enabled[i]) begin
-                        axi_rdata = i + 1; // IRQ ID 1-based
-                    end
+    always_comb begin : generate_pending
+        for(int i = 0; i < NUM_IRQS; i++)begin
+            ip[i] = irq_req[i] & enabled[i];
+        end
+    end
+
+    /**
+    *   CONTROLLER STATE MACHINE
+    */
+
+    // Controller's in service state
+    // This signal shows an interrupt is being serviced
+    // which deasserts target's notification until completion.
+    // even though the actual interrput pending signal commin
+    // from the gateways is high.
+    logic in_service, in_service_next;
+    // We also have to remember what is the current ID
+    // being serviced. This is because the targets rewrites
+    // this ID to the CONTEXT_CLAIM_COMPLETE register
+    // once handling is complete. This completion write
+    // deassets in_service and allows the output notification
+    // to be high again
+    logic [$clog2(NUM_IRQS)-1:0] serviced_id, serviced_id_next;
+    // Note that service id is set on claim. As the target can
+    // manually, without notification claim another interrupt
+    // before declaring completion of the first one.
+    // This is used in some handler to check if we can handle
+    // another eventual interrupt before doign a costly
+    // context switch.
+
+    // Axi lite states
+    axi_state_slave_t state, next_state;
+    logic [31:0] awaddr, awaddr_next;
+    logic [31:0] araddr, araddr_next;
+
+    always_ff @(posedge clk) begin
+        if (~rst_n) begin
+            in_service <= 1'b0;
+            state <= IDLE;
+            awaddr <= 0;
+            araddr <= 0;
+            serviced_id <= 0;
+        end else begin
+            in_service <= in_service_next;
+            state <= next_state;
+            awaddr <= awaddr_next;
+            araddr <= araddr_next;
+            serviced_id <= serviced_id_next;
+        end
+    end
+
+    always_comb begin : axi_lite_fsm
+        // stats & registers
+        in_service_next = in_service;
+        next_state = state;
+        awaddr_next = awaddr;
+        araddr_next = araddr;
+        enabled_next = enabled;
+        serviced_id_next = serviced_id;
+
+        // AXI LITE DEFAULT
+        s_axi_lite.awready = 1'b0;
+        s_axi_lite.wready = 1'b0;
+        s_axi_lite.bresp = 2'b00;
+        s_axi_lite.bvalid = 1'b0;
+        s_axi_lite.arready = 1'b0;
+        s_axi_lite.rdata = 32'd0;
+        s_axi_lite.rvalid = 1'b0;
+        s_axi_lite.rresp = 2'b00;
+
+        case (state)
+            IDLE: begin
+                s_axi_lite.awready = 1'b1;
+                s_axi_lite.arready = 1'b1;
+
+                if(s_axi_lite.arvalid)begin
+                    in_service_next = 1'b1;
+                    next_state = LITE_SENDING_READ_DATA;
+                    araddr_next = s_axi_lite.araddr;
+                end
+
+                if(s_axi_lite.awvalid)begin
+                    next_state = LITE_RECEIVING_WRITE_DATA;
+                    awaddr_next = s_axi_lite.awaddr;
                 end
             end
-            default: axi_rdata = 32'd0;
+
+            LITE_SENDING_READ_DATA: begin
+                s_axi_lite.rvalid = 1'b1;
+
+                // Set rdata
+                case(araddr)
+                    ENABLE:begin
+                        s_axi_lite.rresp = 2'b00;
+                        // simply return 0 extended contents
+                        s_axi_lite.rdata = { {(32-NUM_IRQS){1'b0}}, enabled };
+                    end
+
+                    CONTEXT_CLAIM_COMPLETE:begin
+                        s_axi_lite.rresp = 2'b00;
+                        
+                        // Return highest priority ID
+                        automatic logic found = 0;
+                        automatic int id = 0;
+
+                        for (int i = NUM_IRQS-1; i >= 0; i--) begin
+                            if (!found && ip[i] && ~in_service) begin
+                                found = 1;
+                                id = i + 1;  // IDs are still 1-based
+                                // pending flags are handled by the gateways
+                                in_service_next = 1'b1; // Flag as being serviced
+                                serviced_id_next = i + 1;
+                            end
+                        end
+
+                        s_axi_lite.rdata = id;
+                    end
+
+                    default: begin
+                        // Return error + dummy / noticable value 
+                        s_axi_lite.rresp = 2'b11;
+                        s_axi_lite.rdata = 32'hFFFFFFFF;
+                    end
+                endcase
+
+                if(s_axi_lite.rready)begin
+                    next_state = IDLE;
+                end
+            end
+
+            LITE_RECEIVING_WRITE_DATA: begin
+                s_axi_lite.wready = 1'b1;
+                // todo : add wstrb masking
+
+                if(s_axi_lite.wvalid)begin
+                    // Get wdata
+                    case(awaddr)
+                        ENABLE:begin
+                            enabled_next = s_axi_lite.wdata[NUM_IRQS-1:0];
+                        end
+
+                        CONTEXT_CLAIM_COMPLETE:begin
+                            if(s_axi_lite.wdata == serviced_id)begin
+                                in_service_next = 0;
+                            end
+                        end
+
+                        default: $display("not a valid address pal!");
+                    endcase
+
+                    next_state =  LITE_SENDING_WRITE_RES
+                end
+            end
+
+            LITE_SENDING_WRITE_RES:begin
+                s_axi_lite.bresp = 2'b00;
+                s_axi_lite.bvalid = 1'b1;
+
+                if(s_axi_lite.bready)begin
+                    next_state = IDLE;
+                end
+            end
+
+            default : begin
+                $display("STATE ERROR");
+            end
         endcase
     end
 
-    // Interrupt output signal - asserted if any enabled & pending IRQ
-    always_comb begin
-        ext_irq_o = 1'b0;
-        for (int j = 0; j < NUM_IRQS; j++) begin
-            if (pending[j] && enabled[j]) ext_irq_o = 1'b1;
+    /**
+    *   ACTUAL CONTROLLER LOGIC
+    */
+
+    // Registers for enable and pending interrupts
+    logic [NUM_IRQS-1:0] enabled, enabled_next;
+
+    always_comb begin : set_target_notification
+        ext_irq_o = |ip && ~in_service;
+    end
+
+    always_ff @(posedge clk) begin : enabled_register
+        if(~rst_n) begin
+            enabled <= 0;
+        end
+        else begin
+            enabled <= enabled_next;
         end
     end
+
 
 endmodule
