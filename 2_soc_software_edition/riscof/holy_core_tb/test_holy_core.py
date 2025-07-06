@@ -124,22 +124,26 @@ async def cpu_insrt_test(dut):
     # Verify that we execute our non-cachable setup, this will not get logged
     assert dut.core.instruction.value == 0xFFFFF3B7
     await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
     assert dut.core.instruction.value == 0x7C101073
     await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
     assert dut.core.instruction.value == 0x7C239073
     
     await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
     assert dut.core.instruction.value == 0x800000B7
     await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
     assert dut.core.instruction.value == 0x00008067
 
     # check that we're about to jump to 0x8000_0000
-    await Timer(1, units="ps")
-    assert dut.core.pc.value == 0x8000_0000
+    await Timer(1, units="ns")
+    assert dut.core.pc_next.value == 0x8000_0000
 
     # actual test program execution
     while not dut.core.pc.value.integer >= write_tohost:
-        await Timer(1, units="ps") # let signals info propagate in sim
+        await Timer(1, units="ns") # let signals info propagate in sim
         print(f'PC : {hex(dut.core.pc.value.integer)} <= {hex(write_tohost)}')
 
         ##########################################################

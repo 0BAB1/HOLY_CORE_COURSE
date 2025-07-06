@@ -28,7 +28,7 @@ package holy_core_pkg;
   } cache_state_t;
 
   typedef enum logic [1:0] { 
-    IDLE,
+    SLAVE_IDLE,
     // WRITE REQ
     LITE_RECEIVING_WRITE_DATA,
     LITE_SENDING_WRITE_RES,

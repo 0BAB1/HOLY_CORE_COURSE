@@ -24,6 +24,8 @@ Finally, you will need to install `riscof` here : [Link to riscof guide](https:/
 
 ### Commands
 
+> to use riscof, you'll need to pyenv in the python's 3.6.15 version. Yes this is bad but that's how it is.
+
 1. cd into the `./2_soc_software_edition/riscof/` folder.
 2. run `riscof --verbose info arch-test --clone` to download the assembly test programs
 3. run `riscof run --config=config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env`
