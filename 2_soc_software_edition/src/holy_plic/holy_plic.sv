@@ -45,7 +45,8 @@ module holy_plic #(
     logic [NUM_IRQS-1:0]  irq_req;
 
     // Synchronise the incomming interupts
-    // (coming from different clock domains)
+    // (comming from different clock domain
+    // probably slower e.g. I2C, SPI, etc...)
     always_ff @(posedge clk) begin
         if (~rst_n) begin
             for(int i = 0; i < NUM_IRQS; i++)begin
@@ -98,7 +99,7 @@ module holy_plic #(
     always_ff @(posedge clk) begin
         if (~rst_n) begin
             in_service <= 1'b0;
-            state <= IDLE;
+            state <= SLAVE_IDLE;
             awaddr <= 0;
             araddr <= 0;
             serviced_id <= 0;
@@ -131,7 +132,7 @@ module holy_plic #(
         s_axi_lite.rresp = 2'b00;
 
         case (state)
-            IDLE: begin
+            SLAVE_IDLE: begin
                 s_axi_lite.awready = 1'b1;
                 s_axi_lite.arready = 1'b1;
 
@@ -158,24 +159,16 @@ module holy_plic #(
                         s_axi_lite.rdata = { {(32-NUM_IRQS){1'b0}}, enabled };
                     end
 
-                    CONTEXT_CLAIM_COMPLETE:begin
+                    CONTEXT_CLAIM_COMPLETE: begin
                         s_axi_lite.rresp = 2'b00;
-                        
-                        // Return highest priority ID
-                        automatic logic found = 0;
-                        automatic int id = 0;
 
-                        for (int i = NUM_IRQS-1; i >= 0; i--) begin
-                            if (!found && ip[i] && ~in_service) begin
-                                found = 1;
-                                id = i + 1;  // IDs are still 1-based
-                                // pending flags are handled by the gateways
-                                in_service_next = 1'b1; // Flag as being serviced
-                                serviced_id_next = i + 1;
-                            end
+                        if(max_id != 0)begin
+                            in_service_next = 1'b1;
+                            s_axi_lite.rdata = 32'(max_id);
+                        end else begin
+                            in_service_next = 1'b0;
+                            s_axi_lite.rdata = 32'd0;
                         end
-
-                        s_axi_lite.rdata = id;
                     end
 
                     default: begin
@@ -186,7 +179,7 @@ module holy_plic #(
                 endcase
 
                 if(s_axi_lite.rready)begin
-                    next_state = IDLE;
+                    next_state = SLAVE_IDLE;
                 end
             end
 
@@ -202,7 +195,7 @@ module holy_plic #(
                         end
 
                         CONTEXT_CLAIM_COMPLETE:begin
-                            if(s_axi_lite.wdata == serviced_id)begin
+                            if(s_axi_lite.wdata == 32'(serviced_id))begin
                                 in_service_next = 0;
                             end
                         end
@@ -210,7 +203,7 @@ module holy_plic #(
                         default: $display("not a valid address pal!");
                     endcase
 
-                    next_state =  LITE_SENDING_WRITE_RES
+                    next_state =  LITE_SENDING_WRITE_RES;
                 end
             end
 
@@ -219,7 +212,7 @@ module holy_plic #(
                 s_axi_lite.bvalid = 1'b1;
 
                 if(s_axi_lite.bready)begin
-                    next_state = IDLE;
+                    next_state = SLAVE_IDLE;
                 end
             end
 
@@ -232,6 +225,17 @@ module holy_plic #(
     /**
     *   ACTUAL CONTROLLER LOGIC
     */
+
+    // Logic cells => Determine the max id
+    // Based on this scheme:
+    // https://people.eecs.berkeley.edu/~krste/papers/riscv-privileged-v1.9.pdf#page=74
+    logic found;
+    logic [$clog2(NUM_IRQS)-1:0] max_id;
+
+    always_comb begin : determine_max_id
+        found = 0;
+        max_id = 0;
+    end
 
     // Registers for enable and pending interrupts
     logic [NUM_IRQS-1:0] enabled, enabled_next;
