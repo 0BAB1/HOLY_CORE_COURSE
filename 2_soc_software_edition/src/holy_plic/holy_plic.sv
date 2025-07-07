@@ -137,7 +137,6 @@ module holy_plic #(
                 s_axi_lite.arready = 1'b1;
 
                 if(s_axi_lite.arvalid)begin
-                    in_service_next = 1'b1;
                     next_state = LITE_SENDING_READ_DATA;
                     araddr_next = s_axi_lite.araddr;
                 end
@@ -162,8 +161,9 @@ module holy_plic #(
                     CONTEXT_CLAIM_COMPLETE: begin
                         s_axi_lite.rresp = 2'b00;
 
-                        if(max_id != 0)begin
+                        if(max_id != '0)begin
                             in_service_next = 1'b1;
+                            serviced_id_next = max_id;
                             s_axi_lite.rdata = 32'(max_id);
                         end else begin
                             in_service_next = 1'b0;
@@ -229,12 +229,19 @@ module holy_plic #(
     // Logic cells => Determine the max id
     // Based on this scheme:
     // https://people.eecs.berkeley.edu/~krste/papers/riscv-privileged-v1.9.pdf#page=74
-    logic found;
     logic [$clog2(NUM_IRQS)-1:0] max_id;
+    bit found; // helper bit for max id logic
 
     always_comb begin : determine_max_id
-        found = 0;
         max_id = 0;
+        found = 0;
+
+        for(int i = NUM_IRQS-1; i >= 0; i--)begin
+            if (!found && ip[i]) begin
+                max_id = i[$clog2(NUM_IRQS)-1:0] + 1;
+                found = 1;
+            end
+        end
     end
 
     // Registers for enable and pending interrupts
