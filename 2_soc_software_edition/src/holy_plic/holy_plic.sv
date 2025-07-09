@@ -12,6 +12,9 @@
 *   Created 07/25
 */
 
+// todo : add AXI error on wong address for write request
+// instead of a simple tb display (B channel resp)
+
 import holy_core_pkg::*;
 
 module holy_plic #(
@@ -259,6 +262,4 @@ module holy_plic #(
             enabled <= enabled_next;
         end
     end
-
-
 endmodule
