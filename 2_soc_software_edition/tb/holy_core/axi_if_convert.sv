@@ -48,7 +48,7 @@ module pulp_axil_hc_axil_passthrough (
     input logic clk,
     input logic rst_n,
     AXI_LITE.Slave in_if,
-    AXI_LITE.Master out_if
+    axi_lite_if.master out_if
 );
     assign out_if.aclk = clk;
     assign out_if.aresetn = rst_n;
