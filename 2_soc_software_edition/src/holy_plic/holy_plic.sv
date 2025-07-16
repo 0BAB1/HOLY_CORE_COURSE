@@ -18,7 +18,7 @@
 import holy_core_pkg::*;
 
 module holy_plic #(
-    parameter int NUM_IRQS = 5
+    parameter NUM_IRQS = 5
 ) (
     input  logic                  clk,
     input  logic                  rst_n,

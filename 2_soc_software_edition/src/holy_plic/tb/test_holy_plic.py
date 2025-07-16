@@ -32,7 +32,8 @@ def get_highest_priority_index(ref : list[int]):
 async def main_test(dut):
     """
         In this test, we'll check *basic* compliance on the
-        Privileged specs for a PLIC. By "basic" is implied that
+        Privile
+        ged specs for a PLIC. By "basic" is implied that
         some basic functionalities may not be supported yet.
         Don't hate though, it's just to make it literally as
         simple as possible.
