@@ -23,6 +23,7 @@ module control (
     input logic [6:0] func7,
     input logic alu_zero,
     input logic alu_last_bit,
+    input logic instr_cache_valid,
 
     // CONTROL OUT
     output alu_control_t alu_control,
@@ -70,8 +71,12 @@ always_comb begin
     second_add_source = SECOND_ADDER_SOURCE_PC;
     csr_write_back_source = CSR_WB_SOURCE_IMM;
     csr_write_enable = 1'b0;
+    m_ret = 1'b0;
 
-    exception = 1;
+    // if the instruction being fectched
+    // is not valid, exception should NOT
+    // be asserted !
+    exception = instr_cache_valid;
     exception_cause = 31'd2;
 
     case (op)

@@ -111,6 +111,7 @@ async def main_test(dut):
     await Timer(1, units="ps") # let the signals "propagate"
 
     assert dut.cache_system.cache_stall.value == 0b0
+    assert dut.cache_system.cache_valid.value == 0b0
     assert dut.cache_system.next_state.value == IDLE
 
     # ==================================

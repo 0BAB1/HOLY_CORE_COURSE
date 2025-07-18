@@ -12,6 +12,7 @@
 *
 *   Created 11/24
 *   Modification : 05/25 (add manual flush support from incomming csr flag)
+*   Modification : 07/25 (add a cache valid output flag)
 */
 
 import holy_core_pkg::*;
@@ -42,6 +43,11 @@ module holy_cache #(
     // State informations for arbitrer
     output cache_state_t cache_state,
 
+    // Valid flag, used in SoC edition
+    // to avoid flagging reseted content as
+    // illegal OPs
+    output logic cache_valid,
+
     // debug signals
     output logic [6:0] set_ptr_out,
     output logic [6:0] next_set_ptr_out
@@ -56,7 +62,7 @@ module holy_cache #(
     // CACHE TABLE DECLARATION
     logic [CACHE_SIZE-1:0][31:0]    cache_data;
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
-    logic                           cache_valid;  // is the current block valid ?
+    // logic                           cache_valid;  // is the current block valid ? (output now)
     logic                           next_cache_valid;
     logic                           cache_dirty;
     // register to retain info on wether we are writing back because of miss or because of CSR order

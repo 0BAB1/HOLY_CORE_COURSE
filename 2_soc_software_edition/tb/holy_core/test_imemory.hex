@@ -98,9 +98,9 @@ ABCD1B37  //                    lui x22 0xABCD1     | x22 <= ABCD1000
 016A2023  //                    sw x22 0(x20)       | mem @ 0x2004 <= ABCD1111 / AXI LITE TX
 004A2B03  //                    lw x22 4(x20)       | x22 <= 00000000 / AXI LITE TX
 000A2B03  //                    lw x22 0(x20)       | x22 <= ABCD1111 / AXI LITE TX
-00000013  // 
-00000013  //NOP
-00000013  //NOP
+00003237  //SW INTR TEST :      lui x4 0x3          |
+00100293  //                    addi x5 x0 0x1      |
+00522023  //                    sw x5 0(x4)         | Should trigger a sw intr
 00000013  //NOP
 00000013  //NOP
 00000013  //NOP

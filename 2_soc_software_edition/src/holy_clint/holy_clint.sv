@@ -18,7 +18,9 @@
 
 import holy_core_pkg::*;
 
-module holy_clint (
+module holy_clint #(
+    parameter BASE_ADDR = 0
+) (
     input  logic                  clk,
     input  logic                  rst_n,
 
@@ -56,10 +58,11 @@ module holy_clint (
             */
             timercmp <= 64'hFFFFFFFFFFFFFFFF;
             msip <= 32'b0;
+        end else begin
+            timer <= timer_next;
+            timercmp <= timercmp_next;
+            msip <= msip_next;
         end
-        timer <= timer_next;
-        timercmp <= timercmp_next;
-        msip <= msip_next;
     end
 
     /**
@@ -111,12 +114,12 @@ module holy_clint (
 
                 if(s_axi_lite.arvalid)begin
                     next_state = LITE_SENDING_READ_DATA;
-                    araddr_next = s_axi_lite.araddr;
+                    araddr_next = s_axi_lite.araddr - BASE_ADDR;
                 end
 
                 if(s_axi_lite.awvalid)begin
                     next_state = LITE_RECEIVING_WRITE_DATA;
-                    awaddr_next = s_axi_lite.awaddr;
+                    awaddr_next = s_axi_lite.awaddr - BASE_ADDR;
                 end
             end
 

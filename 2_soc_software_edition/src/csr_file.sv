@@ -57,6 +57,10 @@ module csr_file (
 =========
 */
 
+// Output signals assigns
+assign csr_mtvec = mtvec;
+assign csr_mepc  = mepc;
+
 // Declare all CSRs and they next signals here
 
 // Trap handling standard C&S registers

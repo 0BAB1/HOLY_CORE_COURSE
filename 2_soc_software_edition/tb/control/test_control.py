@@ -18,6 +18,9 @@ async def set_unknown(dut):
     dut.func7.value = BinaryValue("XXXXXXX")
     dut.alu_zero.value = BinaryValue("X")
     dut.alu_last_bit.value = BinaryValue("X")
+
+    # declare incomming instruction as vlaid
+    dut.instr_cache_valid.value = 1
     await Timer(1, units="ns")
 
 @cocotb.test()

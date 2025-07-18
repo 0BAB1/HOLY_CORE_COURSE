@@ -24,6 +24,11 @@ module holy_core #(
     axi_if.master m_axi,
     axi_lite_if.master m_axi_lite,
 
+    // Interrupts
+    input logic timer_itr,
+    input logic soft_itr,
+    input logic ext_itr,
+
     // DEBUG SIGNALS FOR LOGIC ANALYSERS
     output logic [31:0] debug_pc,  
     output logic [31:0] debug_pc_next,
@@ -185,6 +190,7 @@ end
 
 // Acts as a ROM.
 wire [31:0] instruction;
+wire instr_cache_valid;
 cache_state_t i_cache_state;
 
 // holy_cache =/=  holy_data_cache !
@@ -205,7 +211,9 @@ holy_cache instr_cache (
 
     // M_AXI EXERNAL REQ IF
     .axi(m_axi_instr),
+
     .cache_state(i_cache_state),
+    .cache_valid(instr_cache_valid),
 
     //debug
     .set_ptr_out(debug_i_set_ptr),
@@ -250,6 +258,7 @@ control control_unit(
     .func7(f7),
     .alu_zero(alu_zero),
     .alu_last_bit(alu_last_bit),
+    .instr_cache_valid(instr_cache_valid),
 
     // CONTROL OUT
     .alu_control(alu_control),
@@ -347,6 +356,7 @@ regfile regfile(
 /**
 * SIGN EXTEND
 */
+
 logic [24:0] raw_imm;
 assign raw_imm = instruction[31:7];
 wire [31:0] immediate;
@@ -397,9 +407,9 @@ csr_file holy_csr_file(
     .current_core_pc(pc),
 
     // interrupts in
-    .timer_itr(1'b0),
-    .soft_itr(1'b0),
-    .ext_itr(1'b0),
+    .timer_itr(timer_itr),
+    .soft_itr(soft_itr),
+    .ext_itr(ext_itr),
 
     // infos from control
     .m_ret(m_ret),

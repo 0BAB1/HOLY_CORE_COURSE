@@ -157,9 +157,9 @@ axi_lite_if m_axi_lite();
 AXI_LITE #(32,32) m_axi_lite_xbar_in [MST_NB-1:0] ();
 AXI_LITE #(32,32) m_axi_lite_xbar_out [SLV_NB-1:0] ();
 // AXIL CROSSBAR <=> PLIC
-axi_lite_if s_axi_lite_plic();
+axi_lite_if axi_lite_plic();
 // AXIL CROSSBAR <=> CLINT
-axi_lite_if s_axi_lite_clint();
+axi_lite_if axi_lite_clint();
 
 //=======================
 // HOLY CORE (2x MASTER)
@@ -180,7 +180,12 @@ holy_core core(
     // goes to the corssbar as it can trasact with
     // multiple savles acrosse the system.
     // i.e. RAM, CLINT & PLIC.
-    .m_axi_lite(m_axi_lite)
+    .m_axi_lite(m_axi_lite),
+
+    // Interrupts
+    .timer_itr(timer_irq),
+    .soft_itr(soft_irq),
+    .ext_itr(ext_irq)
 
     // We don't use debug signals in tb
     // ...
@@ -213,7 +218,7 @@ localparam xbar_cfg_t Cfg = '{
     UniqueIds: 1'b0,
     AxiAddrWidth: 32,
     AxiDataWidth: 32,
-    NoAddrRules: 1
+    NoAddrRules: 3
 };
 
 // defined in vendor/axi/src/axi_pkg.sv
@@ -235,8 +240,8 @@ assign addr_map[2].start_addr = 32'hF000;
 assign addr_map[2].end_addr = 32'hFFFF;
 
 axi_lite_xbar_intf #(
-    Cfg,
-    axi_pkg::xbar_rule_32_t
+    .Cfg(Cfg),
+    .rule_t(axi_pkg::xbar_rule_32_t)
 ) crossbar (
     .clk_i(clk),
     .rst_ni(rst_n),
@@ -244,13 +249,15 @@ axi_lite_xbar_intf #(
     .slv_ports(m_axi_lite_xbar_in),
     .mst_ports(m_axi_lite_xbar_out),
     .addr_map_i(addr_map),
-    .en_default_mst_port_i(3'b000),
-    .default_mst_port_i('0)
+    .en_default_mst_port_i(3'b111),
+    .default_mst_port_i('{1})
 );
 
 //=======================
 // HOLY PLIC (LITE SLAVE)
 //=======================
+
+logic ext_irq;
 
 holy_plic #(
     NUM_IRQS
@@ -258,20 +265,35 @@ holy_plic #(
     .clk        (clk),
     .rst_n      (rst_n),
     .irq_in     (irq_in),
-    .s_axi_lite (s_axi_lite_plic),
-    .ext_irq_o  (ext_irq_o)
+    .s_axi_lite (axi_lite_plic),
+    .ext_irq_o  (ext_irq)
+);
+
+pulp_axil_hc_axil_passthrough plic_conv(
+    .in_if(m_axi_lite_xbar_out[2]),
+    .out_if(axi_lite_plic)
 );
 
 //=========================
 // HOLY CLINT (LITE SLAVE)
 //=========================
 
-holy_clint clint (
+logic timer_irq;
+logic soft_irq;
+
+holy_clint #(
+    .BASE_ADDR('h3000)
+) clint (
     .clk        (clk),
     .rst_n      (rst_n),
-    .s_axi_lite (s_axi_lite_clint),
-    .timer_irq  (timer_irq_o),
-    .soft_irq   (soft_irq_o)
+    .s_axi_lite (axi_lite_clint),
+    .timer_irq  (timer_irq),
+    .soft_irq   (soft_irq)
+);
+
+pulp_axil_hc_axil_passthrough clint_conv(
+    .in_if(m_axi_lite_xbar_out[1]),
+    .out_if(axi_lite_clint)
 );
 
 //===================================
