@@ -15,7 +15,7 @@ Exit complicated "industry grade" CLINTs, this one is simple and straight forwar
 | `0x0000`       | `msip`  | Sofware interrupt, only the LSB will trigger the output interrupt request. Others will be ignored.|
 | `0x4000`       | `mtimecmp[31:0]`  | Low word for the 64 bits `mtimecmp` |
 | `0x4004`       | `mtimecmp[63:32]`  | High word for the 64 bits `mtimecmp` |
-| `0xBFF8`       | `mtime[31:0]`  | High word for the 64 bits `mtime` |
+| `0xBFF8`       | `mtime[31:0]`  | Low word for the 64 bits `mtime` |
 | `0xBFFC`       | `mtime[63:32]`  | High word for the 64 bits `mtime` |
 
 ## Features

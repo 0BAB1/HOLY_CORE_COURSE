@@ -908,10 +908,13 @@ async def cpu_insrt_test(dut):
 
     #################
     # SOFTWARE INTERRUPT TEST
-    # lui x4 0x3
-    # addi x5 x0 0x1
-    # sw x5 0(x4)  
     #################
+
+    # Interrupts tests are pretty straight forward. The behavior
+    # should be an interrupt assertion, followed by an mret
+    # at some point, after which interrupt is vleared by the handler.
+    # Meeting these conditions, along some other additional checks
+    # Ensures basic bahavior is okay.
 
     # We set the MIE csr, activate all interrupts
     dut.core.holy_csr_file.mie.value = 1 << 3 | 1 << 7 | 1 << 11
@@ -935,11 +938,81 @@ async def cpu_insrt_test(dut):
     # check that x3° was signed with the right mcause by handler
     assert binary_to_hex(dut.core.regfile.registers[30].value) == "80000003"
     
+    #################
+    # TIMER INTERRUPT TEST
+    #################
 
+    # Wait until we have a timer irq
+    while dut.core.timer_itr.value != 1:
+        await RisingEdge(dut.clk)
+
+    # wait until we are about to mret
+    while not binary_to_hex(dut.core.instruction.value) == "30200073":
+        await RisingEdge(dut.clk) # mret
+
+    # timer interrupt is cleared
+    assert dut.core.timer_itr.value == 0
+
+    # mcause saved in x30 is the right one
+    assert binary_to_hex(dut.core.regfile.registers[30].value) == "80000007"
+
+    #################
+    # EXTERNAL INTERRUPT TEST
+    #################
+
+    # in this scerio, we will imagine a simple peripheral
+    # that latches an interrupt until the CPU enters its hadler
+    # and we'll deassert the said interrupt when the CPU executes
+    # a NOP. The NOP is a placeholder here that replaces a sequance
+    # that interacts with the peripheral (e.g. reading a sensor's
+    # register via I2C to retrieve its data in memeory). We do this
+    # because we do not simulate any *actual* SoC Level / PCB Level
+    # peripheral in this testbench.
+
+    # Wait for previous mret to finish (instr cache may be pulling data)
+    while binary_to_hex(dut.core.instruction.value) == "30200073":
+        await RisingEdge(dut.clk)
+
+    # wait until 1st nop, right before waiting loop
+    while not binary_to_hex(dut.core.instruction.value) == "00000013":
+        await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
+
+    # Introduce an external itr request in the PLIC
+    dut.irq_in[0].value = 1
+
+    # wait until plic asserts that interrupt
+    while not dut.core.ext_itr.value == 1:
+        await RisingEdge(dut.clk)
+
+    # wait until we are about to mret
+    while not binary_to_hex(dut.core.instruction.value) == "30200073":
+        # NOP is our placeholder to deassert the interrupt request
+        if binary_to_hex(dut.core.instruction.value) == "00000013":
+            dut.irq_in[0].value = 0
+        await RisingEdge(dut.clk)
+    
+    # check that the interrupt is cleared
+    assert dut.core.ext_itr.value == 0
+    # mcause saved in x30 is the right one
+    assert binary_to_hex(dut.core.regfile.registers[30].value) == "8000000B"
+
+    #################
+    # ECALL EXCEPTION TEST
+    #################
+
+    # wait for ecall to be fetched
+    while not binary_to_hex(dut.core.instruction.value) == "00000073":
+        await RisingEdge(dut.clk)
+
+    assert dut.core.exception.value == 1
+    assert dut.core.trap.value == 1
+    
+    # wait until we are about to mret
+    while not binary_to_hex(dut.core.instruction.value) == "30200073":
+        await RisingEdge(dut.clk)
+
+    assert dut.core.exception.value == 0
+    assert dut.core.trap.value == 0
+
+    assert binary_to_hex(dut.core.regfile.registers[30].value) == "0000000B"

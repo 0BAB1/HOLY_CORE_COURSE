@@ -18,7 +18,8 @@
 import holy_core_pkg::*;
 
 module holy_plic #(
-    parameter NUM_IRQS = 5
+    parameter NUM_IRQS = 5,
+    parameter BASE_ADDR = 0
 ) (
     input  logic                  clk,
     input  logic                  rst_n,
@@ -141,12 +142,12 @@ module holy_plic #(
 
                 if(s_axi_lite.arvalid)begin
                     next_state = LITE_SENDING_READ_DATA;
-                    araddr_next = s_axi_lite.araddr;
+                    araddr_next = s_axi_lite.araddr - BASE_ADDR;
                 end
 
                 if(s_axi_lite.awvalid)begin
                     next_state = LITE_RECEIVING_WRITE_DATA;
-                    awaddr_next = s_axi_lite.awaddr;
+                    awaddr_next = s_axi_lite.awaddr - BASE_ADDR;
                 end
             end
 
@@ -203,7 +204,7 @@ module holy_plic #(
                             end
                         end
 
-                        default: $display("not a valid address pal!");
+                        default: $display("PLIC: not a valid address pal!");
                     endcase
 
                     next_state =  LITE_SENDING_WRITE_RES;

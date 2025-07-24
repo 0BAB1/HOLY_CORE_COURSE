@@ -205,14 +205,57 @@ _start:
     lw x22, 4(x20)
     lw x22, 0(x20)
 
+    ################
     # SW INTR TEST
+    ################
     lui x4, 0x3             # Clint base addr
     la x6, trap             # Trap handler base addr
     csrrw x0, 0x305, x6     # we set mtvec to the trap handler's addr
     addi x5, x0, 1      
     sw x5, 0(x4)            # write 1 to clint's msip
-    
+    # return should happen here
+
+    ################
+    # TIMER INTR TEST
+    ################
+    lui x7, 0x4
+    add x5, x4, x7          # build Clint's mtimecmp base addr
+    lui x7, 0xC             
+    add x7, x4, x7          # build Clint's mtime "near" base addr
+    sw x0, 4(x5)            # set high word of mtimecmp to 0
+    lw x8, -8(x7)           # get the current mtime value
+    addi x8, x8, 0x10       # add 16 to the timer and store it back to timer cmp
+    sw x8, 0(x5)
+    # loop until timer intr happens
+wait_for_timer_irq:
+    j wait_for_timer_irq
+    # handler returns on this NOP
     nop
+
+    ################
+    # EXTERNAL INTR TEST
+    ################
+    # set up plic by enabling intr
+    li x4, 0x0000F000       # plic base addr
+    ori x5, x0, 0x1         
+    sw x5, 0(x4)            # enable ext intr #1
+    nop                     # signal tb we are about to wait for ext intr
+
+wait_for_ext_irq:
+    j wait_for_ext_irq
+    # handler returns on this NOP
+    nop
+
+    ################
+    # ECALL EXCEPTION TEST
+    ################
+
+    nop
+    ecall                   # provoke ecall
+
+#########################
+# Trap handler
+#########################
 
 trap:
     csrrs x30, 0x342, x0    # store mcause in x30
@@ -222,14 +265,66 @@ soft_irq_check:             # soft intr handler
     bne x30, x31, timer_irq_check 
     # clear the soft interrupt
     sw x0, 0(x4)
-    # skip intr write on return
+    # mepc += 4
+    # to skip intr write on return
     csrrs x31, 0x341, x0
     addi x31, x31, 0x4
     csrrw x0, 0x341, x31
-
-timer_irq_check:            # timer irq handler
-
     j m_ret
 
-m_ret:
+timer_irq_check:            # timer irq handler
+    li x31, 0x80000007
+    bne x30, x31, ext_irq_check 
+    # clear tht imer intr by pumping the mtimecmp to full F
+    li x9, 0xFFFFFFFF
+    sw x9, 0(x5)            # x5 should already contain mtimecmp base addr
+    # mepc += 4
+    # to skip intr write on return
+    csrrs x31, 0x341, x0
+    addi x31, x31, 0x4
+    csrrw x0, 0x341, x31
+    j m_ret
+
+ext_irq_check:
+    li x31, 0x8000000B
+    bne x30, x31, ecall_check
+    # claim the interrupt
+    lw x8, 4(x4)
+
+    # Do a loop as place holder
+    li t0, 32
+    loop:
+    addi t0, t0, -1
+    bnez t0, loop
+
+    # clear the intr using NOP which 
+    # the tb will use as a placeholder
+    # to clear the ext intr
+    nop
+    # signal completion to the plic
+    sw x8, 4(x4)
+    # mepc += 4
+    # to skip intr write on return
+    csrrs x31, 0x341, x0
+    addi x31, x31, 0x4
+    csrrw x0, 0x341, x31
+    j m_ret
+
+ecall_check:
+    li x31, 0x0000000B
+    bne x30, x31, m_ret
+    # Do a loop as placeholder
+    li t0, 32 
+    loop2:
+    addi t0, t0, -1
+    bnez t0, loop2
+    # mepc += 4
+    # to skip intr write on return
+    csrrs x31, 0x341, x0
+    addi x31, x31, 0x4
+    csrrw x0, 0x341, x31
+    j m_ret
+
+
+m_ret: # return form trap routine
     mret # return to where we left the program

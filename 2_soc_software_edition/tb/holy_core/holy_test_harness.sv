@@ -260,7 +260,8 @@ axi_lite_xbar_intf #(
 logic ext_irq;
 
 holy_plic #(
-    NUM_IRQS
+    NUM_IRQS,
+    .BASE_ADDR('hF000)
 ) plic (
     .clk        (clk),
     .rst_n      (rst_n),

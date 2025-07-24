@@ -163,7 +163,7 @@ always_comb begin : next_csr_value_logic
             // the order here defines priority
             if(mip[11] && mie[11])begin
                 // external
-                next_mcause[31] = 1;
+                next_mcause[30:0] = 31'd11;
             end
             else if(mip[7] && mie[7])begin
                 // timer
