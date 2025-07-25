@@ -32,15 +32,6 @@ RUN for tool in gcc g++ cpp ar as ld objcopy objdump ranlib strip size strings e
 # hexdump
 RUN apt-get update && apt-get install -y bsdmainutils
 
-WORKDIR /compliance_test
-
-# Copy source
-COPY . .
-
-# Install riscof, cocotb etc...
-RUN pip install riscof && \
-    pip install -r requirements.txt
-
 # Build & install Verilator
 RUN git clone https://github.com/verilator/verilator && \
 cd verilator && \
@@ -57,8 +48,16 @@ mkdir build && cd build && \
 ../configure --prefix=/bin && \
 make && \
 make install
+ENV PATH="/riscv-isa-sim/build:${PATH}"
 
-ENV PATH="/compliance_test/riscv-isa-sim/build:${PATH}"
+WORKDIR /compliance_test
+
+# Copy source and "cd" into riscof dedicated folder
+COPY . .
+
+# Install riscof, cocotb etc...
+RUN pip install riscof && \
+pip install -r requirements.txt
 
 WORKDIR /compliance_test/riscof
 
