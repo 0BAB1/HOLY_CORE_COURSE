@@ -1,7 +1,73 @@
 hart_ids: [0]
 hart0:
-  ISA: RV32I
+  ISA: RV32IZicsr
   User_Spec_Version: '2.3'
+  Privilege_Spec_Version: "1.11"
   hw_data_misaligned_support: False
   supported_xlen: [32]
   physical_addr_sz: 32
+
+mstatus:                                  
+  address: 0x300                       
+  priv_mode: M
+  reset-val: 0x0      
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+    implemented: false
+
+mie:                                  
+  address: 0x304                       
+  priv_mode: M
+  reset-val: 0x0
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+  
+mip:                                  
+  address: 0x344                       
+  priv_mode: M
+  reset-val: 0x0
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+    implemented: false
+
+mtvec:                                  
+  address: 0x305                      
+  priv_mode: M
+  reset-val: 0x0
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+    implemented: false
+
+mepc:                                  
+  address: 0x341                      
+  priv_mode: M
+  reset-val: 0x0
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+    implemented: false
+
+mcause:                                  
+  address: 0x342                    
+  priv_mode: M
+  reset-val: 0x0
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+    implemented: false

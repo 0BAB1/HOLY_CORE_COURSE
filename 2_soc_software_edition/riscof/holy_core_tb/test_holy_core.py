@@ -14,6 +14,8 @@ import os
 AXI_PERIOD = 10
 CPU_PERIOD = 10
 
+THRESHOLD = 1e6
+
 def binary_to_hex(bin_str):
     # Convert binary string to hexadecimal
     hex_str = hex(int(str(bin_str), 2))[2:]
@@ -139,8 +141,12 @@ async def cpu_insrt_test(dut):
     while not dut.core.pc_next.value == 0x8000_0000:
         await RisingEdge(dut.clk)
 
+    i = 0
+
     # actual test program execution
-    while not dut.core.pc.value.integer >= write_tohost:
+    while not dut.core.pc.value.integer >= write_tohost and i < THRESHOLD:
+        i+=1
+
         await Timer(1, units="ns") # let signals info propagate in sim
         print(f'PC : {hex(dut.core.pc.value.integer)} <= {hex(write_tohost)}')
 

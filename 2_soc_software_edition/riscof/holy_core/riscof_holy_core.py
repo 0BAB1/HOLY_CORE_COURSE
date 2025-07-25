@@ -60,7 +60,8 @@ class holy_core(pluginTemplate):
         # 2 : Compile macros
         # 3 : .bin file intermediary
         # 4 : end HEX DUMP file
-        self.compile_cmd = 'riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 \
+        # 5 : testentry['isa'].lower()
+        self.compile_cmd = 'riscv64-unknown-elf-gcc -march={5} -mabi=ilp32 \
             -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -g\
             -T '+self.pluginpath+'/env/link.ld\
             -I '+self.pluginpath+'/env/\
@@ -132,12 +133,14 @@ class holy_core(pluginTemplate):
             # 2 : Compile macros
             # 3 : .bin file intermediary
             # 4 : end HEX DUMP file
+            # 5 : testentry['isa'].lower()
             comp_cmd = self.compile_cmd.format(
                 test,
                 elf, 
                 compile_macros,
                 bin,
-                hex
+                hex,
+                testentry['isa'].lower()
             )
 
 
