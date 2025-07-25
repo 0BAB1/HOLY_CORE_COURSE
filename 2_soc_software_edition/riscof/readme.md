@@ -1,5 +1,7 @@
 # Riscof compliance check
 
+> Note : you can now run compliance checks easily using the docker image, without having to worry about what's in there. See user guide below.
+
 This folder contains :
 
 - A specific testbench to load riscof tests programs on the holycore testbench
@@ -9,7 +11,37 @@ This folder contains :
   - How to compile the tests programs to fit our tb's needs
   - How to run the tests
 
-## User guide : Run compliance tests
+## User guide: Containerized compliance tests
+
+Because settinp up compliance tests is a real pain, the end user can simply build a docker image and run compliance tests easily after each significant modification (or just to make sure the holy core works).
+
+### Prerequisites
+
+- docker
+
+### Commands
+
+Cd into the edition (e.g. `<root>/2_soc_software_edition/`) and build the image using the following:
+
+```bash
+$ docker build -t riscof-runner . 
+```
+
+Using the local file (which would include any modification you made etc...), this will create a containerized testing environement that you can use to run any test, including lighter ones used for developement in the `tb/` folder. But it also mailny embeds everything you need to run the riscof complioance checks.
+
+Once the image is built, to run the tests, simply launch a container form the image:
+
+```bash
+$ docker run -it riscof-runner bash
+```
+
+And, once in the container, run the tests using:
+
+```bash
+(test container) $ riscof run --config=config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
+```
+
+## User guide: Detailed compliance tests setup
 
 ### Prerequisites
 

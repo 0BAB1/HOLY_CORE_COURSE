@@ -49,12 +49,14 @@ ARCH        := rv32i_zicsr
 ABI         := ilp32
 CC          := riscv64-unknown-elf-gcc
 OBJCOPY     := riscv64-unknown-elf-objcopy
+OBJDUMP     := riscv64-unknown-elf-objdump
 HEXTOOL     := hexdump
 
 SRC         := test.S
 OUT_ELF     := test.elf
 OUT_BIN     := test.bin
 OUT_HEX     := test.hex
+OUT_DIS     := test.D
 
 LINKER_SCRIPT := ./test_link.ld
 
@@ -72,11 +74,18 @@ $(OUT_BIN): $(OUT_ELF)
 $(OUT_HEX): $(OUT_BIN)
 	$(HEXTOOL) -v -e '1/4 "%08x\n"' $< > $@
 
+# === Generate Disassembly ===
+$(OUT_DIS): $(OUT_ELF)
+	$(OBJDUMP) -d $< > $@
+
+# === Default target ===
+all: $(OUT_ELF) $(OUT_BIN) $(OUT_HEX) $(OUT_DIS)
+
 ##################################
 # MAIN TARGET: build HEX + run sim
 ##################################
 
-sim: $(OUT_HEX)
+sim: $(OUT_HEX) $(OUT_DIS)
 	$(MAKE) SIM=$(SIM) TOPLEVEL=$(TOPLEVEL) MODULE=$(MODULE) VERILOG_SOURCES="$(VERILOG_SOURCES)" EXTRA_ARGS="$(EXTRA_ARGS)" WAVES=$(WAVES) -f $(shell cocotb-config --makefiles)/Makefile.sim
 
 ##################################
@@ -84,7 +93,7 @@ sim: $(OUT_HEX)
 ##################################
 
 clean:
-	rm -f $(OUT_ELF) $(OUT_BIN) $(OUT_HEX)
+	rm -f $(OUT_ELF) $(OUT_BIN) $(OUT_HEX) $(OUT_DIS)
 	$(MAKE) -f $(shell cocotb-config --makefiles)/Makefile.sim clean
 
 .PHONY: sim clean

@@ -142,7 +142,7 @@ class holy_core(pluginTemplate):
 
 
             # get symbol list from elf file
-            nm_symbols_cmd = f'riscv32-unknown-elf-gcc-nm {elf} > dut.symbols'
+            nm_symbols_cmd = f'riscv32-unknown-elf-nm {elf} > dut.symbols'
 
             # extract listed symbols
             symbols_list = ['begin_signature', 'end_signature','write_tohost', 'tohost', 'fromhost']

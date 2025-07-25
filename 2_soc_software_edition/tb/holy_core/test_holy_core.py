@@ -973,10 +973,9 @@ async def cpu_insrt_test(dut):
     while binary_to_hex(dut.core.instruction.value) == "30200073":
         await RisingEdge(dut.clk)
 
-    # wait until 1st nop, right before waiting loop
-    while not binary_to_hex(dut.core.instruction.value) == "00000013":
+    # wait until ext irq waiting loop
+    while not binary_to_hex(dut.core.instruction.value) == "0000006F":
         await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
 
     # Introduce an external itr request in the PLIC
     dut.irq_in[0].value = 1

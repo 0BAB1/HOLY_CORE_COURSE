@@ -1,0 +1,3 @@
+cocotb
+cocotbext-axi
+numpy
