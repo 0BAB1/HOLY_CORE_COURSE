@@ -16,6 +16,21 @@ CPU_PERIOD = 10
 
 THRESHOLD = 1e6
 
+CSR_MAP = {
+    0x300: "mstatus",
+    0x301: "misa",
+    0x304: "mie",
+    0x344: "mip",
+    0x305: "mtvec",
+    0x341: "mepc",
+    0x342: "mcause",
+    0x343: "mtval",
+    0x340: "mscratch",
+    0x7C0: "flush_cache",
+    0x7C1: "non_cachable_base",
+    0x7C2: "non_cachable_limit"
+}
+
 def binary_to_hex(bin_str):
     # Convert binary string to hexadecimal
     hex_str = hex(int(str(bin_str), 2))[2:]
@@ -85,9 +100,8 @@ async def cpu_insrt_test(dut):
         begin_signature = int(os.environ["begin_signature"],16)
         end_signature = int(os.environ["end_signature"],16)
         write_tohost = int(os.environ["write_tohost"],16)
-    except KeyError:
-        print("NO SYBOLS PAST, SKIPPING SIGNATURE WRITE, error may get raised")
-        raise KeyError("NO SYBOLS PAST, SKIPPING SIGNATURE WRITE")
+    except ValueError:
+        print("NO SYMBOLS PASSED, SKIPPING SIGNATURE WRITE, errors may occur")
     
     # Clear the log file before simulation starts
     with open("dut.log", "w"):
@@ -161,17 +175,35 @@ async def cpu_insrt_test(dut):
             str_ifu = ""
             str_gpr = ""
             str_lsu = ""
+            str_csr = ""
 
             # --- GPR write-back logging ---
-            if dut.core.reg_write.value and dut.core.wb_valid.value:
+            write_back_val = int(dut.core.write_back_signal.value) # packed type
+            wb_data = (write_back_val >> 1) & 0xFFFFFFFF  # bits [32:1]
+            wb_valid = write_back_val & 0x1               # bit [0]
+
+            if dut.core.reg_write.value and wb_valid:
                 if dut.core.dest_reg.value.integer != 0:  # ignore x0
                     reg_id = dut.core.dest_reg.value.integer
-                    reg_val = dut.core.write_back_data.value.integer
+                    reg_val = wb_data
                     str_gpr = f" {format_gpr(reg_id)} 0x{reg_val:08x}"
                 else:
                     str_gpr = ""
             else:
                 str_gpr = ""
+
+            # --- CSR write-back logging ---
+            if dut.core.csr_write_enable.value:
+                # build the reg id str
+                # format cXXX_NNNNN
+                # with XXX the decimal address
+                # and NNNNN the csr standard name
+                csr_addr = int(dut.core.csr_address.value)
+                csr_name = CSR_MAP[csr_addr]
+                csr_wb_data = dut.core.csr_write_back_data.value.integer
+                str_csr = f" c{str(csr_addr)}_{str(csr_name)} 0x{csr_wb_data:08x}"
+            else:
+                str_csr = ""
 
             # --- LSU memory logging ---
             if dut.core.mem_write_enable.value:  # memory store
@@ -182,7 +214,7 @@ async def cpu_insrt_test(dut):
             elif dut.core.mem_read_enable.value:  # memory load
                 addr = dut.core.alu_result.value.integer
                 data = dut.core.mem_read.value.integer
-                str_lsu = f" 0x{addr:08x} (0x{data:08x})"
+                str_lsu = f" mem 0x{addr:08x}"
 
             # --- Instruction fetch logging ---
             pc = dut.core.pc.value.integer
@@ -197,7 +229,7 @@ async def cpu_insrt_test(dut):
 
             # --- Write final combined log line ---
             with open("dut.log", "a") as fd:
-                fd.write(f"core   0: 3{str_ifu}{str_gpr}{str_lsu}\n")
+                fd.write(f"core   0: 3{str_ifu}{str_gpr}{str_lsu}{str_csr}\n")
             
         await RisingEdge(dut.clk)
 

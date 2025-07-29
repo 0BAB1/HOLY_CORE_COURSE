@@ -24,6 +24,8 @@ module control (
     input logic alu_zero,
     input logic alu_last_bit,
     input logic instr_cache_valid,
+    input aligned_addr_signal alu_aligned_addr,
+    input aligned_addr_signal second_add_aligned_addr,
 
     // CONTROL OUT
     output alu_control_t alu_control,
@@ -145,17 +147,29 @@ always_comb begin
         // B-type
         OPCODE_B_TYPE : begin
             if(valid_branch_func3) begin
-                exception = 0;
-                reg_write = 1'b0;
                 imm_source = B_IMM_SOURCE;
-                mem_read = 1'b0;
                 alu_source = ALU_SOURCE_RD;
+                reg_write = 1'b0;
+                mem_read = 1'b0;
                 mem_write = 1'b0;
                 alu_op = ALU_OP_BRANCHES;
                 branch = 1'b1;
                 jump = 1'b0;
                 second_add_source = SECOND_ADDER_SOURCE_PC;
                 csr_write_enable = 1'b0;
+                // When branching, we need to make sure
+                // destination addr is aligned.
+                if(~second_add_aligned_addr.word_aligned)begin
+                    // if alignement is not respected,
+                    // we throw an exception
+                    exception = 1;
+                    exception_cause = 31'd0; // Instruction address misaligned
+                end else begin
+                    // if alignement is respected, we can
+                    // clear exception and generated adequate branching
+                    // signal
+                    exception = 0;
+                end
             end
         end
         // J-type + JALR weird Hybrib
@@ -304,13 +318,17 @@ always_comb begin
                 F3_BLT, F3_BGE : alu_control = ALU_SLT;
                 // BLTU, BGEU
                 F3_BLTU, F3_BGEU : alu_control = ALU_SLTU;
-                default : alu_control = ALU_ERROR; // undefinied, todo : TRAP ILLEGAL
+                default : alu_control = ALU_ERROR;
             endcase
         end
-        default : alu_control = ALU_ERROR; // undefinied, todo : TRAP ILLEGAL
+        default : alu_control = ALU_ERROR;
     endcase
 end
 
+
+// Assert branch logic.
+// branch instrcution do not confirm branch
+// unless branching condition is actually met.
 logic assert_branch;
 
 always_comb begin : branch_logic_decode
@@ -376,7 +394,7 @@ always_ff @( posedge clk ) begin : trap_latch_logic
 end
 
 /**
-* DEFINE "VALID" WIRES
+* DEFINE "VALID" WIRES TO DETECT ILLEGAL INSTRUCTIONS
 */
 
 // TODO : declare all in pkg. But f̶u̶c̶k̶ screw that for now...

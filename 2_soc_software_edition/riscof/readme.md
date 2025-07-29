@@ -41,6 +41,14 @@ And, once in the container, run the tests using:
 (test container) $ riscof run --config=config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
 ```
 
+### Debugging tips
+
+Debugging the compliance test is a proces detailled in the holy core course's docs themselves. To retrive files for debugging, use the following command:
+
+```bash
+docker cp <contianer_name_or_id>:/compliance_test/riscof/riscof_work ./output
+```
+
 ## User guide: Detailed compliance tests setup
 
 ### Prerequisites

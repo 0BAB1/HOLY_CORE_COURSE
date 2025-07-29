@@ -251,3 +251,30 @@ async def last_bit_test(dut):
         await Timer(1, units="ns")
         expected = 0
         assert int(dut.last_bit.value) == expected
+
+@cocotb.test()
+async def addr_align_flags_test(dut):
+    await Timer(1, units="ns")
+    dut.alu_control.value = 0b0000  # ALU_ADD
+
+    for _ in range(100):
+        src1 = random.randint(0, 0xFFFFFFFF)
+        src2 = random.randint(0, 0xFFFFFFFF)
+
+        dut.src1.value = src1
+        dut.src2.value = src2
+
+        await Timer(1, units="ns")
+
+        result = (src1 + src2) & 0xFFFFFFFF
+        expected_word_aligned     = int((result & 0b11) == 0)
+        expected_halfword_aligned = int((result & 0b1)  == 0)
+
+        # cocotb sees the packed struct a flattened bot vector,
+        # we need to extract them like so to run assertions.
+        align_val = int(dut.aligned_addr.value)
+        word_aligned     = (align_val >> 1) & 1
+        halfword_aligned = align_val & 1
+
+        assert word_aligned == expected_word_aligned
+        assert halfword_aligned == expected_halfword_aligned

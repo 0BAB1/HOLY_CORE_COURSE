@@ -141,7 +141,7 @@ endgenerate
 
 reg [31:0] pc;
 logic [31:0] pc_next;
-logic [31:0] pc_plus_second_add;
+logic [31:0] second_add_result;
 logic [31:0] pc_plus_four;
 
 // Stall from caches
@@ -160,20 +160,11 @@ always_comb begin : pc_select
     end else begin
         case (pc_source)
             SOURCE_PC_PLUS_4 : pc_next = pc_plus_four;
-            SOURCE_PC_SECOND_ADD : pc_next = pc_plus_second_add;
+            SOURCE_PC_SECOND_ADD : pc_next = second_add_result;
             SOURCE_PC_MTVEC : pc_next = csr_mtvec;
             SOURCE_PC_MEPC : pc_next = csr_mepc;
         endcase
     end
-end
-
-always_comb begin : second_add_select
-    case (second_add_source)
-        SECOND_ADDER_SOURCE_PC : pc_plus_second_add = pc + immediate;
-        SECOND_ADDER_SOURCE_ZERO : pc_plus_second_add = immediate;
-        SECOND_ADDER_SOURCE_RD: pc_plus_second_add = read_reg1 + immediate;
-        default : pc_plus_second_add = 32'd0;
-    endcase
 end
 
 always @(posedge clk) begin
@@ -259,6 +250,8 @@ control control_unit(
     .alu_zero(alu_zero),
     .alu_last_bit(alu_last_bit),
     .instr_cache_valid(instr_cache_valid),
+    .alu_aligned_addr(alu_aligned_addr),
+    .second_add_aligned_addr(second_add_aligned_addr),
 
     // CONTROL OUT
     .alu_control(alu_control),
@@ -303,34 +296,33 @@ assign dest_reg = instruction[11:7];
 wire [31:0] read_reg1;
 wire [31:0] read_reg2;
 // wb_valid is just here to avoid writing by default...
-logic wb_valid;
+write_back_t write_back_signal;
 
-logic [31:0] write_back_data;
 always_comb begin
     case (write_back_source)
         WB_SOURCE_ALU_RESULT: begin
-            write_back_data = alu_result;
-            wb_valid = 1'b1;
+            write_back_signal.data = alu_result;
+            write_back_signal.valid = 1'b1;
         end
         WB_SOURCE_MEM_READ: begin
-            write_back_data = mem_read_write_back_data;
-            wb_valid = mem_read_write_back_valid;
+            write_back_signal.data  = mem_read_write_back_data;
+            write_back_signal.valid = mem_read_write_back_valid;
         end
         WB_SOURCE_PC_PLUS_FOUR: begin
-            write_back_data = pc_plus_four;
-            wb_valid = 1'b1;
+            write_back_signal.data  = pc_plus_four;
+            write_back_signal.valid = 1'b1;
         end
         WB_SOURCE_SECOND_ADD: begin
-            write_back_data = pc_plus_second_add;
-            wb_valid = 1'b1;
+            write_back_signal.data  = second_add_result;
+            write_back_signal.valid = 1'b1;
         end
         WB_SOURCE_CSR_READ: begin
-            write_back_data = csr_read_data;
-            wb_valid = 1'b1;
+            write_back_signal.data  = csr_read_data;
+            write_back_signal.valid = 1'b1;
         end
         default begin
-            write_back_data = 32'hFFFFFFFF;
-            wb_valid = 1'b0; // only 0 by default on wrong wb source select
+            write_back_signal.data = 32'hFFFFFFFF;
+            write_back_signal.valid = 1'b0; // only 0 by default on wrong wb source select
         end
     endcase
 end
@@ -348,8 +340,8 @@ regfile regfile(
     .read_data2(read_reg2),
 
     // Write In
-    .write_enable(reg_write && wb_valid && ~stall),
-    .write_data(write_back_data),
+    .write_enable(reg_write && write_back_signal.valid && ~stall),
+    .write_data(write_back_signal.data),
     .address3(dest_reg)
 );
 
@@ -389,7 +381,9 @@ logic csr_write_enable;
 logic trap;
 logic [31:0] csr_mtvec;
 logic [31:0] csr_mepc;
-
+target_addr exception_target_addr;
+assign exception_target_addr.alu_addr = alu_result;
+assign exception_target_addr.second_adder_addr = second_add_result;
 
 // csr orders
 logic csr_flush_order;
@@ -405,6 +399,7 @@ csr_file holy_csr_file(
     .write_enable(csr_write_enable),
     .address(csr_address),
     .current_core_pc(pc),
+    .current_core_fetch_instr(instruction),
 
     // interrupts in
     .timer_itr(timer_itr),
@@ -415,6 +410,7 @@ csr_file holy_csr_file(
     .m_ret(m_ret),
     .exception(exception),
     .exception_cause(exception_cause),
+    .exception_target_addr(exception_target_addr),
 
     // out
     .read_data(csr_read_data),
@@ -436,8 +432,10 @@ csr_file holy_csr_file(
 /**
 * ALU
 */
+
 wire [31:0] alu_result;
 logic [31:0] alu_src2;
+aligned_addr_signal alu_aligned_addr;
 
 always_comb begin
     case (alu_source)
@@ -452,8 +450,30 @@ alu alu_inst(
     .src2(alu_src2),
     .alu_result(alu_result),
     .zero(alu_zero),
-    .last_bit(alu_last_bit)
+    .last_bit(alu_last_bit),
+    .aligned_addr(alu_aligned_addr)
 );
+
+/**
+* SECOND ADDER
+*/
+
+// Select second add sources and result
+// (yes second add is not a module on its own)
+aligned_addr_signal second_add_aligned_addr;
+
+always_comb begin : second_add_select
+    case (second_add_source)
+        SECOND_ADDER_SOURCE_PC : second_add_result = pc + immediate;
+        SECOND_ADDER_SOURCE_ZERO : second_add_result = immediate;
+        SECOND_ADDER_SOURCE_RD: second_add_result = read_reg1 + immediate;
+        default : second_add_result = 32'd0;
+    endcase
+
+    // Address alignment flags
+    second_add_aligned_addr.word_aligned     = (second_add_result[1:0] == 2'b00);
+    second_add_aligned_addr.halfword_aligned = (second_add_result[0]   == 1'b0);
+end
 
 /**
 * LOAD/STORE DECODER

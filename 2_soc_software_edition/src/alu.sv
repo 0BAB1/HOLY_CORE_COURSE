@@ -12,13 +12,14 @@ import holy_core_pkg::*;
 
 module alu (
     // IN
-    input alu_control_t alu_control,
-    input logic [31:0] src1,
-    input logic [31:0] src2,
+    input alu_control_t         alu_control,
+    input logic [31:0]          src1,
+    input logic [31:0]          src2,
     // OUT
-    output logic [31:0] alu_result,
-    output logic zero,
-    output logic last_bit
+    output logic [31:0]         alu_result,
+    output logic                zero,
+    output logic                last_bit,
+    output aligned_addr_signal  aligned_addr
 );
 
 wire [4:0] shamt = src2[4:0];
@@ -47,6 +48,10 @@ always_comb begin
         ALU_SRA : alu_result = $signed(src1) >>> shamt;
         default : alu_result = 32'd0;
     endcase
+
+    // determine address alignement
+    aligned_addr.word_aligned     = (alu_result[1:0] == 2'b00);
+    aligned_addr.halfword_aligned = (alu_result[0]   == 1'b0);
 end
 
 assign zero = alu_result == 32'b0;

@@ -61,5 +61,6 @@ pip install -r requirements.txt
 
 WORKDIR /compliance_test/riscof
 
-# clone tests
+# uncomment to clone tests during build
+# if not done on host machine before
 RUN riscof --verbose info arch-test --clone

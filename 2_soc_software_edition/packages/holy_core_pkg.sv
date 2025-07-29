@@ -112,7 +112,10 @@ package holy_core_pkg;
     ALU_SLTU = 4'b0111,
     ALU_XOR = 4'b1000,
     ALU_SRA = 4'b1001,
-    ALU_ERROR = 4'b1111 // to ditch once traps are implemented
+    ALU_ERROR = 4'b1111
+    // ALU ERROR is there for defaults but should
+    // never appear / be used as exceptions will
+    // be detected and a trap will occur.
   } alu_control_t;
 
   // IMM sources
@@ -166,5 +169,23 @@ package holy_core_pkg;
     logic [31:0] data;
     logic valid;
   } write_back_t;
+
+  // Aligned signal
+  // When computing an address the adders
+  // will assert these if the result is
+  // halfword aligned or word aligned.
+  typedef struct packed {
+    logic word_aligned;
+    logic halfword_aligned;
+  } aligned_addr_signal;
+
+  // Target addr
+  // a type that concatenates computed target addresses
+  // from the exec stage to conviniently bring it back to
+  // the CSRs for mtval in case of an unlaugned target addr
+  typedef struct packed {
+    logic [31:0] alu_addr;
+    logic [31:0] second_adder_addr;
+  } target_addr;
 
 endpackage

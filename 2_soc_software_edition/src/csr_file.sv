@@ -22,6 +22,7 @@ module csr_file (
     input logic write_enable,
     input logic [11:0] address,
     input logic [31:0] current_core_pc,
+    input logic [31:0] current_core_fetch_instr,
 
     // Interrupts In
     input logic timer_itr,
@@ -32,6 +33,12 @@ module csr_file (
     input logic m_ret,
     input logic exception,
     input logic [30:0] exception_cause,
+
+    // computed target addresses from execution stage
+    // this type simple cacontenates both targets from the
+    // ALU (loads/stores) and second adder (branches/jumps)
+    // and is used to fill mtval in case of a misaligned j/b
+    input target_addr exception_target_addr,
 
     // OUT DATA
     output logic [31:0] read_data,
@@ -65,11 +72,14 @@ assign csr_mepc  = mepc;
 
 // Trap handling standard C&S registers
 logic [31:0] mstatus, next_mstatus;             // 0x300
+logic [31:0] misa, next_misa;                   // 0x300
 logic [31:0] mie, next_mie;                     // 0x304
 logic [31:0] mip, next_mip;                     // 0x344
 logic [31:0] mtvec, next_mtvec;                 // 0x305
 logic [31:0] mepc, next_mepc;                   // 0x341
 logic [31:0] mcause, next_mcause;               // 0x342
+logic [31:0] mscratch, next_mscratch;           // 0x340
+logic [31:0] mtval, next_mtval;                 // 0x343
 
 // Custom CSRs to controle cache behavior (if cache is enabled)
 logic [31:0] flush_cache, next_flush_cache;                 // 0x7C0
@@ -86,12 +96,16 @@ always_ff @(posedge clk) begin
         non_cachable_base   <= 32'd0;
         non_cachable_limit  <= 32'd0;
         // Trap handling
-        mstatus             <= 32'd0;
+        mstatus             <= 32'h00001800;
         mie                 <= 32'd0;
         mip                 <= 32'd0;
         mtvec               <= 32'd0;
         mepc                <= 32'd0;
         mcause              <= 32'd0;
+        mscratch            <= 32'd0;
+        misa                <= 32'h40140100;
+        mtval               <= 32'd0;
+        // Indicators
         trap_taken          <= 1'b0;
     end
     else begin
@@ -106,7 +120,10 @@ always_ff @(posedge clk) begin
         mtvec               <= next_mtvec;
         mepc                <= next_mepc;
         mcause              <= next_mcause;
-        
+        mscratch            <= next_mscratch;
+        misa                <= next_misa;
+        mtval               <= next_mtval;
+
         trap_taken <= trap_taken;
         if(trap)        trap_taken <= 1'b1;
         else if(m_ret)  trap_taken <= 1'b0;
@@ -131,7 +148,7 @@ always_comb begin : next_csr_value_logic
 
     // mie
     next_mie = mie;
-    if (write_enable & (address == 12'h304)) begin
+    if (write_enable && (address == 12'h304)) begin
         next_mie = write_back_to_csr;
     end
 
@@ -140,7 +157,7 @@ always_comb begin : next_csr_value_logic
 
     // mtvec
     next_mtvec = mtvec;
-    if (write_enable & (address == 12'h305)) begin
+    if (write_enable && (address == 12'h305)) begin
         next_mtvec = write_back_to_csr;
     end
 
@@ -150,6 +167,30 @@ always_comb begin : next_csr_value_logic
         next_mepc = current_core_pc;
     end else if (write_enable & (address == 12'h341)) begin
         next_mepc = write_back_to_csr;
+    end
+
+    //mscratch
+    next_mscratch = mscratch;
+    if (write_enable && (address == 12'h340)) begin
+        next_mscratch = write_back_to_csr;
+    end
+
+    //misa 
+    next_misa = misa; //(RO and fixed on reset)
+
+    //mtval
+    next_mtval = mtval;
+    if(exception)begin
+        case (exception_cause)
+            // todo : set these values as params in pkg file...
+            31'd0:  next_mtval = exception_target_addr.second_adder_addr; // misaligned j/b target
+            31'd2:  next_mtval = current_core_fetch_instr;  // illegal instr
+            31'd3:  next_mtval = current_core_pc;           // ebreak
+            31'd11: next_mtval = 32'd0;                     // ecall
+            default:next_mtval = mtval;
+        endcase
+    end else if (write_enable && (address == 12'h343)) begin
+        next_mtval = write_back_to_csr;
     end
 
     // mcause
@@ -214,11 +255,14 @@ always_comb begin : csr_read_logic
     case (address)
         // Traps CSRs read out
         12'h300: read_data = mstatus;
+        12'h301: read_data = misa;
         12'h304: read_data = mie;
         12'h344: read_data = mip;
         12'h305: read_data = mtvec;
+        12'h340: read_data = mscratch;
         12'h341: read_data = mepc;
         12'h342: read_data = mcause;
+        12'h343: read_data = mtval;
 
         // Custom CSRs read out
         12'h7C0: read_data = flush_cache;

@@ -7,10 +7,32 @@ hart0:
   supported_xlen: [32]
   physical_addr_sz: 32
 
+mscratch:                                  
+  address: 0x340                      
+  priv_mode: M
+  reset-val: 0x0      
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+    implemented: false
+
+misa:                                  
+  address: 0x301                      
+  priv_mode: M
+  reset-val: 0x40140100  
+  rv32:                                 
+    accessible: true
+    base:
+    implemented: true
+  mode:
+    implemented: false
+
 mstatus:                                  
   address: 0x300                       
   priv_mode: M
-  reset-val: 0x0      
+  reset-val: 0x00001800     
   rv32:                                 
     accessible: true
     base:

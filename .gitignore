@@ -30,3 +30,5 @@ hello.hex
 *.a
 test.sh
 venv
+output/
+test.D
