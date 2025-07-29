@@ -174,7 +174,6 @@ always_comb begin
         end
         // J-type + JALR weird Hybrib
         OPCODE_J_TYPE, OPCODE_J_TYPE_JALR : begin
-            exception = 0;
             reg_write = 1'b1;
             imm_source = J_IMM_SOURCE;
             mem_read = 1'b0;
@@ -191,6 +190,20 @@ always_comb begin
                 imm_source = I_IMM_SOURCE;
             end
             csr_write_enable = 1'b0;
+            
+            // When jumping, we need to make sure
+            // destination addr is aligned.
+            if(~second_add_aligned_addr.word_aligned)begin
+                // if alignement is not respected,
+                // we throw an exception
+                exception = 1;
+                exception_cause = 31'd0; // Instruction address misaligned
+            end else begin
+                // if alignement is respected, we can
+                // clear exception and generated adequate branching
+                // signal
+                exception = 0;
+            end
         end
         // U-type
         OPCODE_U_TYPE_LUI, OPCODE_U_TYPE_AUIPC : begin

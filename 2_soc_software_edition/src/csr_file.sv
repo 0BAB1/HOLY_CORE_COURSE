@@ -17,6 +17,7 @@ module csr_file (
     // IN
     input logic clk,
     input logic rst_n,
+    input logic stall,
     input logic [2:0] f3,
     input logic [31:0] write_data,
     input logic write_enable,
@@ -130,7 +131,10 @@ always_ff @(posedge clk) begin
     end
 end
 
-// Specific CSRs logics
+// =====================
+//  CSRs main logic
+// =====================
+
 always_comb begin : next_csr_value_logic
     // ----------------------------
     // Trap CSRs
@@ -142,13 +146,13 @@ always_comb begin : next_csr_value_logic
         next_mstatus[3] = 0;                // Disable interrupts (IE = 0)
     end else if(m_ret)begin
         next_mstatus[3] = next_mstatus[7];  // Restore old IE when returning
-    end else if (write_enable & (address == 12'h300)) begin
+    end else if (~stall && write_enable & (address == 12'h300)) begin
         next_mstatus = write_back_to_csr;
     end
 
     // mie
     next_mie = mie;
-    if (write_enable && (address == 12'h304)) begin
+    if (~stall && write_enable && (address == 12'h304)) begin
         next_mie = write_back_to_csr;
     end
 
@@ -157,7 +161,7 @@ always_comb begin : next_csr_value_logic
 
     // mtvec
     next_mtvec = mtvec;
-    if (write_enable && (address == 12'h305)) begin
+    if (~stall && write_enable && (address == 12'h305)) begin
         next_mtvec = write_back_to_csr;
     end
 
@@ -165,13 +169,13 @@ always_comb begin : next_csr_value_logic
     next_mepc = mepc;
     if (trap) begin
         next_mepc = current_core_pc;
-    end else if (write_enable & (address == 12'h341)) begin
+    end else if (~stall && write_enable && (address == 12'h341)) begin
         next_mepc = write_back_to_csr;
     end
 
     //mscratch
     next_mscratch = mscratch;
-    if (write_enable && (address == 12'h340)) begin
+    if (~stall && write_enable && (address == 12'h340)) begin
         next_mscratch = write_back_to_csr;
     end
 
@@ -180,7 +184,7 @@ always_comb begin : next_csr_value_logic
 
     //mtval
     next_mtval = mtval;
-    if(exception)begin
+    if(trap && exception)begin
         case (exception_cause)
             // todo : set these values as params in pkg file...
             31'd0:  next_mtval = exception_target_addr.second_adder_addr; // misaligned j/b target
@@ -189,7 +193,7 @@ always_comb begin : next_csr_value_logic
             31'd11: next_mtval = 32'd0;                     // ecall
             default:next_mtval = mtval;
         endcase
-    end else if (write_enable && (address == 12'h343)) begin
+    end else if (~stall && write_enable && (address == 12'h343)) begin
         next_mtval = write_back_to_csr;
     end
 
@@ -224,12 +228,12 @@ always_comb begin : next_csr_value_logic
     end
 
     // ----------------------------
-    // Flush cache CSR
+    // Flush cache custom CSRs
 
     if(flush_cache_flag) begin
         next_flush_cache = 32'd0; // if we sent the flush flag, reset on the next cycle
     end
-    else if (write_enable & (address == 12'h7C0))begin
+    else if (~stall && write_enable && (address == 12'h7C0))begin
         next_flush_cache = write_back_to_csr;
     end
     else begin
@@ -240,12 +244,12 @@ always_comb begin : next_csr_value_logic
     // cachable base and limit CSR
 
     next_non_cachable_base = non_cachable_base;
-    if (write_enable & (address == 12'h7C1)) begin
+    if (~stall && write_enable && (address == 12'h7C1)) begin
         next_non_cachable_base = write_back_to_csr;
     end
 
     next_non_cachable_limit = non_cachable_limit;
-    if (write_enable & (address == 12'h7C2)) begin
+    if (~stall && write_enable && (address == 12'h7C2)) begin
         next_non_cachable_limit = write_back_to_csr;
     end
 end

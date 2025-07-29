@@ -394,6 +394,7 @@ csr_file holy_csr_file(
     //in
     .clk(clk),
     .rst_n(rst_n),
+    .stall(stall),
     .f3(f3),
     .write_data(csr_write_back_data),
     .write_enable(csr_write_enable),
