@@ -82,10 +82,9 @@ always_comb begin
     exception_cause = 31'd2;
 
     case (op)
-        // I-type
+        // I-type (read data mem)
         OPCODE_I_TYPE_LOAD : begin
             if(valid_load_func3)begin
-                exception = 0;
                 reg_write = 1'b1;
                 imm_source = I_IMM_SOURCE;
                 mem_write = 1'b0;
@@ -96,6 +95,25 @@ always_comb begin
                 branch = 1'b0;
                 jump = 1'b0;
                 csr_write_enable = 1'b0;
+                // On a load, we gotta makes sure
+                // the requested address is aligned.
+                // if not, an exeption is thrown.
+                case (func3)
+                    F3_WORD: begin
+                        exception = ~alu_aligned_addr.word_aligned;
+                        exception_cause = exception ? 31'd4 : exception_cause;
+                    end
+                    F3_HALFWORD, F3_HALFWORD_U: begin
+                        exception = ~alu_aligned_addr.halfword_aligned;
+                        exception_cause = exception ? 31'd4 : exception_cause;
+                    end
+                    F3_BYTE, F3_BYTE_U: begin
+                        // Byte is always aligned !
+                        exception = 0;
+                    end
+                    // default does nothing, will throw illegal by default
+                    default:;
+                endcase
             end
         end
         // ALU I-type
@@ -114,7 +132,7 @@ always_comb begin
                 csr_write_enable = 1'b0;
             end
         end
-        // S-Type
+        // S-Type (store/mem write)
         OPCODE_S_TYPE : begin
             if(valid_store_func3) begin
                 exception = 0;
@@ -127,6 +145,26 @@ always_comb begin
                 branch = 1'b0;
                 jump = 1'b0;
                 csr_write_enable = 1'b0;
+
+                // On a store, we gotta makes sure
+                // the requested address is aligned.
+                // if not, an exeption is thrown.
+                case (func3)
+                    F3_WORD: begin
+                        exception = ~alu_aligned_addr.word_aligned;
+                        exception_cause = exception ? 31'd6 : exception_cause;
+                    end
+                    F3_HALFWORD: begin
+                        exception = ~alu_aligned_addr.halfword_aligned;
+                        exception_cause = exception ? 31'd6 : exception_cause;
+                    end
+                    F3_BYTE: begin
+                        // Byte is always aligned !
+                        exception = 0;
+                    end
+                    // default does nothing, will throw illegal by default
+                    default:;
+                endcase
             end
         end
         // R-Type

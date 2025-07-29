@@ -657,22 +657,21 @@ async def cpu_insrt_test(dut):
     assert int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little") == 0x00EE_0000
 
     #################
-    # sh x8 1(x0)
-    # sh x8 3(x0)
+    # nop
+    # nop
     # sh x8 6(x3)
-    # NOTE : misaligned stores just do nothing in HOLY CORE
+    # NOTE : misaligned stores throws an excption
+    # and these tests are covered by riscof and not
+    # here anymore, thus the nop placeholder
     ##################
     print("\n\nTESTING SH\n\n")
 
     # Check test's init state
-    assert binary_to_hex(dut.core.instruction.value) == "008010A3"
+    assert binary_to_hex(dut.core.instruction.value) == "00000013"
 
-    await RisingEdge(dut.clk) # sh x8 1(x0)
-    # assert binary_to_hex(dut.core.gen_data_cache.data_cache.cache_data[1].value) == "00EE0000" # remains UNFAZED
-    assert int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little") == 0x00EE_0000
-    
-    await RisingEdge(dut.clk) # sh x8 3(x0)
-    assert int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little") == 0x00EE_0000
+    await RisingEdge(dut.clk) # nop
+
+    await RisingEdge(dut.clk) # nop
 
     while(dut.core.stall.value == 1) :
         await RisingEdge(dut.clk)
@@ -681,18 +680,22 @@ async def cpu_insrt_test(dut):
     #axi_lite_ram_slave.hexdump(0x1004,4)
     #print(hex(int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little")))
 
+    print(hex(int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little")))
     assert int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little") == 0xDBEE0000
 
     #################
     # PARTIAL LOADS
     # addi x7 x3 0x10
-    # lw x18 -1(x7)  
+    # nop
     # lb x18 -1(x7)  
     # lbu x19 -3(x7) 
-    # lh x20 -3(x7)  
+    # nop 
     # lh x20 -6(x7)  
-    # lhu x21 -3(x7) 
+    # nop 
     # lhu x21 -6(x7) 
+    # NOTE : misaligned loads throws an excption
+    # and these tests are covered by riscof and not
+    # here anymore, thus the nop placeholder
     ##################
     print("\n\nTESTING LB\n\n")
 
@@ -703,11 +706,7 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.core.regfile.registers[7].value) == "00001010"
     assert binary_to_hex(dut.core.regfile.registers[18].value) == "EADB0000"
 
-    
-    while(dut.core.stall.value == 1) :
-        await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk) # lw x18 -1(x7)
-    assert binary_to_hex(dut.core.regfile.registers[18].value) == "EADB0000"
+    await RisingEdge(dut.clk) # nop
 
     while(dut.core.stall.value == 1) :
         await RisingEdge(dut.clk)
@@ -719,20 +718,14 @@ async def cpu_insrt_test(dut):
     await RisingEdge(dut.clk) # lbu x19 -3(x7)
     assert binary_to_hex(dut.core.regfile.registers[19].value) == "000000BE"
 
-    while(dut.core.stall.value == 1) :
-        await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk) # lh x20 -3(x7) 
-    assert binary_to_hex(dut.core.regfile.registers[20].value) == "0EADBEEF"
+    await RisingEdge(dut.clk) # nop
 
     while(dut.core.stall.value == 1) :
         await RisingEdge(dut.clk)
     await RisingEdge(dut.clk) # lh x20 -6(x7)
     assert binary_to_hex(dut.core.regfile.registers[20].value) == "FFFFDEAD"
 
-    while(dut.core.stall.value == 1) :
-        await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk) # lhu x21 -3(x7)
-    assert binary_to_hex(dut.core.regfile.registers[21].value) == "FDEADC99"
+    await RisingEdge(dut.clk) # nop
 
     while(dut.core.stall.value == 1) :
         await RisingEdge(dut.clk)

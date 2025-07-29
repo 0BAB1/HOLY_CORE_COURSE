@@ -188,9 +188,11 @@ always_comb begin : next_csr_value_logic
         case (exception_cause)
             // todo : set these values as params in pkg file...
             31'd0:  next_mtval = exception_target_addr.second_adder_addr; // misaligned j/b target
-            31'd2:  next_mtval = current_core_fetch_instr;  // illegal instr
-            31'd3:  next_mtval = current_core_pc;           // ebreak
-            31'd11: next_mtval = 32'd0;                     // ecall
+            31'd2:  next_mtval = current_core_fetch_instr;          // illegal instr
+            31'd4:  next_mtval = exception_target_addr.alu_addr;    // misaligned load target
+            31'd6:  next_mtval = exception_target_addr.alu_addr;    // misaligned store target
+            31'd3:  next_mtval = current_core_pc;                   // ebreak
+            31'd11: next_mtval = 32'd0;                             // ecall
             default:next_mtval = mtval;
         endcase
     end else if (~stall && write_enable && (address == 12'h343)) begin

@@ -512,8 +512,14 @@ generate
             // CPU IF
             .address(alu_result),
             .write_data(mem_write_data),
-            .read_enable(mem_read_enable),
-            .write_enable(mem_write_enable),
+            // We set a I cache priority policy.
+            // when this stage is stalled, we should NOT
+            // Allow the cache to emmit external requests.
+            // (bugs in rare timing edge cases). To make sure 
+            // this is enforced, we condition RE and WE flags
+            // to other stall sources not being asserted.
+            .read_enable(mem_read_enable && ~i_cache_stall),
+            .write_enable(mem_write_enable && ~i_cache_stall),
             .byte_enable(mem_byte_enable),
             .read_data(mem_read),
             .cache_stall(d_cache_stall),
@@ -545,8 +551,14 @@ generate
             // CPU IF
             .address(alu_result),
             .write_data(mem_write_data),
-            .read_enable(mem_read_enable),
-            .write_enable(mem_write_enable),
+            // We set a I cache priority policy.
+            // when this stage is stalled, we should NOT
+            // Allow the cache to emmit external requests.
+            // (bugs in rare timing edge cases). To make sure 
+            // this is enforced, we condition RE and WE flags
+            // to other stall sources not being asserted.
+            .read_enable(mem_read_enable && ~i_cache_stall),
+            .write_enable(mem_write_enable && ~i_cache_stall),
             .byte_enable(mem_byte_enable),
             .read_data(mem_read),
             .cache_stall(d_cache_stall),

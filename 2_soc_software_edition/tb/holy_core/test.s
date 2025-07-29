@@ -163,24 +163,24 @@ _start:
     sb x8, 6(x3)
 
     # SH TEST START
-    sh x8, 1(x0)
-    sh x8, 3(x0)
+    nop
+    nop
     sh x8, 6(x3)
 
     # LB TEST START
     addi x7, x3, 0x10
-    lw x18, -1(x7)
+    nop
     lb x18, -1(x7)
 
     # LBU TEST START
     lbu x19, -3(x7)
 
     # LH TEST START
-    lh x20, -3(x7)
+    nop
     lh x20, -6(x7)
 
     # LHU TEST START
-    lhu x21, -3(x7)
+    nop
     lhu x21, -6(x7)
 
     # CACHE WB TEST
