@@ -25,10 +25,12 @@ VERILOG_SOURCES += $(PWD)/../../packages/holy_core_pkg.sv
 VERILOG_SOURCES += $(PWD)/axi_if_convert.sv
 
 AXI_SRCS := $(wildcard $(PWD)/../../vendor/axi/src/*.sv)
+# filter out test files / files that will be built later
 AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_pkg.sv, $(AXI_SRCS))
 AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_test.sv, $(AXI_SRCS))
 AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_intf.sv, $(AXI_SRCS))
 VERILOG_SOURCES += $(AXI_SRCS)
+# go on
 VERILOG_SOURCES += $(PWD)/../../packages/axi_if.sv
 VERILOG_SOURCES += $(PWD)/../../packages/axi_lite_if.sv
 VERILOG_SOURCES += $(wildcard $(PWD)/../../src/*.sv)

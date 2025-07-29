@@ -15,17 +15,31 @@ from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 
 from cocotb.runner import get_runner
 
-def generic_tb_runner(design_name, specific_top_level=None, additional_sources=[""]):
+def generic_tb_runner(design_name, specific_top_level=None, additional_sources=[], initial_sources=[], includes=[]):
+    """
+        initial sources : packages and "early" source files needed to build most modules
+        additional sources : complementary "final" sources unused from outside the src/ folder
+        includes : self explainatory
+    """
+    print(initial_sources, additional_sources)
     sim = os.getenv("SIM", "verilator")
     proj_path = Path(__name__).resolve().parent.parent
     sources = list(proj_path.glob("src/*.sv"))
     runner = get_runner(sim)
     toplevel = specific_top_level if specific_top_level else design_name
     runner.build(
-        sources=sources,
+        sources=initial_sources+sources+additional_sources,
         hdl_toplevel=f"{toplevel}",
         build_dir=f"./{design_name}/sim_build",
-        build_args=[f"--trace", "--trace-structs", f"{proj_path}/packages/holy_core_pkg.sv", f"{proj_path}/packages/axi_if.sv", f"{proj_path}/packages/axi_lite_if.sv"] + additional_sources
+        build_args=(
+            ["--sv", "-Wno-fatal", "--trace", "--trace-structs"]
+            + includes
+            + [
+                f"{proj_path}/packages/holy_core_pkg.sv",
+                f"{proj_path}/packages/axi_if.sv",
+                f"{proj_path}/packages/axi_lite_if.sv"
+            ]
+        )
     )
     runner.test(hdl_toplevel=f"{toplevel}", test_module=f"test_{design_name}", test_dir=f"./{design_name}")
 
@@ -37,7 +51,36 @@ def test_control():
 
 def test_holy_core():
     proj_path = Path(__name__).resolve().parent.parent
-    generic_tb_runner("holy_core", specific_top_level="holy_test_harness", additional_sources=[f"{proj_path}/tb/holy_core/holy_test_harness.sv"])
+
+    generic_tb_runner(
+        "holy_core",
+        specific_top_level="holy_test_harness",
+        initial_sources=[
+            # Pulp AXI CROSSBAR sources for testbench
+            f"{proj_path}/vendor/axi/src/axi_pkg.sv",
+            f"{proj_path}/vendor/common_cells/src/cf_math_pkg.sv",
+            f"{proj_path}/vendor/axi/src/axi_intf.sv",
+            f"{proj_path}/vendor/common_verification/src/rand_id_queue.sv",
+            f"{proj_path}/packages/holy_core_pkg.sv",
+            f"{proj_path}/packages/axi_if.sv",
+            f"{proj_path}/packages/axi_lite_if.sv",
+            f"{proj_path}/tb/holy_core/axi_if_convert.sv",
+        ]
+        + [f for f in (proj_path / "vendor/axi/src").glob("*.sv") if f.name not in {"axi_pkg.sv", "axi_test.sv", "axi_intf.sv"}],
+        additional_sources= (
+            list(proj_path.glob("src/holy_plic/*.sv"))
+            + list(proj_path.glob("src/holy_clint/*.sv"))
+            + [
+                f"{proj_path}/tb/holy_core/holy_test_harness.sv"
+            ]
+        ),
+        includes=[
+            f"-I{proj_path}/vendor/axi/include",
+            f"-I{proj_path}/vendor/common_cells/include",
+            f"-I{proj_path}/vendor/common_cells/src",
+            f"-I{proj_path}/vendor/axi/src"
+        ]
+    )
 
 """def test_memory():
     generic_tb_runner("memory")"""

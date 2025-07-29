@@ -1,5 +1,9 @@
 # CONTROL TESTBECH
 #
+# Simple testbench for I/O of the control module
+# larger scale tests like unaligned exception behavior
+# are test by a larger bahavioral test suite (riscof).
+#
 # BRH 10/24
 
 import cocotb
@@ -19,8 +23,12 @@ async def set_unknown(dut):
     dut.alu_zero.value = BinaryValue("X")
     dut.alu_last_bit.value = BinaryValue("X")
 
-    # declare incomming instruction as vlaid
+    # declare incomming instruction as valid
     dut.instr_cache_valid.value = 1
+    # declare incomming target addresses as aligned
+    # (packed type with 2x flags)
+    dut.alu_aligned_addr.value = 0b11           
+    dut.second_add_aligned_addr.value = 0b11
     await Timer(1, units="ns")
 
 @cocotb.test()
