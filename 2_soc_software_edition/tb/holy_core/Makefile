@@ -54,7 +54,7 @@ OBJCOPY     := riscv64-unknown-elf-objcopy
 OBJDUMP     := riscv64-unknown-elf-objdump
 HEXTOOL     := hexdump
 
-SRC         := test.S
+SRC         := test.s
 OUT_ELF     := test.elf
 OUT_BIN     := test.bin
 OUT_HEX     := test.hex
