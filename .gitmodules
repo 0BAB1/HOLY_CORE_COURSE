@@ -1,0 +1,11 @@
+[submodule "2_soc_software_edition/vendor/common_cells"]
+    path = 2_soc_software_edition/vendor/common_cells
+    url = https://github.com/pulp-platform/common_cells.git
+
+[submodule "2_soc_software_edition/vendor/axi"]
+    path = 2_soc_software_edition/vendor/axi
+    url = https://github.com/pulp-platform/axi.git
+
+[submodule "2_soc_software_edition/vendor/common_verification"]
+    path = 2_soc_software_edition/vendor/common_verification
+    url = https://github.com/pulp-platform/common_verification.git
