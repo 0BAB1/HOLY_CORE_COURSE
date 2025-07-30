@@ -5,7 +5,7 @@ results.xml
 *.None
 *.odg#
 new.hex
-test.hex
+# test.hex
 temp.py
 *.vcd
 gpio.hex

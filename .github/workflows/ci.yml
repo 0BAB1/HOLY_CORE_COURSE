@@ -58,9 +58,6 @@ jobs:
       - name: Run Tests in soc_software_edition
         run: |
           cd 2_soc_software_edition/tb
-          cd holy_core
-          make test.hex
-          cd ..
           pytest test_runner.py
 
       # Run tests in single_cycle_edition
