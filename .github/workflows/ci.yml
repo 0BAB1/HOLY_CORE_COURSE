@@ -54,6 +54,14 @@ jobs:
       - name: Check software version
         run: |
           verilator --version
+      # Run tests in soc_software_edition
+      - name: Run Tests in soc_software_edition
+        run: |
+          cd 2_soc_software_edition/tb
+          cd holy_core
+          make test.hex
+          cd ..
+          pytest test_runner.py
 
       # Run tests in single_cycle_edition
       - name: Run Tests in single_cycle_edition
@@ -65,11 +73,5 @@ jobs:
       - name: Run Tests in fpga_edition
         run: |
           cd 1_fpga_edition/tb
-          pytest test_runner.py
-
-      # Run tests in soc_software_edition
-      - name: Run Tests in soc_software_edition
-        run: |
-          cd 2_soc_software_edition/tb
           pytest test_runner.py
 
