@@ -32,7 +32,7 @@ def generic_tb_runner(design_name, specific_top_level=None, additional_sources=[
         hdl_toplevel=f"{toplevel}",
         build_dir=f"./{design_name}/sim_build",
         build_args=(
-            ["--sv", "-Wno-fatal", "--trace", "--trace-structs"]
+            ["-sv", "-Wall", "-Wno-fatal", "--trace", "--trace-structs"]
             + includes
             + [
                 f"{proj_path}/packages/holy_core_pkg.sv",
@@ -61,7 +61,6 @@ def test_holy_core():
             f"{proj_path}/vendor/common_cells/src/cf_math_pkg.sv",
             f"{proj_path}/vendor/axi/src/axi_intf.sv",
             f"{proj_path}/vendor/common_verification/src/rand_id_queue.sv",
-            f"{proj_path}/packages/holy_core_pkg.sv",
             f"{proj_path}/packages/axi_if.sv",
             f"{proj_path}/packages/axi_lite_if.sv",
             f"{proj_path}/tb/holy_core/axi_if_convert.sv",
