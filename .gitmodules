@@ -9,3 +9,15 @@
 [submodule "2_soc_software_edition/vendor/common_verification"]
     path = 2_soc_software_edition/vendor/common_verification
     url = https://github.com/pulp-platform/common_verification.git
+
+[submodule "2_soc_software_edition/tb/holy_core/common_cells"]
+    path = 2_soc_software_edition/tb/holy_core/common_cells
+    url = https://github.com/pulp-platform/common_cells.git
+
+[submodule "2_soc_software_edition/tb/holy_core/axi"]
+    path = 2_soc_software_edition/tb/holy_core/axi
+    url = https://github.com/pulp-platform/axi.git
+
+[submodule "2_soc_software_edition/tb/holy_core/common_verification"]
+    path = 2_soc_software_edition/tb/holy_core/common_verification
+    url = https://github.com/pulp-platform/common_verification.git
