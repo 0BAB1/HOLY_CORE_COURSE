@@ -6,7 +6,9 @@
 *   (Suitable for all targets)
 */
 
-module holy_wrapper (
+module holy_wrapper #(
+    parameter DEBUG_EN = 1
+)(
     input wire clk,
     input wire rst_n,
     input wire aclk,
@@ -82,11 +84,15 @@ module holy_wrapper (
     output wire [3:0]               d_cache_next_state,
     output wire                     mem_read,
     output wire [3:0]               mem_byte_en,
-    output wire [31:0]              wb_data
+    output wire [31:0]              wb_data,
+
+    // INTERRUPTS
+    input wire ext_irq,
+    input wire timer_irq,
+    input wire soft_irq
 );
 
 // Internal wiring
-
 axi_details wrapped (
     // System signals
     .clk(clk),
@@ -164,8 +170,12 @@ axi_details wrapped (
     .d_cache_next_state(d_cache_next_state),
     .mem_read(mem_read),
     .mem_byte_en(mem_byte_en),
-    .wb_data(wb_data)
+    .wb_data(wb_data),
 
+    // IRQs
+    .ext_irq(ext_irq),
+    .timer_irq(timer_irq),
+    .soft_irq(soft_irq)
 );
 
 endmodule

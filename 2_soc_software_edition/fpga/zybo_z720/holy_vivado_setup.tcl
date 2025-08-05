@@ -273,6 +273,146 @@ set_property offset 0x3000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_iic_0_Reg}
 save_bd_design
 
 
+#======================================
+# BRH 08/25 New SoC for v2 soc/software edition
+# Starting from old base, the objectif is to add the clint, CLINT and basic peripherals
+# including a way to load proggrams from an SD card
+
+# Add source files
+add_files -norecurse {
+  ./2_soc_software_edition/src/holy_clint/holy_clint.sv
+  ./2_soc_software_edition/src/holy_clint/holy_clint_wrapper.sv
+  ./2_soc_software_edition/src/holy_clint/holy_clint_top.v
+  ./2_soc_software_edition/src/holy_plic/holy_plic.sv
+  ./2_soc_software_edition/src/holy_plic/holy_plic_wrapper.sv
+  ./2_soc_software_edition/src/holy_plic/holy_plic_top.v
+}
+
+update_compile_order -fileset sources_1
+create_bd_cell -type module -reference holy_clint_top holy_clint_top_0
+create_bd_cell -type module -reference holy_plic_top holy_plic_top_0
+
+startgroup
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/holy_wrapper_0/m_axi_lite} Slave {/holy_clint_top_0/s_axi} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins holy_clint_top_0/s_axi]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/holy_wrapper_0/m_axi_lite} Slave {/holy_plic_top_0/s_axi} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins holy_plic_top_0/s_axi]
+endgroup
+
+startgroup
+set_property CONFIG.NUM_IRQS {1} [get_bd_cells holy_plic_top_0]
+endgroup
+
+connect_bd_net [get_bd_pins holy_clint_top_0/timer_irq] [get_bd_pins holy_wrapper_0/timer_irq]
+connect_bd_net [get_bd_pins holy_clint_top_0/soft_irq] [get_bd_pins holy_wrapper_0/soft_irq]
+connect_bd_net [get_bd_pins holy_plic_top_0/ext_irq_o] [get_bd_pins holy_wrapper_0/ext_irq]
+regenerate_bd_layout
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 xlconcat_0
+endgroup
+
+connect_bd_net [get_bd_pins axi_iic_0/gpo] [get_bd_pins xlconcat_0/In0]
+startgroup
+set_property CONFIG.NUM_PORTS {1} [get_bd_cells xlconcat_0]
+endgroup
+connect_bd_net [get_bd_pins xlconcat_0/dout] [get_bd_pins holy_plic_top_0/irq_in]
+connect_bd_net [get_bd_pins holy_plic_top_0/rst_n] [get_bd_pins holy_clint_top_0/rst_n]
+connect_bd_net [get_bd_pins holy_clint_top_0/rst_n] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
+regenerate_bd_layout
+delete_bd_objs [get_bd_nets axi_iic_0_gpo]
+startgroup
+endgroup
+connect_bd_net [get_bd_pins axi_iic_0/iic2intc_irpt] [get_bd_pins xlconcat_0/In0]
+regenerate_bd_layout
+
+# Add BRAM and debug
+
+delete_bd_objs [get_bd_intf_nets axi_smc_M00_AXI] [get_bd_intf_nets axi_bram_ctrl_0_BRAM_PORTA] [get_bd_intf_nets axi_bram_ctrl_0_BRAM_PORTB] [get_bd_cells axi_bram_ctrl_0]
+delete_bd_objs [get_bd_cells axi_bram_ctrl_0_bram]
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_0
+endgroup
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_1
+endgroup
+
+startgroup
+apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
+apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTB]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/holy_wrapper_0/m_axi} Slave {/axi_bram_ctrl_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
+
+apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_1/BRAM_PORTA]
+apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_1/BRAM_PORTB]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/holy_wrapper_0/m_axi} Slave {/axi_bram_ctrl_1/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
+endgroup
+
+# Addresses assignments
+
+delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
+assign_bd_address -target_address_space /holy_wrapper_0/m_axi [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
+assign_bd_address -target_address_space /holy_wrapper_0/m_axi [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
+set_property offset 0 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
+set_property range 32K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
+set_property offset 0x8000 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_1_Mem0}]
+set_property range 32K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_1_Mem0}]
+assign_bd_address
+
+startgroup
+set_property CONFIG.BASE_ADDR {0x40000000} [get_bd_cells holy_clint_top_0]
+endgroup
+startgroup
+set_property -dict [list \
+  CONFIG.BASE_ADDR {0x80000000} \
+  CONFIG.NUM_IRQS {2} \
+] [get_bd_cells holy_plic_top_0]
+endgroup
+
+#irq config stuff
+startgroup
+set_property CONFIG.NUM_PORTS {2} [get_bd_cells xlconcat_0]
+endgroup
+connect_bd_net [get_bd_pins axi_uartlite_0/interrupt] [get_bd_pins xlconcat_0/In1]
+
+# debug ILA UART + intr
+set_property HDL_ATTRIBUTE.DEBUG true [get_bd_intf_nets {axi_uartlite_0_UART}]
+apply_bd_automation -rule xilinx.com:bd_rule:debug -dict [list \
+                                                          [get_bd_intf_nets axi_uartlite_0_UART] {NON_AXI_SIGNALS "Data and Trigger" CLK_SRC "/clk_wiz/clk_out1" SYSTEM_ILA "New" } \
+                                                         ]
+startgroup
+set_property CONFIG.C_MON_TYPE {MIX} [get_bd_cells system_ila_2]
+endgroup
+connect_bd_net [get_bd_pins system_ila_2/probe0] [get_bd_pins axi_uartlite_0/interrupt]
+
+startgroup
+set_property CONFIG.C_DATA_DEPTH {65536} [get_bd_cells system_ila_2]
+endgroup
+
+# add itrs to IIC ila
+
+startgroup
+set_property CONFIG.C_MON_TYPE {MIX} [get_bd_cells system_ila_1]
+endgroup
+connect_bd_net [get_bd_pins axi_iic_0/gpo] [get_bd_pins system_ila_1/probe0]
+
+# add itrs to main ILA
+
+startgroup
+set_property CONFIG.C_NUM_OF_PROBES {28} [get_bd_cells system_ila_0]
+endgroup
+connect_bd_net [get_bd_pins system_ila_0/probe20] [get_bd_pins holy_clint_top_0/timer_irq]
+connect_bd_net [get_bd_pins system_ila_0/probe21] [get_bd_pins holy_clint_top_0/soft_irq]
+connect_bd_net [get_bd_pins system_ila_0/probe22] [get_bd_pins holy_plic_top_0/ext_irq_o]
+connect_bd_net [get_bd_pins system_ila_0/probe23] [get_bd_pins holy_plic_top_0/irq_meta]
+connect_bd_net [get_bd_pins system_ila_0/probe24] [get_bd_pins holy_plic_top_0/irq_req]
+connect_bd_net [get_bd_pins system_ila_0/probe25] [get_bd_pins holy_plic_top_0/ip]
+connect_bd_net [get_bd_pins system_ila_0/probe26] [get_bd_pins holy_plic_top_0/in_service]
+connect_bd_net [get_bd_pins system_ila_0/probe27] [get_bd_pins xlconcat_0/dout]
+
+# slight corrections
+
+#...
+
 # Validate + wrapper
 validate_bd_design
 make_wrapper -files [get_files ./HOLY_SOC/holy_soc_project.srcs/sources_1/bd/design_1/design_1.bd] -top

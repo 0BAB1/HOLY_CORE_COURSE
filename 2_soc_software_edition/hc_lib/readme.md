@@ -6,5 +6,5 @@ You will need to build by simply running `make`.
 
 Prerequisites:
 
-- `riscv32-unknown-elf` toolchain
-- Only tested on a linux system
+- riscv toolchain (32 bits)
+- make

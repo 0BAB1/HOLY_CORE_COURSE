@@ -210,7 +210,14 @@ _start:
     ################
     lui x4, 0x3             # Clint base addr
     la x6, trap             # Trap handler base addr
-    csrrw x0, 0x305, x6     # we set mtvec to the trap handler's addr
+    csrrw x0, mtvec, x6     # we set mtvec to the trap handler's addr
+    
+    # we configure CSRs to enable interrupts
+    li t0, (1 << 11) | (1 << 7) | (1 << 3)
+    csrw mie, t0
+    li t0, (1 << 3)
+    csrw mstatus, t0
+
     addi x5, x0, 1      
     sw x5, 0(x4)            # write 1 to clint's msip
     # return should happen here

@@ -7,6 +7,7 @@
 // UART interface
 void uart_putchar(char c);
 void uart_puts(const char *s);
+void uart_puthex(uint32_t val);
 
 // AXI IIC Support
 void config_i2c_core();
