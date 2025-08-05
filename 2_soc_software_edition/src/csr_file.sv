@@ -73,7 +73,7 @@ assign csr_mepc  = mepc;
 
 // Trap handling standard C&S registers
 logic [31:0] mstatus, next_mstatus;             // 0x300
-logic [31:0] misa, next_misa;                   // 0x300
+logic [31:0] misa, next_misa;                   // 0x301
 logic [31:0] mie, next_mie;                     // 0x304
 logic [31:0] mip, next_mip;                     // 0x344
 logic [31:0] mtvec, next_mtvec;                 // 0x305

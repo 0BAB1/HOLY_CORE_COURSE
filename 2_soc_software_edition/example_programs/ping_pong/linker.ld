@@ -20,5 +20,9 @@ SECTIONS
         *(COMMON)
     } > RAM
 
-    _stack_top = ORIGIN(RAM) + LENGTH(RAM);
+    .stack (NOLOAD) : {
+        _stack_top = ORIGIN(RAM) + LENGTH(RAM);
+        _stack_bottom = _stack_top - 0x800; /* 2KB stack */
+        . = _stack_top;
+    } > RAM
 }

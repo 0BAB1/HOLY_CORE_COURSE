@@ -32,3 +32,4 @@ test.sh
 venv
 output/
 test.D
+.vscode

@@ -114,7 +114,12 @@ module axi_details (
     output logic [3:0] d_cache_next_state,
     output logic [31:0] mem_read,
     output logic [3:0] mem_byte_en,
-    output logic [31:0] wb_data 
+    output logic [31:0] wb_data,
+
+    // IRQs
+    input logic ext_irq,
+    input logic timer_irq,
+    input logic soft_irq
 );
 
 // INTERFACES DECLARATION
@@ -128,6 +133,11 @@ holy_core core(
     // AXI Master Interface
     .m_axi(m_axi),
     .m_axi_lite(m_axi_lite),
+
+    // interrupts
+    .timer_itr(timer_irq),
+    .soft_itr(soft_irq),
+    .ext_itr(ext_irq),
 
     // Debug out interface
     .debug_pc(pc),  

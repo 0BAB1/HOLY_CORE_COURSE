@@ -17,6 +17,20 @@ void uart_puts(const char *s) {
     }
 }
 
+// Helper: Convert a nibble to hex character
+static char hex_digit(uint8_t nibble) {
+    return (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
+}
+
+// Print 32-bit value in hexadecimal (8 hex digits)
+void uart_puthex(uint32_t val) {
+    uart_puts("0x");
+    for (int i = 7; i >= 0; i--) {
+        uint8_t nibble = (val >> (i * 4)) & 0xF;
+        uart_putchar(hex_digit(nibble));
+    }
+}
+
 /*
     I2C BUS I/O Support using AXI IIC IP in the SOC
 */

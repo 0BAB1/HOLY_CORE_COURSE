@@ -70,6 +70,9 @@ module holy_plic_wrapper #(
     assign s_axi_rvalid       = s_axi_lite.rvalid;
     assign s_axi_lite.rready  = s_axi_rready;
 
+    /* verilator lint_off NULLPORT */
+    /* verilator lint_off PINMISSING */
+
     // Instantiate the DUT
     holy_plic #(
         .NUM_IRQS(NUM_IRQS)
@@ -80,5 +83,8 @@ module holy_plic_wrapper #(
         .s_axi_lite (s_axi_lite),
         .ext_irq_o  (ext_irq_o)
     );
+
+    /* verilator lint_on NULLPORT */
+    /* verilator lint_off PINMISSING */
 
 endmodule

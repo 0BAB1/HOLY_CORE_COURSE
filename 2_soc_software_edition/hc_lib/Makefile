@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = riscv32-unknown-elf-gcc
-CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -Wall -Wextra -O2 -Iinclude
+CFLAGS = -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -O2 -Iinclude
 
 # Sources and objects
 SRC = src/holycore.c

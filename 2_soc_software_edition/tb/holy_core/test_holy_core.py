@@ -909,9 +909,9 @@ async def cpu_insrt_test(dut):
     # Meeting these conditions, along some other additional checks
     # Ensures basic bahavior is okay.
 
-    # We set the MIE csr, activate all interrupts
-    dut.core.holy_csr_file.mie.value = 1 << 3 | 1 << 7 | 1 << 11
-    dut.core.holy_csr_file.mstatus.value = 1 << 3
+    # We set the MIE csr, activate all interrupts (note: now we do it using actual instrs)
+    # dut.core.holy_csr_file.mie.value = 1 << 3 | 1 << 7 | 1 << 11
+    # dut.core.holy_csr_file.mstatus.value = 1 << 3
 
     # Wait until we are about to write 1 to software interrupt
     while not binary_to_hex(dut.core.instruction.value) == "00522023":

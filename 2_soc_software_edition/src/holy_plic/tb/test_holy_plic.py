@@ -170,3 +170,67 @@ async def main_test(dut):
             # signal completion
             await axil_master.write(0x4,claim_result.data)
             await RisingEdge(dut.clk)
+
+    # ==================================
+    # RISING EDGE INTR TEST (TODO)
+    # ==================================
+
+    # The goal of this test is to check if the core is able to latch onto
+    # a single clock cycle interrupt as excpeted (e.G. a non empty UART intr)
+
+    for _ in range(100):
+        random_id = random.randint(0,4)
+        dut.irq_in[random_id].value = 0b1
+        await RisingEdge(dut.clk)
+        dut.irq_in[random_id].value = 0b0
+        await Timer(1, units="ns")
+
+        # wait for the gateways to synchronise
+        while not dut.ext_irq_o.value:
+            await RisingEdge(dut.clk)
+
+        # wait and check the itr signal gets latched still
+        for _ in range(10):
+            await RisingEdge(dut.clk)
+
+        assert dut.ext_irq_o.value == 0b1
+        
+        # Then the target claims the interrupt
+        # result of the read should be the id of the
+        # interrupt.
+        claim_result = await axil_master.read(0x4,4)
+        assert (
+            int.from_bytes(claim_result.data, byteorder="little")
+            == random_id + 1
+        )
+        await RisingEdge(dut.clk)
+
+        # external request should go low
+        assert dut.ext_irq_o.value == 0b0
+
+        # check internal in service signal & check irq
+        # is latching though there is no "real" irq_in anymore
+        assert dut.u_holy_plic.in_service.value == 1
+        assert dut.u_holy_plic.irq_req[random_id].value == 1
+        assert dut.u_holy_plic.irq_in[random_id].value == 0
+
+        # simulate an handler running
+        for _2 in range(10):
+            await RisingEdge(dut.clk)
+        
+        # ext irq request is cleared by the target's actions
+        dut.irq_in[random_id].value = 0b0
+
+        # simulate an handler running
+        for _2 in range(10):
+            await RisingEdge(dut.clk)
+        
+        # signal completion
+        signal_completion = await axil_master.write(0x4,claim_result.data)
+        await RisingEdge(dut.clk)
+        
+        # check internal in service signal
+        assert dut.u_holy_plic.in_service.value == 0
+
+        # no more external interrupt at this point
+        assert dut.ext_irq_o.value == 0b0

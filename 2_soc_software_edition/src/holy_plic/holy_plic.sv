@@ -8,6 +8,7 @@
 *                 in HOLY CORE its okay as there is a single clock domain for
 *                 the whole SoC.
 *                 Sync reset.
+*                 Supports non level interrupts (latches until claimed !)
 *
 *   Created 07/25
 */
@@ -31,7 +32,13 @@ module holy_plic #(
     axi_lite_if.slave s_axi_lite,
 
     // Interrupt output to core
-    output logic                 ext_irq_o
+    output logic                 ext_irq_o,
+
+    // out signals for debug
+    output logic [NUM_IRQS-1:0]  irq_meta,
+    output logic [NUM_IRQS-1:0]  irq_req,
+    output logic [NUM_IRQS-1:0]  ip,
+    output logic in_service
 );
 
     // REGISTERS MAP
@@ -44,23 +51,31 @@ module holy_plic #(
 
     // The role of this gateway is to sync interrupt signals
     // and set the pending signals accordingly.
-    logic [NUM_IRQS-1:0] ip; //Interrupt Pending...
-    logic [NUM_IRQS-1:0]  irq_meta;
-    logic [NUM_IRQS-1:0]  irq_req;
+    // logic [NUM_IRQS-1:0]  ip; //Interrupt Pending...
+    // logic [NUM_IRQS-1:0]  irq_meta;
+    // logic [NUM_IRQS-1:0]  irq_req;
+    logic [NUM_IRQS-1:0]  irq_clear;
 
     // Synchronise the incomming interupts
     // (comming from different clock domain
     // probably slower e.g. I2C, SPI, etc...)
+    // Synchronize and latch incoming interrupts
     always_ff @(posedge clk) begin
         if (~rst_n) begin
-            for(int i = 0; i < NUM_IRQS; i++)begin
+            for (int i = 0; i < NUM_IRQS; i++) begin
                 irq_meta[i] <= 1'b0;
-                irq_req[i] <= 1'b0;
+                irq_req[i]  <= 1'b0;
             end
         end else begin
-            for(int i = 0; i < NUM_IRQS; i++)begin
+            for (int i = 0; i < NUM_IRQS; i++) begin
+                // Two-flop synchronizer for irq_in
                 irq_meta[i] <= irq_in[i];
-                irq_req[i] <= irq_meta[i];
+                
+                // Latch the request if seen, until cleared
+                if (irq_clear[i])
+                    irq_req[i] <= 1'b0;
+                else if (irq_meta[i])
+                    irq_req[i] <= 1'b1;
             end
         end
     end
@@ -80,7 +95,8 @@ module holy_plic #(
     // which deasserts target's notification until completion.
     // even though the actual interrput pending signal commin
     // from the gateways is high.
-    logic in_service, in_service_next;
+    // logic in_service, in_service_next;
+    logic in_service_next;
     // We also have to remember what is the current ID
     // being serviced. This is because the targets rewrites
     // this ID to the CONTEXT_CLAIM_COMPLETE register
@@ -124,6 +140,9 @@ module holy_plic #(
         araddr_next = araddr;
         enabled_next = enabled;
         serviced_id_next = serviced_id;
+        for (int i = 0; i < NUM_IRQS; i++) begin
+            irq_clear[i] = 1'b0;
+        end
 
         // AXI LITE DEFAULT
         s_axi_lite.awready = 1'b0;
@@ -170,15 +189,20 @@ module holy_plic #(
                             serviced_id_next = max_id;
                             s_axi_lite.rdata = 32'(max_id);
                         end else begin
+                            // No interrupt pending.
+                            // We aslso clear to avoid deadlocks
+                            for (int i = 0; i < NUM_IRQS; i++) begin
+                                irq_clear[i] = 1'b1;
+                            end
                             in_service_next = 1'b0;
                             s_axi_lite.rdata = 32'd0;
                         end
                     end
 
                     default: begin
-                        // Return error + dummy / noticable value 
+                        // Return error
                         s_axi_lite.rresp = 2'b11;
-                        s_axi_lite.rdata = 32'hFFFFFFFF;
+                        s_axi_lite.rdata = 32'h0000_0000;
                     end
                 endcase
 
@@ -201,6 +225,7 @@ module holy_plic #(
                         CONTEXT_CLAIM_COMPLETE:begin
                             if(s_axi_lite.wdata == 32'(serviced_id))begin
                                 in_service_next = 0;
+                                irq_clear[serviced_id - 1] = 1;
                             end
                         end
 
@@ -240,16 +265,18 @@ module holy_plic #(
         max_id = 0;
         found = 0;
 
-        for(int i = NUM_IRQS-1; i >= 0; i--)begin
-            if (!found && ip[i]) begin
-                max_id = i[$clog2(NUM_IRQS)-1:0] + 1;
-                found = 1;
+        for (int i = NUM_IRQS - 1; i >= 0; i--) begin
+                if (!found && ip[i]) begin
+                    max_id = $clog2(NUM_IRQS)'(i) + 1;
+                    found = 1;
+                end
             end
-        end
     end
+
 
     // Registers for enable and pending interrupts
     logic [NUM_IRQS-1:0] enabled, enabled_next;
+    // logic [NUM_IRQS-1:0] enabled_next;
 
     always_comb begin : set_target_notification
         ext_irq_o = |ip && ~in_service;
@@ -257,7 +284,7 @@ module holy_plic #(
 
     always_ff @(posedge clk) begin : enabled_register
         if(~rst_n) begin
-            enabled <= 0;
+            enabled <= {NUM_IRQS{1'b1}};
         end
         else begin
             enabled <= enabled_next;

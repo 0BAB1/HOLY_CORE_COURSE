@@ -30,6 +30,8 @@ AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_pkg.sv, $(AXI_SRCS))
 AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_test.sv, $(AXI_SRCS))
 AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_intf.sv, $(AXI_SRCS))
 VERILOG_SOURCES += $(AXI_SRCS)
+VERILOG_SOURCES += $(PWD)/../../vendor/axi/src/axi_pkg.sv
+
 # go on
 VERILOG_SOURCES += $(PWD)/../../packages/axi_if.sv
 VERILOG_SOURCES += $(PWD)/../../packages/axi_lite_if.sv
