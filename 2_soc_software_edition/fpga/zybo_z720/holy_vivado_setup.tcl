@@ -351,11 +351,14 @@ endgroup
 
 delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
 assign_bd_address -target_address_space /holy_wrapper_0/m_axi [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
+
 assign_bd_address -target_address_space /holy_wrapper_0/m_axi [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
 set_property offset 0 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
 set_property range 32K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
+
 set_property offset 0x8000 [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_1_Mem0}]
 set_property range 32K [get_bd_addr_segs {holy_wrapper_0/m_axi/SEG_axi_bram_ctrl_1_Mem0}]
+
 assign_bd_address
 
 startgroup

@@ -103,7 +103,7 @@ module holy_plic #(
     // once handling is complete. This completion write
     // deassets in_service and allows the output notification
     // to be high again
-    logic [$clog2(NUM_IRQS)-1:0] serviced_id, serviced_id_next;
+    logic [$clog2(NUM_IRQS):0] serviced_id, serviced_id_next;
     // Note that service id is set on claim. As the target can
     // manually, without notification claim another interrupt
     // before declaring completion of the first one.
@@ -202,7 +202,7 @@ module holy_plic #(
                     default: begin
                         // Return error
                         s_axi_lite.rresp = 2'b11;
-                        s_axi_lite.rdata = 32'h0000_0000;
+                        s_axi_lite.rdata = 32'hAEAEAEAE;
                     end
                 endcase
 
@@ -258,19 +258,19 @@ module holy_plic #(
     // Logic cells => Determine the max id
     // Based on this scheme:
     // https://people.eecs.berkeley.edu/~krste/papers/riscv-privileged-v1.9.pdf#page=74
-    logic [$clog2(NUM_IRQS)-1:0] max_id;
-    bit found; // helper bit for max id logic
+    logic [$clog2(NUM_IRQS):0] max_id;
+    logic found;
 
     always_comb begin : determine_max_id
         max_id = 0;
         found = 0;
 
         for (int i = NUM_IRQS - 1; i >= 0; i--) begin
-                if (!found && ip[i]) begin
-                    max_id = $clog2(NUM_IRQS)'(i) + 1;
-                    found = 1;
-                end
+            if (!found && ip[i]) begin
+                max_id = ($clog2(NUM_IRQS)+1)'(i + 1);
+                found = 1;
             end
+        end
     end
 
 

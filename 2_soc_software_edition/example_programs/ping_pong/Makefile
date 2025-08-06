@@ -3,7 +3,7 @@
 CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
-CFLAGS = -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -O2 -I../../hc_lib/include
+CFLAGS = -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -I../../hc_lib/include
 LDFLAGS = -T linker.ld -nostdlib
 
 all: hello.bin hello.hex dump.txt bootloader.tcl
