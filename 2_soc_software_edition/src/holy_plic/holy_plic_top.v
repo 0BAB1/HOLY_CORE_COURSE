@@ -37,13 +37,13 @@ module holy_plic_top #(
     input  wire                   s_axi_rready,
 
     // IRQ output to CPU
-    output wire                   ext_irq_o,
+    output wire                   ext_irq_o
 
     // debug
-    output wire [NUM_IRQS-1:0]  irq_meta,
-    output wire [NUM_IRQS-1:0]  irq_req,
-    output wire [NUM_IRQS-1:0]  ip,
-    output wire in_service
+    //output wire [NUM_IRQS-1:0]  irq_meta,
+    //output wire [NUM_IRQS-1:0]  irq_req,
+    //output wire [NUM_IRQS-1:0]  ip,
+    //output wire in_service
 );
 
     // Internal reg/wire bundling to match axi_lite_if manually
@@ -90,9 +90,9 @@ module holy_plic_top #(
     );
 
     // Drive outputs
-    assign irq_meta    = irq_meta_int;
-    assign irq_req     = irq_req_int;
-    assign ip          = ip_int;
-    assign in_service  = in_service_int;
+    // assign irq_meta    = irq_meta_int;
+    // assign irq_req     = irq_req_int;
+    // assign ip          = ip_int;
+    // assign in_service  = in_service_int;
 
 endmodule

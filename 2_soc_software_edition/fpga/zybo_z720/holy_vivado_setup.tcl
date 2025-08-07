@@ -127,29 +127,13 @@ set_property CONFIG.C_DATA_DEPTH {4096} [get_bd_cells system_ila_0]
 endgroup
 
 
-# connect
+# connect debugs
 connect_bd_net [get_bd_pins holy_wrapper_0/pc] [get_bd_pins system_ila_0/probe0]
 connect_bd_net [get_bd_pins holy_wrapper_0/pc_next] [get_bd_pins system_ila_0/probe1]
 connect_bd_net [get_bd_pins holy_wrapper_0/instruction] [get_bd_pins system_ila_0/probe2]
-connect_bd_net [get_bd_pins holy_wrapper_0/i_cache_state] [get_bd_pins system_ila_0/probe3]
-connect_bd_net [get_bd_pins holy_wrapper_0/i_cache_stall] [get_bd_pins system_ila_0/probe4]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_stall] [get_bd_pins system_ila_0/probe5]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_stall] [get_bd_pins system_ila_0/probe6]
-undo
-connect_bd_net [get_bd_pins system_ila_0/probe6] [get_bd_pins holy_wrapper_0/i_cache_set_ptr]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_set_ptr] [get_bd_pins system_ila_0/probe7]
-connect_bd_net [get_bd_pins holy_wrapper_0/i_next_set_ptr] [get_bd_pins system_ila_0/probe8]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_next_set_ptr] [get_bd_pins system_ila_0/probe9]
-connect_bd_net [get_bd_ports cpu_reset] [get_bd_pins system_ila_0/probe10]
-connect_bd_net [get_bd_pins holy_wrapper_0/csr_flush_order] [get_bd_pins system_ila_0/probe11]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_state] [get_bd_pins system_ila_0/probe12]
-connect_bd_net [get_bd_pins holy_wrapper_0/pc_source] [get_bd_pins system_ila_0/probe13]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_seq_stall] [get_bd_pins system_ila_0/probe14]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_comb_stall] [get_bd_pins system_ila_0/probe15]
-connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_next_state] [get_bd_pins system_ila_0/probe16]
-connect_bd_net [get_bd_pins holy_wrapper_0/mem_read] [get_bd_pins system_ila_0/probe17]
-connect_bd_net [get_bd_pins holy_wrapper_0/mem_byte_en] [get_bd_pins system_ila_0/probe18]
-connect_bd_net [get_bd_pins holy_wrapper_0/wb_data] [get_bd_pins system_ila_0/probe19]
+connect_bd_net [get_bd_pins holy_wrapper_0/i_cache_stall] [get_bd_pins system_ila_0/probe3]
+connect_bd_net [get_bd_pins holy_wrapper_0/d_cache_stall] [get_bd_pins system_ila_0/probe4]
+connect_bd_net [get_bd_ports cpu_reset] [get_bd_pins system_ila_0/probe5]
 
 # Add axi converted for gpio
 
@@ -401,16 +385,12 @@ connect_bd_net [get_bd_pins axi_iic_0/gpo] [get_bd_pins system_ila_1/probe0]
 # add itrs to main ILA
 
 startgroup
-set_property CONFIG.C_NUM_OF_PROBES {28} [get_bd_cells system_ila_0]
+set_property CONFIG.C_NUM_OF_PROBES {10} [get_bd_cells system_ila_0]
 endgroup
-connect_bd_net [get_bd_pins system_ila_0/probe20] [get_bd_pins holy_clint_top_0/timer_irq]
-connect_bd_net [get_bd_pins system_ila_0/probe21] [get_bd_pins holy_clint_top_0/soft_irq]
-connect_bd_net [get_bd_pins system_ila_0/probe22] [get_bd_pins holy_plic_top_0/ext_irq_o]
-connect_bd_net [get_bd_pins system_ila_0/probe23] [get_bd_pins holy_plic_top_0/irq_meta]
-connect_bd_net [get_bd_pins system_ila_0/probe24] [get_bd_pins holy_plic_top_0/irq_req]
-connect_bd_net [get_bd_pins system_ila_0/probe25] [get_bd_pins holy_plic_top_0/ip]
-connect_bd_net [get_bd_pins system_ila_0/probe26] [get_bd_pins holy_plic_top_0/in_service]
-connect_bd_net [get_bd_pins system_ila_0/probe27] [get_bd_pins xlconcat_0/dout]
+connect_bd_net [get_bd_pins system_ila_0/probe6] [get_bd_pins holy_clint_top_0/timer_irq]
+connect_bd_net [get_bd_pins system_ila_0/probe7] [get_bd_pins holy_clint_top_0/soft_irq]
+connect_bd_net [get_bd_pins system_ila_0/probe8] [get_bd_pins holy_plic_top_0/ext_irq_o]
+connect_bd_net [get_bd_pins system_ila_0/probe9] [get_bd_pins xlconcat_0/dout]
 
 # slight corrections
 
@@ -423,6 +403,8 @@ add_files -norecurse ./HOLY_SOC/holy_soc_project.gen/sources_1/bd/design_1/hdl/d
 update_compile_order -fileset sources_1
 set_property top design_1_wrapper [current_fileset]
 update_compile_order -fileset sources_1
+
+# add even more BRAM... (total 128kB)
 
 # generate synth, inmpl & bitstream
 launch_runs impl_1 -to_step write_bitstream -jobs 6

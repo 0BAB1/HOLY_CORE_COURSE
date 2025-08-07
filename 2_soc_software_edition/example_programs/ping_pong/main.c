@@ -109,10 +109,14 @@ int main() {
     if(((UART_STATUS & 1 << 4) || (PLIC_ENABLE != 0x3)) == 0){
         uart_puts("N\n\r");
     } else {
-        uart_puts("OK\n\r");
+        uart_puts("CONFIG OK.\n\r");
     }
-    
+
+    uart_puts("===================================================\n\r");
+    uart_puts("HOLY CORE - Ping Pong - Interrupt test program\n\r");
+    uart_puts("===================================================\n\r");
     uart_puts("> ");
+    
     while (1) {
         // Do nothing, let interrupts handle the rest
         __asm__("nop");
