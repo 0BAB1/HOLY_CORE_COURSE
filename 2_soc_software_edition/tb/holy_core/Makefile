@@ -62,11 +62,8 @@ OUT_BIN     := test.bin
 OUT_HEX     := test.hex
 OUT_DIS     := test.D
 
-LINKER_SCRIPT := ./test_link.ld
-
 CFLAGS  := -march=$(ARCH) -mabi=$(ABI) -static -mcmodel=medany \
-           -fvisibility=hidden -nostdlib -nostartfiles -g \
-           -T $(LINKER_SCRIPT)
+           -fvisibility=hidden -nostdlib -nostartfiles -g
 
 # === HEX generation ===
 $(OUT_ELF): $(SRC)

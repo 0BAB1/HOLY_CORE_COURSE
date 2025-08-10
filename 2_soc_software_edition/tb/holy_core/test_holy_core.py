@@ -1008,3 +1008,33 @@ async def cpu_insrt_test(dut):
     assert dut.core.trap.value == 0
 
     assert binary_to_hex(dut.core.regfile.registers[30].value) == "0000000B"
+
+    #################
+    # DEBUG REQUEST TEST
+    #################
+
+    while not binary_to_hex(dut.core.instruction.value) == "00000013":
+        await RisingEdge(dut.clk)
+
+    # send a debug request
+    dut.core.debug_halt_addr.value = dut.core.regfile.registers[5].value
+    dut.core.debug_exception_addr.value = dut.core.regfile.registers[6].value
+    await Timer(1, units="ns")
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    dut.core.debug_req.value = 1
+    # save the pc to check is dpc saves it well
+    await RisingEdge(dut.clk)
+    pc_save = dut.core.pc.value
+    await RisingEdge(dut.clk)
+
+    # wait for dret
+    while not binary_to_hex(dut.core.instruction.value) == "7B200073":
+        assert dut.core.holy_csr_file.debug_mode.value == 1
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk)
+    assert dut.core.holy_csr_file.dpc.value == pc_save
+    assert dut.core.holy_csr_file.debug_mode.value == 0
+
+    

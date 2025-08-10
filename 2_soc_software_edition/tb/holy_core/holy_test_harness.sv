@@ -166,7 +166,16 @@ axi_lite_if axi_lite_clint();
 //=======================
 
 /* verilator lint_off PINMISSING */
-holy_core core(
+holy_core #(
+    .DCACHE_EN(0)
+) core(
+    // these are set in sim
+    // by loading the adres in ASM
+    // into t0 (x5) and t1 and by directly
+    // setting it using cocotb
+    // .DEBUG_HALT_ADDR(0),
+    // .DEBUG_EXCEPTION_ADDR(0),
+
     .clk(clk), 
     .rst_n(rst_n),
 

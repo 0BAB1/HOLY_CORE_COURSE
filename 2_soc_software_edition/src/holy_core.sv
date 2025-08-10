@@ -16,15 +16,18 @@
 module holy_core #(
     // IF DCACHE_EN is 0, we only enerate the non cache version.
     // Which is lighter, less complex and more suited to simple FPGA SoCs.
-    parameter DCACHE_EN = 0,
+    parameter DCACHE_EN = 0
+)(
     // DEBUG Support implemented via execution based method.
     // Using pulp platform's debug module. When a debug request comes
     // in, the core jumps to this address (DEBUG ROM). which is basically
     // a loop. Default addresses are the one from pulp's docs with base =0
     // for the debugger.
-    parameter DEBUG_HALT_ADDR = 32'h800,
-    parameter DEBUG_EXCEPTION_ADDR = 32'h810
-)(
+    // They wre set to inputs for easier sim handling. but a real impl,
+    // they shall be wired to a constant.
+    input logic [31:0] debug_halt_addr,
+    input logic [31:0] debug_exception_addr,
+
     input logic clk,
     input logic rst_n,
     // AXI Interface for external requests
@@ -174,8 +177,8 @@ always_comb begin : pc_select
             SOURCE_PC_MEPC : pc_next = csr_mepc;
             SOURCE_PC_DPC : pc_next = csr_dpc;
             // note : halt addr is specified as a parameter
-            SOURCE_PC_DEBUG_HALT : pc_next = DEBUG_HALT_ADDR;
-            SOURCE_PC_DEBUG_EXCEPTION : pc_next = DEBUG_EXCEPTION_ADDR;
+            SOURCE_PC_DEBUG_HALT : pc_next = debug_halt_addr;
+            SOURCE_PC_DEBUG_EXCEPTION : pc_next = debug_exception_addr;
         endcase
     end
 end

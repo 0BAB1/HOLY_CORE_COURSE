@@ -260,6 +260,18 @@ wait_for_ext_irq:
     nop
     ecall                   # provoke ecall
 
+    ################
+    # DEBUG MODE TEST
+    ################
+
+wait_for_debug_mode:
+    la t0, debug_rom # load addrs for compiler issues
+    la t1, debug_exception # load addrs for compiler issues
+    nop
+    # tb will send a debug request, effectively jumping
+    # to "debug ROM", which we can find below
+    j wait_for_debug_mode
+
 #########################
 # Trap handler
 #########################
@@ -335,3 +347,24 @@ ecall_check:
 
 m_ret: # return form trap routine
     mret # return to where we left the program
+
+#########################
+# Debug ROM
+#########################
+
+debug_rom:
+    # some nops and a dret
+    nop
+    nop
+    nop
+    nop
+    nop
+    dret
+    
+debug_exception:
+    nop
+    nop
+    nop
+    nop
+    nop
+    j debug_rom
