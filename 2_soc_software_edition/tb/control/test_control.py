@@ -29,6 +29,8 @@ async def set_unknown(dut):
     # (packed type with 2x flags)
     dut.alu_aligned_addr.value = 0b11           
     dut.second_add_aligned_addr.value = 0b11
+    dut.jump_to_debug.value = 0b0
+    dut.jump_to_debug_exception.value = 0b0
     await Timer(1, units="ns")
 
 @cocotb.test()
@@ -914,4 +916,67 @@ async def simple_return_test(dut):
     assert dut.jump.value == "0"
     assert dut.write_back_source.value == "000"
     assert dut.csr_write_enable.value == "0"
-    
+
+@cocotb.test()
+async def simple_debug_return_test(dut):
+    await set_unknown(dut)
+
+    await Timer(10, units="ns")
+    dut.op.value = 0b1110011 # system OPCODE
+    dut.func3.value = 0b000  # system F3
+    dut.instr.value = (
+        0b01111011001000000000000001110011
+    ) # mret
+    await Timer(1, units="ns")
+
+
+    assert dut.m_ret.value == 0
+    assert dut.d_ret.value == 1
+    assert dut.pc_source.value == 0b100 # SOURCE_PC_DPC
+
+    # CPU state should be preserved !
+    assert dut.mem_read.value == "0"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "0"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.write_back_source.value == "000"
+    assert dut.csr_write_enable.value == "0"
+
+@cocotb.test()
+async def jump_to_debug_test(dut):
+    await set_unknown(dut)
+
+    await Timer(10, units="ns")
+    dut.jump_to_debug = 1
+    await Timer(1, units="ns")
+
+    assert dut.pc_source.value == 0b101 # SOURCE_PC_DEBUG_HALT
+
+    # CPU state should be preserved !
+    assert dut.mem_read.value == "0"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "0"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.write_back_source.value == "000"
+    assert dut.csr_write_enable.value == "0"
+
+@cocotb.test()
+async def jump_to_debug_exception_test(dut):
+    await set_unknown(dut)
+
+    await Timer(10, units="ns")
+    dut.jump_to_debug_exception = 1
+    await Timer(1, units="ns")
+
+    assert dut.pc_source.value == 0b110 # SOURCE_PC_DEBUG_EXCEPTION
+
+    # CPU state should be preserved !
+    assert dut.mem_read.value == "0"
+    assert dut.mem_write.value == "0"
+    assert dut.reg_write.value == "0"
+    assert dut.branch.value == "0"
+    assert dut.jump.value == "0"
+    assert dut.write_back_source.value == "000"
+    assert dut.csr_write_enable.value == "0"

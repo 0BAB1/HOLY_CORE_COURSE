@@ -13,6 +13,8 @@
 
 `timescale 1ns/1ps
 
+import holy_core_pkg::*;
+
 module csr_file (
     // IN
     input logic clk,
@@ -29,9 +31,14 @@ module csr_file (
     input logic timer_itr,
     input logic soft_itr,
     input logic ext_itr,
+    // Debug i/o
+    input logic debug_req,
+    output logic jump_to_debug,
+    output logic jump_to_debug_exception,
 
     // from control
     input logic m_ret,
+    input logic d_ret,
     input logic exception,
     input logic [30:0] exception_cause,
 
@@ -45,7 +52,6 @@ module csr_file (
     output logic [31:0] read_data,
 
     // OUT CSR SIGNALS
-
     // Custom cache control
     output logic flush_cache_flag,
     output logic [31:0]  non_cachable_base_addr,
@@ -54,7 +60,10 @@ module csr_file (
     // Trap handling
     output logic trap,
     output logic [31:0] csr_mtvec,
-    output logic [31:0] csr_mepc
+    output logic [31:0] csr_mepc,
+
+    // Debug pc for exiting debug mode
+    output logic [31:0] csr_dpc
 );
 
 /*  
@@ -68,6 +77,7 @@ module csr_file (
 // Output signals assigns
 assign csr_mtvec = mtvec;
 assign csr_mepc  = mepc;
+assign csr_dpc = dpc;
 
 // Declare all CSRs and they next signals here
 
@@ -82,13 +92,23 @@ logic [31:0] mcause, next_mcause;               // 0x342
 logic [31:0] mscratch, next_mscratch;           // 0x340
 logic [31:0] mtval, next_mtval;                 // 0x343
 
+// Debug CSRs (Execution based implementation)
+// See : https://github.com/pulp-platform/riscv-dbg/blob/master/doc/debug-system.md
+logic [31:0] dcsr, next_dcsr;                   // 0x7b0
+logic [31:0] dpc, next_dpc;                     // 0x7b1
+logic [31:0] dscratch0, next_dscratch0;         // 0x7b2
+logic [31:0] dscratch1, next_dscratch1;         // 0x7b2
+
 // Custom CSRs to controle cache behavior (if cache is enabled)
 logic [31:0] flush_cache, next_flush_cache;                 // 0x7C0
 logic [31:0] non_cachable_base, next_non_cachable_base;     // 0x7C1
 logic [31:0] non_cachable_limit, next_non_cachable_limit;   // 0x7C2
 
 // trap_taken state register
-logic trap_taken;
+logic trap_taken; // 1 if currently handling a trap
+
+// degub_mode state trap register
+logic debug_mode; // 1 if currently debugging
 
 always_ff @(posedge clk) begin
     if(~rst_n) begin
@@ -106,6 +126,12 @@ always_ff @(posedge clk) begin
         mscratch            <= 32'd0;
         misa                <= 32'h40140100;
         mtval               <= 32'd0;
+        // Debug
+        dcsr                <= 32'd0;
+        dpc                 <= 32'd0;
+        dscratch0         <= 32'd0;
+        dscratch1         <= 32'd0;
+        debug_mode          <= 1'b0;
         // Indicators
         trap_taken          <= 1'b0;
     end
@@ -124,10 +150,25 @@ always_ff @(posedge clk) begin
         mscratch            <= next_mscratch;
         misa                <= next_misa;
         mtval               <= next_mtval;
+        // Debug
+        dcsr                <= next_dcsr;
+        dpc                 <= next_dpc;
+        dscratch0           <= next_dscratch0;
+        dscratch1           <= next_dscratch1;
 
+        // Trap seq logic
         trap_taken <= trap_taken;
         if(trap)        trap_taken <= 1'b1;
         else if(m_ret)  trap_taken <= 1'b0;
+
+        // Debug mode seq logic
+        if(jump_to_debug) begin
+            debug_mode <= 1;
+        end else if(d_ret) begin
+            debug_mode <= 0;
+        end else begin
+            debug_mode <= debug_mode;
+        end
     end
 end
 
@@ -230,6 +271,33 @@ always_comb begin : next_csr_value_logic
     end
 
     // ----------------------------
+    // DEBUG CSRS
+
+    // dcsr
+    next_dcsr = dcsr;
+    if (~stall && write_enable && (address == 12'h7b0)) begin
+        next_dcsr = write_back_to_csr;
+    end // TODO : actually treat each field independatly. But really... fuck that shit.
+
+    // dcsr
+    next_dpc = dpc;
+    if (~stall && jump_to_debug) begin
+        next_dpc = current_core_pc;
+    end
+
+    // dscratch0
+    next_dscratch0 = dpc;
+    if (~stall && write_enable && (address == 12'h7b2)) begin
+        next_dscratch0 = write_back_to_csr;
+    end
+
+    // dscratch1
+    next_dscratch1 = dpc;
+    if (~stall && write_enable && (address == 12'h7b3)) begin
+        next_dscratch1 = write_back_to_csr;
+    end
+
+    // ----------------------------
     // Flush cache custom CSRs
 
     if(flush_cache_flag) begin
@@ -307,10 +375,21 @@ end
 // Some CSRs have direct control over the core's behavior.
 // This logic block outputs control signals
 always_comb begin : control_assignments
+    // Cache control logic
     flush_cache_flag        = flush_cache[0];
     non_cachable_base_addr  = non_cachable_base;
     non_cachable_limit_addr = non_cachable_limit;
-    trap = (((| (mie & mip)) && mstatus[3]) || exception) & ~trap_taken;
+
+    // Debug logic
+    // We can goto debug once a trap has been handled !
+    jump_to_debug = ~trap_taken & debug_req & ~debug_mode & ~stall;
+    jump_to_debug_exception = exception & debug_mode & ~stall;
+
+    // Trap logic
+    // We cannot start a trap if we are debuging or about to enter debug mode !
+    // e.g. jump_to_debug resulting from a debug request 
+    // will always have a priority !
+    trap = (((| (mie & mip)) && mstatus[3]) || exception) & ~trap_taken & ~debug_mode & ~jump_to_debug;
 end
 
 endmodule

@@ -6,6 +6,7 @@ TOPLEVEL_LANG ?= verilog
 EXTRA_ARGS += --trace --trace-structs
 WAVES = 1
 
+VERILOG_SOURCES += $(PWD)/../../packages/holy_core_pkg.sv
 VERILOG_SOURCES += $(PWD)/../../src/csr_file.sv
 # use VHDL_SOURCES for VHDL files
 

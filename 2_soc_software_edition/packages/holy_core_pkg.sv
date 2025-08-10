@@ -157,11 +157,14 @@ package holy_core_pkg;
   } alu_source_t;
 
   // PC SOURCES
-  typedef enum logic [1:0] {
-    SOURCE_PC_PLUS_4 = 2'b00,
-    SOURCE_PC_SECOND_ADD = 2'b01,
-    SOURCE_PC_MTVEC = 2'b10,
-    SOURCE_PC_MEPC = 2'b11
+  typedef enum logic [2:0] {
+    SOURCE_PC_PLUS_4 = 3'b000,
+    SOURCE_PC_SECOND_ADD = 3'b001,
+    SOURCE_PC_MTVEC = 3'b010,
+    SOURCE_PC_MEPC = 3'b011,
+    SOURCE_PC_DPC = 3'b100,
+    SOURCE_PC_DEBUG_HALT = 3'b101,
+    SOURCE_PC_DEBUG_EXCEPTION = 3'b110
   } pc_source_t;
 
   // Write_back signal

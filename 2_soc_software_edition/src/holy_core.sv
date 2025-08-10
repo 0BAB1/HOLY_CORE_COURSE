@@ -16,7 +16,14 @@
 module holy_core #(
     // IF DCACHE_EN is 0, we only enerate the non cache version.
     // Which is lighter, less complex and more suited to simple FPGA SoCs.
-    parameter DCACHE_EN = 0
+    parameter DCACHE_EN = 0,
+    // DEBUG Support implemented via execution based method.
+    // Using pulp platform's debug module. When a debug request comes
+    // in, the core jumps to this address (DEBUG ROM). which is basically
+    // a loop. Default addresses are the one from pulp's docs with base =0
+    // for the debugger.
+    parameter DEBUG_HALT_ADDR = 32'h800,
+    parameter DEBUG_EXCEPTION_ADDR = 32'h810
 )(
     input logic clk,
     input logic rst_n,
@@ -28,6 +35,8 @@ module holy_core #(
     input logic timer_itr,
     input logic soft_itr,
     input logic ext_itr,
+    // Debug req
+    input logic debug_req,
 
     // DEBUG SIGNALS FOR LOGIC ANALYSERS
     output logic [31:0] debug_pc,  
@@ -163,6 +172,10 @@ always_comb begin : pc_select
             SOURCE_PC_SECOND_ADD : pc_next = second_add_result;
             SOURCE_PC_MTVEC : pc_next = csr_mtvec;
             SOURCE_PC_MEPC : pc_next = csr_mepc;
+            SOURCE_PC_DPC : pc_next = csr_dpc;
+            // note : halt addr is specified as a parameter
+            SOURCE_PC_DEBUG_HALT : pc_next = DEBUG_HALT_ADDR;
+            SOURCE_PC_DEBUG_EXCEPTION : pc_next = DEBUG_EXCEPTION_ADDR;
         endcase
     end
 end
@@ -233,6 +246,7 @@ wire mem_read_enable;
 wire reg_write;
 // trap (exception and return) related outs
 logic m_ret;
+logic d_ret;
 logic exception;
 logic [30:0] exception_cause;
 // out muxes wires
@@ -280,7 +294,12 @@ control control_unit(
     // and return to csr file.
     .m_ret(m_ret),
     .exception(exception),
-    .exception_cause(exception_cause)
+    .exception_cause(exception_cause),
+
+    // DEBUG
+    .jump_to_debug(jump_to_debug),
+    .jump_to_debug_exception(jump_to_debug_exception),
+    .d_ret(d_ret)
 );
 
 /**
@@ -385,6 +404,11 @@ target_addr exception_target_addr;
 assign exception_target_addr.alu_addr = alu_result;
 assign exception_target_addr.second_adder_addr = second_add_result;
 
+// Debug signals
+logic jump_to_debug;
+logic jump_to_debug_exception;
+logic [31:0] csr_dpc;
+
 // csr orders
 logic csr_flush_order;
 logic [31:0] csr_non_cachable_base;
@@ -406,9 +430,14 @@ csr_file holy_csr_file(
     .timer_itr(timer_itr),
     .soft_itr(soft_itr),
     .ext_itr(ext_itr),
+    // Debug
+    .debug_req(debug_req),
+    .jump_to_debug(jump_to_debug),
+    .jump_to_debug_exception(jump_to_debug_exception),
 
     // infos from control
     .m_ret(m_ret),
+    .d_ret(d_ret),
     .exception(exception),
     .exception_cause(exception_cause),
     .exception_target_addr(exception_target_addr),
@@ -427,7 +456,10 @@ csr_file holy_csr_file(
     // register it and adapt pc_next accordignly
     .trap(trap),
     .csr_mtvec(csr_mtvec),
-    .csr_mepc(csr_mepc)
+    .csr_mepc(csr_mepc),
+
+    // debug dpc for exiting debug mode
+    .csr_dpc(csr_dpc)
 );
 
 /**

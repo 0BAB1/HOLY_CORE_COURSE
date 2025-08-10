@@ -49,7 +49,12 @@ module control (
     // TRAP INFOS OUT
     output logic m_ret,
     output logic exception,
-    output logic [30:0] exception_cause
+    output logic [30:0] exception_cause,
+
+    // Debug from/to CSR
+    input logic jump_to_debug,
+    input logic jump_to_debug_exception,
+    output logic d_ret
 );
 
 logic trap_pending;
@@ -74,6 +79,7 @@ always_comb begin
     csr_write_back_source = CSR_WB_SOURCE_IMM;
     csr_write_enable = 1'b0;
     m_ret = 1'b0;
+    d_ret = 1'b0;
 
     // if the instruction being fectched
     // is not valid, exception should NOT
@@ -281,6 +287,10 @@ always_comb begin
                         // MRET
                         m_ret = 1'b1;
                     end
+                    else if (instr[31:20] == 12'b0111_1011_0010) begin
+                        // DRET
+                        d_ret = 1'b1;
+                    end
                 end
                 // === CSR instructions ===
                 3'b001, 3'b010, 3'b011,
@@ -402,10 +412,18 @@ end
 
 always_comb begin : pc_source_select
     pc_source = SOURCE_PC_PLUS_4;
-    if (trap || trap_pending) begin
+    if (jump_to_debug)begin
+        pc_source = SOURCE_PC_DEBUG_HALT;
+    end
+    else if (jump_to_debug_exception) begin
+        pc_source = SOURCE_PC_DEBUG_EXCEPTION;
+    end
+    else if (trap || trap_pending) begin
         pc_source = SOURCE_PC_MTVEC;
     end else if (m_ret) begin
         pc_source = SOURCE_PC_MEPC;
+    end else if (d_ret) begin
+        pc_source = SOURCE_PC_DPC;
     end
     else if (op == OPCODE_B_TYPE && assert_branch) begin
         pc_source = SOURCE_PC_SECOND_ADD;

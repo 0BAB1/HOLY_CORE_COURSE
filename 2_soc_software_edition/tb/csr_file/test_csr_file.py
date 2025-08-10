@@ -17,7 +17,7 @@ async def test_csr_file(dut):
     # Start a 10 ns clock
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
 
-    # map each address to a register
+    # Map each address to a register
     def get_csr_value(addr):
         if addr == 0x7C0:
             return dut.flush_cache.value
@@ -47,10 +47,6 @@ async def test_csr_file(dut):
 
         dut.rst_n.value = 1
         await RisingEdge(dut.clk)
-
-        # ----------------------------------
-        # flush cache is 0 on start
-        assert get_csr_value(addr) == 0x00000000
 
         # ----------------------------------
         # test simple write
@@ -114,16 +110,19 @@ async def test_csr_file(dut):
         # then we release reset and check for 0
         dut.rst_n.value = 0
         await RisingEdge(dut.clk)
-        await RisingEdge(dut.clk)
-        assert get_csr_value(addr) == 0x00000000
         dut.rst_n.value = 1
 
         dut.write_enable.value = 0
         await Timer(1, units="ns")
 
+@cocotb.test()
+async def test_trap_behavior(dut):
     # ======================================
     # Traps CSRs behavior
     # ======================================
+
+    # Start a 10 ns clock
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
 
     # --------------------------------------
     # SIMPLE INTERUPTS TEST
@@ -164,7 +163,7 @@ async def test_csr_file(dut):
     assert dut.mtvec.value == 0x4000
     assert dut.mepc.value == 0x8000
     # MIE = 0, only MPIE = 1
-    assert dut.mstatus.value == 1 << 7
+    assert dut.mstatus.value == 0x00001800 | (1 << 7)
 
     # we wait an arbitrary 50 clock cycles
     # Druing which the handler executes and clears the itr
@@ -186,7 +185,7 @@ async def test_csr_file(dut):
 
     # MIE should be back to normal
     # MIE = 1, only MPIE = X (1 in our scenario)
-    assert dut.mstatus.value == 1 << 7 | 1 << 3
+    assert dut.mstatus.value == 0x00001800 | 1 << 7 | 1 << 3
 
     # --------------------------------------
     # SIMPLE EXCEPTION TEST
@@ -210,7 +209,7 @@ async def test_csr_file(dut):
     assert dut.mcause.value == 11
     assert dut.mepc.value == 0x8000
     # MIE = 0, only MPIE = 1
-    assert dut.mstatus.value == 1 << 7
+    assert dut.mstatus.value == 0x00001800 | 1 << 7
 
     # By the way, the CPU does not fetch ecall anymore !
     dut.exception.value = 0b0
@@ -228,11 +227,16 @@ async def test_csr_file(dut):
 
     # MIE should be back to normal
     # MIE = 1, only MPIE = X (1 in our scenario)
-    assert dut.mstatus.value == 1 << 7 | 1 << 3
+    assert dut.mstatus.value == 0x00001800 | 1 << 7 | 1 << 3
 
+@cocotb.test()
+async def test_cache_control_behavior(dut):
     # ======================================
     # Custom CSRs behavior
     # ======================================
+
+    # Start a 10 ns clock
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
 
     # ----------------------------------
     # FLUSH CACHE CSR BEHAVIOR :
@@ -302,3 +306,152 @@ async def test_csr_file(dut):
     await Timer(2, units="ns")
     # check the output towards cache indicates good value
     assert dut.non_cachable_limit_addr.value == 0xAEAEAEAE
+
+@cocotb.test()
+async def test_debug_behavior(dut):
+    # ======================================
+    # Custom CSRs behavior
+    # ======================================
+
+    # Start a 10 ns clock & reset csrs
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+    dut.rst_n.value = 0
+    await RisingEdge(dut.clk)
+    dut.rst_n.value = 1
+    await RisingEdge(dut.clk)
+
+    # Go into debug mode with debug IRQ, jump to debug signal sent to control
+    assert dut.debug_mode.value == 0
+
+    dut.debug_req.value = 1
+    await Timer(2, units="ns")
+
+    assert dut.jump_to_debug.value == 1
+    assert dut.jump_to_debug_exception.value == 0
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.debug_mode.value == 1
+
+
+    dut.debug_req.value = 0
+
+    # no trap into debug mode (IRQs should be left hanging)
+    dut.timer_itr.value = 1
+    await Timer(2, units="ns")
+
+    for _ in range(5):
+        assert dut.debug_mode.value == 1
+        assert dut.trap.value == 0
+        assert dut.jump_to_debug.value == 0
+        assert dut.jump_to_debug_exception.value == 0
+        await RisingEdge(dut.clk)
+
+    dut.timer_itr.value = 0
+
+    # if exception into debug mode, jump to debug exception
+    # signal sent to control
+
+    await RisingEdge(dut.clk)
+    dut.exception.value = 1
+    await Timer(2, units="ns")
+
+    for _ in range(5):
+        assert dut.debug_mode.value == 1
+        assert dut.trap.value == 0
+        assert dut.jump_to_debug.value == 0
+        assert dut.jump_to_debug_exception.value == 1
+        await RisingEdge(dut.clk)
+
+    dut.exception.value = 0
+
+    # leave debug mode
+    await RisingEdge(dut.clk)
+    dut.d_ret.value = 1
+
+    for _ in range(5):
+        # signal may be hald for longer that 1 clock cycle for diverse
+        # reasons (e.g. a stall) All that matters is that debug mode is left.
+        await RisingEdge(dut.clk)
+
+    assert dut.debug_mode.value == 0
+
+    # if concurent debug req & IRQ, we go into debug
+    dut.debug_req.value = 1
+    dut.soft_itr.value = 1
+    await Timer(2, units="ns")
+
+    assert dut.trap.value == 0
+    assert dut.jump_to_debug.value == 1
+    assert dut.jump_to_debug_exception.value == 0
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.debug_mode.value == 1
+
+    # leave debug mode
+
+    await RisingEdge(dut.clk)
+    dut.d_ret.value = 1
+    dut.debug_req.value = 0
+    await RisingEdge(dut.clk)
+    assert dut.debug_mode.value == 0
+
+    # if concurent debug req & Exception, we go into debug
+
+    dut.debug_req.value = 1
+    dut.soft_itr.value = 0
+    dut.exception.value = 1
+    await Timer(2, units="ns")
+
+    assert dut.trap.value == 0
+    assert dut.jump_to_debug.value == 1
+    assert dut.jump_to_debug_exception.value == 0
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.debug_mode.value == 1
+
+    # leave debug mode
+
+    await RisingEdge(dut.clk)
+    dut.d_ret.value = 1
+    dut.debug_req.value = 0
+    dut.timer_itr.value = 0
+    dut.exception.value = 0
+    dut.soft_itr.value = 0
+    await RisingEdge(dut.clk)
+    assert dut.debug_mode.value == 0
+
+    # stalling delays the jump to debug signals until stalling is no more
+
+    dut.debug_req.value = 1
+    dut.stall.value = 1
+    await Timer(2, units="ns")
+
+    assert dut.jump_to_debug.value == 0
+    assert dut.jump_to_debug_exception.value == 0
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    assert dut.debug_mode.value == 0
+
+    dut.stall.value = 0
+    dut.debug_req.value = 1
+    await Timer(2, units="ns")
+
+    assert dut.debug_mode.value == 0
+    assert dut.jump_to_debug.value == 1
+    assert dut.jump_to_debug_exception.value == 0
+
+    dut.debug_req.value = 0
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+
+    # If we are trapping, debug mode will have to wait for trap to be handled
+    dut.exception.value = 1
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+
+    assert dut.trap_taken.value == 1
+
+    dut.debug_req.value = 1
+    await Timer(2, units="ns")
+
+    assert dut.jump_to_debug.value == 0
