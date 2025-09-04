@@ -8,24 +8,24 @@
 
 // TODO later : Include as much of the SoC here, if not all of it instead of relying on vivado block design tool...
 
+import axi_pkg::*;
+
 module holy_top (
     // CPU clock and active low reset
     input logic clk,
     input logic rst_n,
 
-    input  logic        tck_i,    // JTAG test clock pad
-    input  logic        tms_i,    // JTAG test mode select pad
-    input  logic        trst_ni,  // JTAG test reset pad
-    input  logic        td_i,     // JTAG test data input pad
-    output logic        td_o      // JTAG test data output pad
-
-    // =================
-    // Detailled AXI IF
-    // =================
-
     // axi clock
     input logic aclk,
     input logic aresetn,
+
+    // In reality, clk and aclk are the same as CDC
+    // is not supported in holy core's inner cache
+
+    //===================================
+    // TOP AXI FULL Interface
+    // (for cocotb simulated components)
+    //===================================
     
     // Write Address Channel
     output logic [3:0]               m_axi_awid,
@@ -66,122 +66,136 @@ module holy_top (
     input  logic                     m_axi_rvalid,
     output logic                     m_axi_rready,
 
-    // ========================
-    // AXI LITE INTERFACE
-    // ========================
+    //===================================
+    // TOP AXI FULL Interface
+    // (for cocotb simulated components)
+    // AXIL CROSSBAR <=> COCOTB RAM
+    //===================================
 
-    // AXI Lite Write Address Channel
-    output logic [31:0]              m_axi_lite_awaddr,
-    output logic                     m_axi_lite_awvalid,
-    input  logic                     m_axi_lite_awready,
+    output logic [31:0] m_axi_lite_awaddr,
+    output logic        m_axi_lite_awvalid,
+    input  logic        m_axi_lite_awready,
 
-    // AXI Lite Write Data Channel
-    output logic [31:0]              m_axi_lite_wdata,
-    output logic [3:0]               m_axi_lite_wstrb,
-    output logic                     m_axi_lite_wvalid,
-    input  logic                     m_axi_lite_wready,
+    output logic [31:0] m_axi_lite_wdata,
+    output logic [3:0]  m_axi_lite_wstrb,
+    output logic        m_axi_lite_wvalid,
+    input  logic        m_axi_lite_wready,
 
-    // AXI Lite Write Response Channel
-    input  logic [1:0]               m_axi_lite_bresp,
-    input  logic                     m_axi_lite_bvalid,
-    output logic                     m_axi_lite_bready,
+    input  logic [1:0]  m_axi_lite_bresp,
+    input  logic        m_axi_lite_bvalid,
+    output logic        m_axi_lite_bready,
 
-    // AXI Lite Read Address Channel
-    output logic [31:0]              m_axi_lite_araddr,
-    output logic                     m_axi_lite_arvalid,
-    input  logic                     m_axi_lite_arready,
+    output logic [31:0] m_axi_lite_araddr,
+    output logic        m_axi_lite_arvalid,
+    input  logic        m_axi_lite_arready,
 
-    // AXI Lite Read Data Channel
-    input  logic [31:0]              m_axi_lite_rdata,
-    input  logic [1:0]               m_axi_lite_rresp,
-    input  logic                     m_axi_lite_rvalid,
-    output logic                     m_axi_lite_rready,
+    input  logic [31:0] m_axi_lite_rdata,
+    input  logic [1:0]  m_axi_lite_rresp,
+    input  logic        m_axi_lite_rvalid,
+    output logic        m_axi_lite_rready,
 
-    // ========================
-    // Detailled DEBUG SIGNALS
-    // ========================
+    // INTERRUPTS & EXTERNAL REQUESTS
+    input logic [NUM_IRQS-1:0]  irq_in,
 
-    // Core debug signals
-    output logic [31:0] instruction,
+    // JTAG access to debug module
+    input  logic        tck_i,
+    input  logic        tms_i,
+    input  logic        trst_ni,
+    input  logic        td_i,
+    output logic        td_o,
+
+    // RAW DEBUG HINT SIGNALS FOR ILA
     output logic [31:0] pc,
     output logic [31:0] pc_next,
-    output logic pc_source,
-
-    // Cache debug signals
-    output logic [3:0] i_cache_state,
-    output logic [3:0] d_cache_state, 
+    output logic [31:0] instruction,
     output logic i_cache_stall,
-    output logic d_cache_stall, 
-    output logic [6:0] i_cache_set_ptr,
-    output logic [6:0] i_next_set_ptr,
-    output logic [6:0] d_cache_set_ptr,
-    output logic [6:0] d_next_set_ptr,
-    output logic csr_flush_order,
-    output logic       d_cache_seq_stall,
-    output logic       d_cache_comb_stall,
-    output logic [3:0] d_cache_next_state,
-    output logic [31:0] mem_read,
-    output logic [3:0] mem_byte_en,
-    output logic [31:0] wb_data,
-
-    // IRQs
-    input logic ext_irq,
-    input logic timer_irq,
-    input logic soft_irq
+    output logic d_cache_stall
 );
 
-localparam DBG = 1;
+// TB slaves:
+//  - coctb simulated ram
+//  - PLIC
+//  - CLINT
+localparam SLV_NB = 4;
+localparam MST_NB = 1;
+localparam NUM_IRQS = 2;
 
-/*
-* HOLY CORE instance
-*/
+//=========================
+// INTERFACES DECLARATIONS
+//=========================
 
-axi_if core_m_axi(); // axi master
-axi_lite_if m_axi_lite(); // axi lite master
+// HOLY CORE AXI FULL <=> EXTERNAL RAM
+axi_if m_axi();
+// HOLYCORE <=> AXIL CROSSBAR
+axi_lite_if m_axi_lite();
+AXI_LITE #(32,32) m_axi_lite_xbar_in [MST_NB-1:0] ();
+AXI_LITE #(32,32) m_axi_lite_xbar_out [SLV_NB-1:0] ();
+// AXIL CROSSBAR <=> PLIC
+axi_lite_if axi_lite_plic();
+// AXIL CROSSBAR <=> CLINT
+axi_lite_if axi_lite_clint();
 
-holy_core core(
+//=======================
+// HOLY CORE (2x MASTER)
+//=======================
+
+/* verilator lint_off PINMISSING */
+holy_core #(
+    .DCACHE_EN(0)
+) core(
+    // these are set in sim
+    // by loading the adres in ASM
+    // into t0 (x5) and t1 and by directly
+    // setting it using cocotb
+    // .DEBUG_HALT_ADDR(0),
+    // .DEBUG_EXCEPTION_ADDR(0),
+
     .clk(clk), 
     .rst_n(rst_n),
 
-    // AXI Master Interface
-    .m_axi(core_m_axi),
+    // Note : the AXI MASTER interface
+    // is only used to retrieve instructions
+    // in this tb. so it is a striahgt passthrough
+    // to the top IF
+    .m_axi(m_axi),
+
+    // Note : The AXI LITE MASTER interface
+    // goes to the corssbar as it can trasact with
+    // multiple savles acrosse the system.
+    // i.e. RAM, CLINT & PLIC.
     .m_axi_lite(m_axi_lite),
 
-    // interrupts
+    // Interrupts
     .timer_itr(timer_irq),
     .soft_itr(soft_irq),
     .ext_itr(ext_irq),
     .debug_req(dm_debug_req),
 
-    // (RAW) debug out signals
-    .debug_pc(pc),  
+    // DBUG SIGNALS
+    .debug_pc(pc),
     .debug_pc_next(pc_next),
-    .debug_pc_source(pc_source),
-    .debug_instruction(instruction),  
-    .debug_i_cache_state(i_cache_state),  
-    .debug_d_cache_state(d_cache_state),
-    .debug_i_set_ptr(i_cache_set_ptr),  
-    .debug_i_next_set_ptr(i_next_set_ptr),
-    .debug_d_set_ptr(d_cache_set_ptr),  
-    .debug_d_next_set_ptr(d_next_set_ptr),
-    .debug_i_cache_stall(i_cache_stall),  
-    .debug_d_cache_stall(d_cache_stall),
-    .debug_csr_flush_order(csr_flush_order),
-    .debug_d_cache_seq_stall(d_cache_seq_stall),
-    .debug_d_cache_comb_stall(d_cache_comb_stall),
-    .debug_d_cache_next_state(d_cache_next_state),
-    .debug_mem_read(mem_read),
-    .debug_mem_byte_en(mem_byte_en),
-    .debug_wb_data(wb_data) 
+    .debug_instruction(instruction),
+    .debug_i_cache_stall(i_cache_stall),
+    .debug_d_cache_stall(d_cache_stall)
+);
+/* verilator lint_on PINMISSING */
+
+// convert axil intf to pulp's for axil xbar
+hc_axil_pulp_axil_passthrough hc_to_xbar(
+    .in_if(m_axi_lite),
+    .out_if(m_axi_lite_xbar_in[0])
 );
 
-/*
-* AXI XBAR
-*/
+//=======================
+// AXI LITE XBAR
+//=======================
+
+// Cofig docs
+// https://github.com/pulp-platform/axi/blob/master/doc/axi_lite_xbar.md
 
 localparam xbar_cfg_t Cfg = '{
-    NoSlvPorts: 1,
-    NoMstPorts: 2,
+    NoSlvPorts: MST_NB, // HC MST -> XBAR SLV
+    NoMstPorts: SLV_NB, // XBAR MST -> SOC SLV
     MaxMstTrans: 8,
     MaxSlvTrans: 8,
     FallThrough: 1'b0,
@@ -192,117 +206,149 @@ localparam xbar_cfg_t Cfg = '{
     UniqueIds: 1'b0,
     AxiAddrWidth: 32,
     AxiDataWidth: 32,
-    NoAddrRules: 2
+    NoAddrRules: 4
 };
 
 // defined in vendor/axi/src/axi_pkg.sv
 axi_pkg::xbar_rule_32_t [Cfg.NoAddrRules-1:0] addr_map;
 
-// DEBUG
+// EXTERNAL REQUESTS (RAM)
 assign addr_map[0].idx = 0;
 assign addr_map[0].start_addr = 32'h0;
-assign addr_map[0].end_addr = 32'h80F;
+assign addr_map[0].end_addr = 32'h3FFFFFFF;
 
-// DEBUG
+// CLINT
 assign addr_map[1].idx = 1;
-assign addr_map[1].start_addr = 32'h810;
-assign addr_map[1].end_addr = 32'hFFFFFFFF; // redirect all the rest to ram by default
+assign addr_map[1].start_addr = 32'h40000000;
+assign addr_map[1].end_addr = 32'h7FFFFFFF;
 
-// interfaces declaration
-AXI_BUS #(32,32) m_axi_xbar_in [0:0] ();
-AXI_BUS #(32,32) m_axi_xbar_out [1:0] ();
+// PLIC
+assign addr_map[2].idx = 2;
+assign addr_map[2].start_addr = 32'h80000000;
+assign addr_map[2].end_addr = 32'hFFFFFFFF;
 
-// convert HOLY CORE AXI master into PULP AXI Master
-hc_axi_pulp_axi_passthrough axi_conv_for_demux(
-    .in_if(core_m_axi),
-    .out_if(m_axi_xbar_in[0])
-);
+// DEBUG MODULE
+assign addr_map[3].idx = 3;
+assign addr_map[3].start_addr = 32'h30000000;
+assign addr_map[3].end_addr = 32'h3FFFFFFF;
 
-AXI_BUS axi_dbg;
-AXI_BUS axi_ram_pulp;
-axi_if axi_ram_hc;
-
-axi_xbar_intf #(
+axi_lite_xbar_intf #(
     .Cfg(Cfg),
     .rule_t(axi_pkg::xbar_rule_32_t)
-) u_axi_xbar (
+) crossbar (
     .clk_i(clk),
     .rst_ni(rst_n),
     .test_i(1'b0),
-    .slv_ports(m_axi_xbar_in),
-    .mst_ports(m_axi_xbar_out),
+    .slv_ports(m_axi_lite_xbar_in),
+    .mst_ports(m_axi_lite_xbar_out),
     .addr_map_i(addr_map),
     .en_default_mst_port_i(3'b111),
-    .default_mst_port_i(2'b01)
+    .default_mst_port_i('{1})
 );
 
-// re convert ram axi to holy_core's axi if
-axi_if m_axi();
-pulp_axi_hc_axi_passthrough axi_conv_for_iram(
-    .in_if(m_axi_xbar_out[1]),
-    .out_if(m_axi)
+//=======================
+// HOLY PLIC (LITE SLAVE)
+//=======================
+
+logic ext_irq;
+
+holy_plic #(
+    .NUM_IRQS (NUM_IRQS),
+    .BASE_ADDR('h80000000)
+) plic (
+    .clk        (clk),
+    .rst_n      (rst_n),
+    .irq_in     (irq_in),
+    .s_axi_lite (axi_lite_plic),
+    .ext_irq_o  (ext_irq)
 );
 
-/*
-* Pulp's Debug module
-*/
+pulp_axil_hc_axil_passthrough plic_conv(
+    .in_if(m_axi_lite_xbar_out[2]),
+    .out_if(axi_lite_plic)
+);
 
-logic ndmreset_req;
-logic dm_debug_req;
+//=========================
+// HOLY CLINT (LITE SLAVE)
+//=========================
 
-// convert incomming axi requests 
+logic timer_irq;
+logic soft_irq;
 
-if (DBG) begin : gen_dm_top
-    dm_top #(
-        .NrHarts      (1) ,
-        .IdcodeValue  ( 32'h0BA00477 )
-    ) u_dm_top (
-        .clk_i        (clk),
-        .rst_ni       (rst_n),
-        .testmode_i   (1'b0),
-        .ndmreset_o   (ndmreset_req),
-        .dmactive_o   (),
-        .debug_req_o  (dm_debug_req), // not linked to anything yet. TODO: make all soc in verilog 
-        .unavailable_i(1'b0),
+holy_clint #(
+    .BASE_ADDR('h40000000)
+) clint (
+    .clk        (clk),
+    .rst_n      (rst_n),
+    .s_axi_lite (axi_lite_clint),
+    .timer_irq  (timer_irq),
+    .soft_irq   (soft_irq)
+);
 
-        // Bus device with debug memory (for execution-based debug).
-        .device_req_i  (dbg_device_req),
-        .device_we_i   (dbg_device_we),
-        .device_addr_i (dbg_device_addr),
-        .device_be_i   (dbg_device_be),
-        .device_wdata_i(dbg_device_wdata),
-        .device_rdata_o(dbg_device_rdata),
+pulp_axil_hc_axil_passthrough clint_conv(
+    .in_if(m_axi_lite_xbar_out[1]),
+    .out_if(axi_lite_clint)
+);
 
-        // Bus host NOT supported here
-        .host_req_o    (),
-        .host_add_o    (),
-        .host_we_o     (),
-        .host_wdata_o  (),
-        .host_be_o     (),
-        .host_gnt_i    ('0),
-        .host_r_valid_i('0),
-        .host_r_rdata_i('0),
+// =========================
+// DEBUG MODULE (LITE SLAVE)
+// =========================
 
-        .tck_i,
-        .tms_i,
-        .trst_ni,
-        .td_i,
-        .td_o
-    );
-end else begin : gen_no_dm
-    assign dm_debug_req = 1'b0;
-    assign ndmreset_req = 1'b0;
-end
+dm_top #(
+    .NrHarts      (1) ,
+    .IdcodeValue  ( 32'h0BA00477 )
+) u_dm_top (
+    .clk_i        (clk),
+    .rst_ni       (rst_n),
+    .testmode_i   (1'b0),
+    .ndmreset_o   (ndmreset_req),
+    .dmactive_o   (),
+    .debug_req_o  (dm_debug_req), // not linked to anything yet. TODO: make all soc in verilog 
+    .unavailable_i(1'b0),
 
-/*
-* AXI DETAILS BINDINGS
-*/
+    // Bus device with debug memory (for execution-based debug).
+    // .device_req_i  (dbg_device_req),
+    // .device_we_i   (dbg_device_we),
+    // .device_addr_i (dbg_device_addr),
+    // .device_be_i   (dbg_device_be),
+    // .device_wdata_i(dbg_device_wdata),
+    // .device_rdata_o(dbg_device_rdata),
+    .device_req_i  ('0),
+    .device_we_i   ('0),
+    .device_addr_i ('0),
+    .device_be_i   ('0),
+    .device_wdata_i('0),
+    .device_rdata_o(),
+
+    // Bus host NOT supported here
+    .host_req_o    (),
+    .host_add_o    (),
+    .host_we_o     (),
+    .host_wdata_o  (),
+    .host_be_o     (),
+    .host_gnt_i    ('0),
+    .host_r_valid_i('0),
+    .host_r_rdata_i('0),
+
+    .tck_i,
+    .tms_i,
+    .trst_ni,
+    .td_i,
+    .td_o
+);
+
+//===================================
+// AXI FULL HOLY CORE <=> COCOTB RAM
+//===================================
+
+// Note : the AXI interface
+// is only used to retrieve instructions
+// in this tb. so it is a striahgt passthrough
+// to the top IF.
 
 // Connect the discrete AXI signals to the m_axi
 assign m_axi.aclk       = aclk;
 assign m_axi.aresetn    = aresetn;
-
-// ========== AXI FULL BINDINGS ==========
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;
@@ -344,33 +390,37 @@ assign m_axi.rlast  = m_axi_rlast;
 assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
 
-// ========== AXI LITE BINDINGS ==========
+//==============================================
+// AXI LITE XBAR OUT <=> COCOTB EXTERNAL RAM
+//=============================================
 
-// Write Address Channel
-assign m_axi_lite_awaddr   = m_axi_lite.awaddr;
-assign m_axi_lite_awvalid  = m_axi_lite.awvalid;
-assign m_axi_lite.awready  = m_axi_lite_awready;
+assign m_axi_lite_awaddr = m_axi_lite_xbar_out[0].aw_addr;
+// AW channel
+assign m_axi_lite_awaddr = m_axi_lite_xbar_out[0].aw_addr;
+assign m_axi_lite_awvalid = m_axi_lite_xbar_out[0].aw_valid;
+assign m_axi_lite_xbar_out[0].aw_ready = m_axi_lite_awready;
 
-// Write Data Channel
-assign m_axi_lite_wdata    = m_axi_lite.wdata;
-assign m_axi_lite_wstrb    = m_axi_lite.wstrb;
-assign m_axi_lite_wvalid   = m_axi_lite.wvalid;
-assign m_axi_lite.wready   = m_axi_lite_wready;
+// W channel
+assign m_axi_lite_wdata = m_axi_lite_xbar_out[0].w_data;
+assign m_axi_lite_wstrb = m_axi_lite_xbar_out[0].w_strb;
+assign m_axi_lite_wvalid = m_axi_lite_xbar_out[0].w_valid;
+assign m_axi_lite_xbar_out[0].w_ready = m_axi_lite_wready;
 
-// Write Response Channel
-assign m_axi_lite.bresp    = m_axi_lite_bresp;
-assign m_axi_lite.bvalid   = m_axi_lite_bvalid;
-assign m_axi_lite_bready   = m_axi_lite.bready;
+// B channel
+assign m_axi_lite_xbar_out[0].b_resp = m_axi_lite_bresp;
+assign m_axi_lite_xbar_out[0].b_valid = m_axi_lite_bvalid;
+assign m_axi_lite_bready = m_axi_lite_xbar_out[0].b_ready;
 
-// Read Address Channel
-assign m_axi_lite_araddr   = m_axi_lite.araddr;
-assign m_axi_lite_arvalid  = m_axi_lite.arvalid;
-assign m_axi_lite.arready  = m_axi_lite_arready;
+// AR channel
+assign m_axi_lite_araddr = m_axi_lite_xbar_out[0].ar_addr;
+assign m_axi_lite_arvalid = m_axi_lite_xbar_out[0].ar_valid;
+assign m_axi_lite_xbar_out[0].ar_ready = m_axi_lite_arready;
 
-// Read Data Channel
-assign m_axi_lite.rdata    = m_axi_lite_rdata;
-assign m_axi_lite.rresp    = m_axi_lite_rresp;
-assign m_axi_lite.rvalid   = m_axi_lite_rvalid;
-assign m_axi_lite_rready   = m_axi_lite.rready;
+// R channel
+assign m_axi_lite_xbar_out[0].r_data = m_axi_lite_rdata;
+assign m_axi_lite_xbar_out[0].r_resp = m_axi_lite_rresp;
+assign m_axi_lite_xbar_out[0].r_valid = m_axi_lite_rvalid;
+assign m_axi_lite_rready = m_axi_lite_xbar_out[0].r_ready;
 
 endmodule
+

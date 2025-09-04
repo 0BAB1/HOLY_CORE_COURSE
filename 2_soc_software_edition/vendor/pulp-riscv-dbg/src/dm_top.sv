@@ -10,7 +10,7 @@
 // https://github.com/pulp-platform/riscv-dbg to match the needs of
 // the TL-UL-based lowRISC chip design.
 
-`include "prim_assert.sv"
+//`include "prim_assert.sv"
 
 module dm_top #(
   parameter int          NrHarts = 1,
@@ -51,8 +51,6 @@ module dm_top #(
   input  logic        td_i,     // JTAG test data input pad
   output logic        td_o      // JTAG test data output pad
 );
-
-  `ASSERT_INIT(paramCheckNrHarts, NrHarts > 0)
 
   // all harts have contiguous IDs
   localparam logic [NrHarts-1:0] SelectableHarts = {NrHarts{1'b1}};

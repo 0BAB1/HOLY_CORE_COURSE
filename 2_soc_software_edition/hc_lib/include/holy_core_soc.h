@@ -34,6 +34,8 @@
 #define I2C_TX_FIFO (*(volatile uint32_t *)(I2C_BASE + 0x108))
 #define I2C_RX_FIFO (*(volatile uint32_t *)(I2C_BASE + 0x10C))
 
+// CLINT 40000000
+
 // PLIC
 
 #define PLIC_BASE 0x80000000
