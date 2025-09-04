@@ -5,3 +5,4 @@ The goal here is everything literrally from scratch. BUT sometimes it's also nic
 What IP do we **actually use** list:
 
 - AXI CROSSBAR
+- BBG module from pulp (stitched together from ibex exmple platform)

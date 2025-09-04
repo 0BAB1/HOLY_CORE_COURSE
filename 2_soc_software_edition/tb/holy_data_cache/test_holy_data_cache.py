@@ -92,7 +92,7 @@ async def main_test(dut):
     # ----------------------
     # we run these test multiple times with no resets, to check that going through states does
     # not affect default bahavior. e.g :  forgor to reset some AXI / AX LITE flags to default
-    for _ in range(10) :
+    for k in range(10) :
         # Set cachable range to 0 for now to fully test the cache
         dut.cache_system.non_cachable_base.value = 0x0000_0000
         dut.cache_system.non_cachable_limit.value = 0x0000_0000
@@ -623,12 +623,12 @@ async def main_test(dut):
 
         # we have to test the exactitude of the read and that the actual output data is the right one
         # memory r slave is init to random values, we pick an arbitrary address whithing the non cachable range.
-        addr = 0x0000_000C
+        addr = k*4
 
         dut.cpu_write_enable.value = 0b0
         dut.cpu_read_enable.value = 0b1
         dut.cpu_address.value = addr
-        await Timer(1, units="ns") # propagate
+        await Timer(5, units="ns") # propagate
 
         # cpu should stall immediatly and prepare to switch state to LITE_SENDING_READ_REQ
         assert dut.cpu_cache_stall.value == 0b1
@@ -658,7 +658,7 @@ async def main_test(dut):
         assert dut.axi_lite_rready.value == 0b1
         assert dut.axi_lite_rvalid.value == 0b1
         # check that we recieve the expected data form the right addr ...
-        assert int(dut.axi_lite_rdata.value).to_bytes(4,'little') == lite_mem_golden_ref[int(0x0000_000C/4)]
+        assert int(dut.axi_lite_rdata.value).to_bytes(4,'little') == lite_mem_golden_ref[int(addr/4)]
         expected_axi_result = dut.axi_lite_rdata.value
         assert dut.cache_system.next_state.value == IDLE
         

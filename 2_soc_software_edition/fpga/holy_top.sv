@@ -1,15 +1,23 @@
-/** axi_details
+/** holy_top
 *
 *   Author : BRH
 *   Project : Holy Core V2
-*   Description : First wrapper for vivado to "demux" the axi interface into detailed signals
-*   (Suitable for all targets)
+*   Description : Top wrapper for holy core. May not be used as top in vivado or synth tool as this may require
+*                 another OG VERILOG top wrapper.
 */
 
-module axi_details (
+// TODO later : Include as much of the SoC here, if not all of it instead of relying on vivado block design tool...
+
+module holy_top (
     // CPU clock and active low reset
     input logic clk,
     input logic rst_n,
+
+    input  logic        tck_i,    // JTAG test clock pad
+    input  logic        tms_i,    // JTAG test mode select pad
+    input  logic        trst_ni,  // JTAG test reset pad
+    input  logic        td_i,     // JTAG test data input pad
+    output logic        td_o      // JTAG test data output pad
 
     // =================
     // Detailled AXI IF
@@ -122,8 +130,13 @@ module axi_details (
     input logic soft_irq
 );
 
-// INTERFACES DECLARATION
-axi_if m_axi(); // axi master
+localparam DBG = 1;
+
+/*
+* HOLY CORE instance
+*/
+
+axi_if core_m_axi(); // axi master
 axi_lite_if m_axi_lite(); // axi lite master
 
 holy_core core(
@@ -131,15 +144,16 @@ holy_core core(
     .rst_n(rst_n),
 
     // AXI Master Interface
-    .m_axi(m_axi),
+    .m_axi(core_m_axi),
     .m_axi_lite(m_axi_lite),
 
     // interrupts
     .timer_itr(timer_irq),
     .soft_itr(soft_irq),
     .ext_itr(ext_irq),
+    .debug_req(dm_debug_req),
 
-    // Debug out interface
+    // (RAW) debug out signals
     .debug_pc(pc),  
     .debug_pc_next(pc_next),
     .debug_pc_source(pc_source),
@@ -160,6 +174,129 @@ holy_core core(
     .debug_mem_byte_en(mem_byte_en),
     .debug_wb_data(wb_data) 
 );
+
+/*
+* AXI XBAR
+*/
+
+localparam xbar_cfg_t Cfg = '{
+    NoSlvPorts: 1,
+    NoMstPorts: 2,
+    MaxMstTrans: 8,
+    MaxSlvTrans: 8,
+    FallThrough: 1'b0,
+    LatencyMode: 10'b0,
+    PipelineStages: 2,
+    AxiIdWidthSlvPorts: '0,
+    AxiIdUsedSlvPorts: '0,
+    UniqueIds: 1'b0,
+    AxiAddrWidth: 32,
+    AxiDataWidth: 32,
+    NoAddrRules: 2
+};
+
+// defined in vendor/axi/src/axi_pkg.sv
+axi_pkg::xbar_rule_32_t [Cfg.NoAddrRules-1:0] addr_map;
+
+// DEBUG
+assign addr_map[0].idx = 0;
+assign addr_map[0].start_addr = 32'h0;
+assign addr_map[0].end_addr = 32'h80F;
+
+// DEBUG
+assign addr_map[1].idx = 1;
+assign addr_map[1].start_addr = 32'h810;
+assign addr_map[1].end_addr = 32'hFFFFFFFF; // redirect all the rest to ram by default
+
+// interfaces declaration
+AXI_BUS #(32,32) m_axi_xbar_in [0:0] ();
+AXI_BUS #(32,32) m_axi_xbar_out [1:0] ();
+
+// convert HOLY CORE AXI master into PULP AXI Master
+hc_axi_pulp_axi_passthrough axi_conv_for_demux(
+    .in_if(core_m_axi),
+    .out_if(m_axi_xbar_in[0])
+);
+
+AXI_BUS axi_dbg;
+AXI_BUS axi_ram_pulp;
+axi_if axi_ram_hc;
+
+axi_xbar_intf #(
+    .Cfg(Cfg),
+    .rule_t(axi_pkg::xbar_rule_32_t)
+) u_axi_xbar (
+    .clk_i(clk),
+    .rst_ni(rst_n),
+    .test_i(1'b0),
+    .slv_ports(m_axi_xbar_in),
+    .mst_ports(m_axi_xbar_out),
+    .addr_map_i(addr_map),
+    .en_default_mst_port_i(3'b111),
+    .default_mst_port_i(2'b01)
+);
+
+// re convert ram axi to holy_core's axi if
+axi_if m_axi();
+pulp_axi_hc_axi_passthrough axi_conv_for_iram(
+    .in_if(m_axi_xbar_out[1]),
+    .out_if(m_axi)
+);
+
+/*
+* Pulp's Debug module
+*/
+
+logic ndmreset_req;
+logic dm_debug_req;
+
+// convert incomming axi requests 
+
+if (DBG) begin : gen_dm_top
+    dm_top #(
+        .NrHarts      (1) ,
+        .IdcodeValue  ( 32'h0BA00477 )
+    ) u_dm_top (
+        .clk_i        (clk),
+        .rst_ni       (rst_n),
+        .testmode_i   (1'b0),
+        .ndmreset_o   (ndmreset_req),
+        .dmactive_o   (),
+        .debug_req_o  (dm_debug_req), // not linked to anything yet. TODO: make all soc in verilog 
+        .unavailable_i(1'b0),
+
+        // Bus device with debug memory (for execution-based debug).
+        .device_req_i  (dbg_device_req),
+        .device_we_i   (dbg_device_we),
+        .device_addr_i (dbg_device_addr),
+        .device_be_i   (dbg_device_be),
+        .device_wdata_i(dbg_device_wdata),
+        .device_rdata_o(dbg_device_rdata),
+
+        // Bus host NOT supported here
+        .host_req_o    (),
+        .host_add_o    (),
+        .host_we_o     (),
+        .host_wdata_o  (),
+        .host_be_o     (),
+        .host_gnt_i    ('0),
+        .host_r_valid_i('0),
+        .host_r_rdata_i('0),
+
+        .tck_i,
+        .tms_i,
+        .trst_ni,
+        .td_i,
+        .td_o
+    );
+end else begin : gen_no_dm
+    assign dm_debug_req = 1'b0;
+    assign ndmreset_req = 1'b0;
+end
+
+/*
+* AXI DETAILS BINDINGS
+*/
 
 // Connect the discrete AXI signals to the m_axi
 assign m_axi.aclk       = aclk;

@@ -110,8 +110,8 @@ async def cpu_insrt_test(dut):
     await inst_clocks(dut)
 
     SIZE = 2**32
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
-    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.aclk, dut.aresetn, size=SIZE, reset_active_level=False)
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.clk, dut.rst_n, size=SIZE, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=SIZE, reset_active_level=False)
     await cpu_reset(dut)
 
     program_hex = os.environ["IHEX_PATH"]
@@ -120,9 +120,16 @@ async def cpu_insrt_test(dut):
     axi_ram_slave.write(0x0, int("FFFFF3B7", 16).to_bytes(4,'little')) # li
     axi_ram_slave.write(0x4, int("7C101073", 16).to_bytes(4,'little')) # cssrw
     axi_ram_slave.write(0x8, int("7C239073", 16).to_bytes(4,'little')) # cssrw
+    # same for lite
+    axi_lite_ram_slave.write(0x0, int("FFFFF3B7", 16).to_bytes(4,'little')) # li
+    axi_lite_ram_slave.write(0x4, int("7C101073", 16).to_bytes(4,'little')) # cssrw
+    axi_lite_ram_slave.write(0x8, int("7C239073", 16).to_bytes(4,'little')) # cssrw
     # jump to 0x8000_0000 to comply with spike logs format
     axi_ram_slave.write(0xC, int("800000B7", 16).to_bytes(4,'little')) # lui   x1, 0x80000
     axi_ram_slave.write(0x10, int("00008067", 16).to_bytes(4,'little')) # jalr  x0, 0(x1)
+    # same for lite
+    axi_lite_ram_slave.write(0xC, int("800000B7", 16).to_bytes(4,'little')) # lui   x1, 0x80000
+    axi_lite_ram_slave.write(0x10, int("00008067", 16).to_bytes(4,'little')) # jalr  x0, 0(x1)
     await init_memory(axi_ram_slave, program_hex, 0x80000000)
     await init_memory(axi_lite_ram_slave, program_hex, 0x80000000)
 

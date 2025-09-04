@@ -119,7 +119,7 @@ module holy_cache #(
     end
 
     // AXI CLOCK DRIVEN SEQ LOGIC
-    always_ff @(posedge aclk) begin
+    always_ff @(posedge clk) begin
         if (~rst_n) begin
             state <= IDLE;
             set_ptr <= 7'd0;

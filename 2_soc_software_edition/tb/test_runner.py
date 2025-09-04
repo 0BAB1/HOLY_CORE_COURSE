@@ -52,6 +52,7 @@ def test_control():
 def test_holy_core():
     proj_path = Path(__name__).resolve().parent.parent
 
+    # this is kinda sloppy tbh, TODO: shoulf use .f files
     generic_tb_runner(
         "holy_core",
         specific_top_level="holy_test_harness",
@@ -108,10 +109,12 @@ def test_holy_data_no_cache():
     proj_path = Path(__name__).resolve().parent.parent
     generic_tb_runner("holy_data_no_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_data_no_cache/axi_translator.sv"])
 
-
 def test_external_req_arbitrer():
     proj_path = Path(__name__).resolve().parent.parent
     generic_tb_runner("external_req_arbitrer", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/external_req_arbitrer/axi_translator.sv"])
+
+def test_csr_file():
+    generic_tb_runner("csr_file")
 
 if __name__ == "__main__":
     test_alu()

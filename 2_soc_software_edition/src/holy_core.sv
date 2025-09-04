@@ -42,6 +42,8 @@ module holy_core #(
     input logic debug_req,
 
     // DEBUG SIGNALS FOR LOGIC ANALYSERS
+    // Not related to debug module but rather
+    // raw on board SoC debugging hints.
     output logic [31:0] debug_pc,  
     output logic [31:0] debug_pc_next,
     output logic [1:0] debug_pc_source,
@@ -86,66 +88,78 @@ assign debug_mem_byte_en = mem_byte_enable;
 // others are assign directly to submodules outputs
 
 /**
-* M_AXI_ARBITRER, aka "mr l'arbitre"
+* TOP AXIS IFS MUXING
 */
 
-// note : AXI_LITE if is declared directly as output
-axi_if m_axi_data();
-axi_if m_axi_instr();
+axi_if axi_data();
+axi_if axi_instr();
+axi_lite_if axi_lite_data();
+axi_lite_if axi_lite_instr();
 
+// AXI FULL MUXER / ARBITRER
 generate
     if (DCACHE_EN) begin : with_dcache
         external_req_arbitrer mr_l_arbitre(
             .m_axi(m_axi),
-            .s_axi_instr(m_axi_instr),
+            .s_axi_instr(axi_instr),
             .i_cache_state(i_cache_state),
-            .s_axi_data(m_axi_data),
+            .s_axi_data(axi_data),
             .d_cache_state(d_cache_state)
         );
     end else begin : no_dcache
-        // Directly assign m_axi_instr to m_axi
-        // manually because synthesis would not
-        // be happy otherwise
-        assign m_axi.awvalid = m_axi_instr.awvalid;
-        assign m_axi.awaddr  = m_axi_instr.awaddr;
-        assign m_axi.awid    = m_axi_instr.awid;
-        assign m_axi.awlen   = m_axi_instr.awlen;
-        assign m_axi.awsize  = m_axi_instr.awsize;
-        assign m_axi.awburst = m_axi_instr.awburst;
-        assign m_axi.awlock  = m_axi_instr.awlock;
-        assign m_axi.awqos   = m_axi_instr.awqos;
+        // No dcache => only one axi master will be used
+        assign m_axi.awvalid = axi_instr.awvalid;
+        assign m_axi.awaddr  = axi_instr.awaddr;
+        assign m_axi.awid    = axi_instr.awid;
+        assign m_axi.awlen   = axi_instr.awlen;
+        assign m_axi.awsize  = axi_instr.awsize;
+        assign m_axi.awburst = axi_instr.awburst;
+        assign m_axi.awlock  = axi_instr.awlock;
+        assign m_axi.awqos   = axi_instr.awqos;
 
-        assign m_axi.wvalid  = m_axi_instr.wvalid;
-        assign m_axi.wdata   = m_axi_instr.wdata;
-        assign m_axi.wstrb   = m_axi_instr.wstrb;
-        assign m_axi.wlast   = m_axi_instr.wlast;
+        assign m_axi.wvalid  = axi_instr.wvalid;
+        assign m_axi.wdata   = axi_instr.wdata;
+        assign m_axi.wstrb   = axi_instr.wstrb;
+        assign m_axi.wlast   = axi_instr.wlast;
 
-        assign m_axi.bready  = m_axi_instr.bready;
+        assign m_axi.bready  = axi_instr.bready;
 
-        assign m_axi.arvalid = m_axi_instr.arvalid;
-        assign m_axi.araddr  = m_axi_instr.araddr;
-        assign m_axi.arid    = m_axi_instr.arid;
-        assign m_axi.arlen   = m_axi_instr.arlen;
-        assign m_axi.arsize  = m_axi_instr.arsize;
-        assign m_axi.arburst = m_axi_instr.arburst;
-        assign m_axi.arlock  = m_axi_instr.arlock;
-        assign m_axi.arqos   = m_axi_instr.arqos;
+        assign m_axi.arvalid = axi_instr.arvalid;
+        assign m_axi.araddr  = axi_instr.araddr;
+        assign m_axi.arid    = axi_instr.arid;
+        assign m_axi.arlen   = axi_instr.arlen;
+        assign m_axi.arsize  = axi_instr.arsize;
+        assign m_axi.arburst = axi_instr.arburst;
+        assign m_axi.arlock  = axi_instr.arlock;
+        assign m_axi.arqos   = axi_instr.arqos;
 
-        assign m_axi_instr.awready = m_axi.awready;
-        assign m_axi_instr.wready  = m_axi.wready;
-        assign m_axi_instr.bvalid  = m_axi.bvalid;
-        assign m_axi_instr.bid     = m_axi.bid;
-        assign m_axi_instr.bresp   = m_axi.bresp;
+        assign axi_instr.awready = m_axi.awready;
+        assign axi_instr.wready  = m_axi.wready;
+        assign axi_instr.bvalid  = m_axi.bvalid;
+        assign axi_instr.bid     = m_axi.bid;
+        assign axi_instr.bresp   = m_axi.bresp;
 
-        assign m_axi_instr.arready = m_axi.arready;
-        assign m_axi_instr.rvalid  = m_axi.rvalid;
-        assign m_axi_instr.rdata   = m_axi.rdata;
-        assign m_axi_instr.rresp   = m_axi.rresp;
-        assign m_axi_instr.rlast   = m_axi.rlast;
-        assign m_axi_instr.rid     = m_axi.rid;
-        assign m_axi.rready = m_axi_instr.rready;
+        assign axi_instr.arready = m_axi.arready;
+        assign axi_instr.rvalid  = m_axi.rvalid;
+        assign axi_instr.rdata   = m_axi.rdata;
+        assign axi_instr.rresp   = m_axi.rresp;
+        assign axi_instr.rlast   = m_axi.rlast;
+        assign axi_instr.rid     = m_axi.rid;
+        assign m_axi.rready = axi_instr.rready;
     end
 endgenerate
+
+// AXI LITE MUXER / ARBITRER
+external_req_arbitrer_lite lite_mux(
+    // out if (to externals)
+    .m_axi_lite(m_axi_lite),
+
+    // in ifs + infos on cache state for preemption
+    .s_axi_lite_instr(axi_lite_instr),
+    .i_cache_state(i_cache_state),
+    .s_axi_lite_data(axi_lite_data),
+    .d_cache_state(d_cache_state)
+);
 
 /**
 * PROGRAM COUNTER 
@@ -200,8 +214,8 @@ wire [31:0] instruction;
 wire instr_cache_valid;
 cache_state_t i_cache_state;
 
-// holy_cache =/=  holy_data_cache !
-holy_cache instr_cache (
+
+holy_data_cache instr_cache (
     .clk(clk),
     .rst_n(rst_n),
     .aclk(m_axi.aclk),
@@ -212,12 +226,19 @@ holy_cache instr_cache (
     .read_enable(1'b1),
     .write_enable(1'b0),
     .byte_enable(4'd0),
-    .csr_flush_order(1'b0),
+    .csr_flush_order(csr_flush_order),
     .read_data(instruction),
     .cache_stall(i_cache_stall),
 
+    // cachable control (hardcoded fro I$ for now, TODO: add csrs for that)
+    // supposed debug memory range is set to non cachable by default
+    .non_cachable_base(32'h0),
+    .non_cachable_limit(32'hFFF),
+
+
     // M_AXI EXERNAL REQ IF
-    .axi(m_axi_instr),
+    .axi(axi_instr),
+    .axi_lite(axi_lite_instr),
 
     .cache_state(i_cache_state),
     .cache_valid(instr_cache_valid),
@@ -565,8 +586,8 @@ generate
             .non_cachable_limit(csr_non_cachable_limit),
 
             // AXI
-            .axi(m_axi_data),
-            .axi_lite(m_axi_lite),
+            .axi(axi_data),
+            .axi_lite(axi_lite_data),
             .cache_state(d_cache_state),
 
             // Debug
@@ -599,7 +620,7 @@ generate
             .cache_stall(d_cache_stall),
 
             // AXI LITE only
-            .axi_lite(m_axi_lite),
+            .axi_lite(axi_lite_data),
             .cache_state(d_cache_state),
 
             // Debug

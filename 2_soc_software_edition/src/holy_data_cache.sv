@@ -34,6 +34,7 @@ module holy_data_cache #(
     input logic [3:0]   byte_enable,
     output logic [31:0] read_data,
     output logic        cache_stall,
+    output logic        cache_valid,
 
     // incomming CSR Orders
     input logic         csr_flush_order,
@@ -70,7 +71,7 @@ module holy_data_cache #(
     // CACHE TABLE DECLARATION
     logic [CACHE_SIZE-1:0][31:0]    cache_data;
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
-    logic                           cache_valid;  // is the current block valid ?
+    //logic                           cache_valid;  // is the current block valid ?
     logic                           next_cache_valid;
     logic                           cache_dirty;
     // register to retain info on wether we are writing back because of miss or because of CSR order
@@ -88,6 +89,9 @@ module holy_data_cache #(
     // This also means it stays high for 1 clock cycle only before going low again, thus allwing the cache
     // to go NON-IDLE again on the non cachable range.
     logic                           axi_lite_tx_done, next_axi_lite_tx_done;
+    // we also remember the axi lite pulled addr so axi lite tx bahaves like a single
+    // scratchpas cache. (even though its for "non cachable" stuff)
+    logic [31:0]                    axi_lite_cached_addr, next_axi_lite_cached_addr;
 
     // INCOMING CACHE REQUEST SIGNALS
     logic [31:9]                    req_block_tag;
@@ -120,6 +124,8 @@ module holy_data_cache #(
             seq_stall <= 1'b0;
             csr_flushing <= 1'b0;
             axi_lite_tx_done <= 1'b0;
+            // 1 is never valid on startup
+            axi_lite_cached_addr <= 32'h00000001;
         end else begin
             cache_valid <= next_cache_valid;
             seq_stall <= comb_stall;
@@ -141,11 +147,12 @@ module holy_data_cache #(
 
             csr_flushing <= next_csr_flushing;
             axi_lite_tx_done <= next_axi_lite_tx_done;
+            axi_lite_cached_addr <= next_axi_lite_cached_addr;
         end
     end
 
     // AXI CLOCK DRIVEN SEQ LOGIC
-    always_ff @(posedge aclk) begin
+    always_ff @(posedge clk) begin
         if (~rst_n) begin
             state <= IDLE;
             set_ptr <= 7'd0;
@@ -163,6 +170,7 @@ module holy_data_cache #(
         next_state = state; // Default
         next_cache_valid = cache_valid;
         next_axi_lite_tx_done = axi_lite_tx_done;
+        next_axi_lite_cached_addr = axi_lite_cached_addr;
 
         // AXI DEFAULT
         axi.wlast = 1'b0;
@@ -200,7 +208,12 @@ module holy_data_cache #(
                 end
                 
                 else if ( read_enable & non_cachable & ~axi_lite_tx_done ) begin
-                    next_state = LITE_SENDING_READ_REQ;
+                    if(axi_lite_cached_addr != address)begin
+                        // if we ask for an addr read
+                        // that is not the one
+                        // we last pulled from axi, we go get it
+                        next_state = LITE_SENDING_READ_REQ;
+                    end
                 end
 
                 else if ( write_enable & non_cachable & ~axi_lite_tx_done ) begin
@@ -427,6 +440,7 @@ module holy_data_cache #(
                     next_state = IDLE;
                     // flag tx as done as well
                     next_axi_lite_tx_done = 1'b1;
+                    next_axi_lite_cached_addr = address;
                 end
             
                 // AXI LITE Signals

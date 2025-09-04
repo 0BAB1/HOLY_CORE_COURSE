@@ -73,6 +73,7 @@ module holy_data_no_cache #(
     // FSM LOGIC
     // =======================
     cache_state_t state, next_state;
+    assign cache_state = state;// out for muxes hints
 
     // MAIN CLOCK DRIVEN SEQ LOGIC
     always_ff @(posedge clk) begin
@@ -91,7 +92,7 @@ module holy_data_no_cache #(
     end
 
     // AXI CLOCK DRIVEN SEQ LOGIC
-    always_ff @(posedge aclk) begin
+    always_ff @(posedge clk) begin
         if (~rst_n) begin
             state <= IDLE;
         end else begin
