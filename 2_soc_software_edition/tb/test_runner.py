@@ -18,7 +18,7 @@ from cocotb.runner import get_runner
 def generic_tb_runner(design_name, specific_top_level=None, additional_sources=[], initial_sources=[], includes=[]):
     """
         initial sources : packages and "early" source files needed to build most modules
-        additional sources : complementary "final" sources unused from outside the src/ folder
+        additional sources : main source, Note: add top module last in these sources
         includes : self explainatory
     """
     print(initial_sources, additional_sources)
@@ -57,16 +57,28 @@ def test_holy_core():
         "holy_core",
         specific_top_level="holy_test_harness",
         initial_sources=[
-            # Pulp AXI CROSSBAR sources for testbench
-            f"{proj_path}/vendor/axi/src/axi_pkg.sv",
-            f"{proj_path}/vendor/common_cells/src/cf_math_pkg.sv",
-            f"{proj_path}/vendor/axi/src/axi_intf.sv",
-            f"{proj_path}/vendor/common_verification/src/rand_id_queue.sv",
-            f"{proj_path}/packages/axi_if.sv",
-            f"{proj_path}/packages/axi_lite_if.sv",
+            # Verilog sources (packages)
+            # f"{proj_path}/packages/holy_core_pkg.sv",
+            f"{proj_path}/vendor/axi_pkg.sv",
+            f"{proj_path}/vendor/cf_math_pkg.sv",
+            f"{proj_path}/vendor/axi_intf.sv",
+            f"{proj_path}/vendor/rand_id_queue.sv",
             f"{proj_path}/tb/holy_core/axi_if_convert.sv",
-        ]
-        + [f for f in (proj_path / "vendor/axi/src").glob("*.sv") if f.name not in {"axi_pkg.sv", "axi_test.sv", "axi_intf.sv"}],
+
+            # external sources (mainly customized pulp platform files)
+            f"{proj_path}/vendor/delta_counter.sv",
+            f"{proj_path}/vendor/counter.sv",
+            f"{proj_path}/vendor/fifo_v3.sv",
+            f"{proj_path}/vendor/spill_register_flushable.sv",
+            f"{proj_path}/vendor/spill_register.sv",
+            f"{proj_path}/vendor/axi_lite_xbar.sv",
+            f"{proj_path}/vendor/addr_decode_dync.sv",
+            f"{proj_path}/vendor/addr_decode.sv",
+            f"{proj_path}/vendor/axi_lite_demux.sv",
+            f"{proj_path}/vendor/axi_lite_mux.sv",
+            f"{proj_path}/vendor/axi_lite_to_axi.sv",
+            f"{proj_path}/vendor/axi_err_slv.sv"
+        ],
         additional_sources= (
             list(proj_path.glob("src/holy_plic/*.sv"))
             + list(proj_path.glob("src/holy_clint/*.sv"))
@@ -75,10 +87,9 @@ def test_holy_core():
             ]
         ),
         includes=[
-            f"-I{proj_path}/vendor/axi/include",
-            f"-I{proj_path}/vendor/common_cells/include",
-            f"-I{proj_path}/vendor/common_cells/src",
-            f"-I{proj_path}/vendor/axi/src"
+            f"-I{proj_path}/vendor/include",
+            f"-I{proj_path}/vendor/include/common_cells",
+            f"-I{proj_path}/vendor/include/axi"
         ]
     )
 

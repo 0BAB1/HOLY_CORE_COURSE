@@ -16,23 +16,29 @@ WAVES ?= 1
 TOPLEVEL = holy_test_harness
 MODULE   = test_holy_core
 
-# Verilog sources
-VERILOG_SOURCES += $(PWD)/../../vendor/axi/src/axi_pkg.sv
-VERILOG_SOURCES += $(PWD)/../../vendor/common_cells/src/cf_math_pkg.sv
-VERILOG_SOURCES += $(PWD)/../../vendor/axi/src/axi_intf.sv
-VERILOG_SOURCES += $(PWD)/../../vendor/common_verification/src/rand_id_queue.sv
+# Verilog sources (packages)
+VERILOG_SOURCES += $(PWD)/../../vendor/axi_pkg.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/cf_math_pkg.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/axi_intf.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/rand_id_queue.sv
 VERILOG_SOURCES += $(PWD)/../../packages/holy_core_pkg.sv
 VERILOG_SOURCES += $(PWD)/axi_if_convert.sv
 
-AXI_SRCS := $(wildcard $(PWD)/../../vendor/axi/src/*.sv)
-# filter out test files / files that will be built later
-AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_pkg.sv, $(AXI_SRCS))
-AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_test.sv, $(AXI_SRCS))
-AXI_SRCS := $(filter-out $(PWD)/../../vendor/axi/src/axi_intf.sv, $(AXI_SRCS))
-VERILOG_SOURCES += $(AXI_SRCS)
-VERILOG_SOURCES += $(PWD)/../../vendor/axi/src/axi_pkg.sv
+# external sources (mainly customized pulp platform files)
+VERILOG_SOURCES += $(PWD)/../../vendor/delta_counter.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/counter.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/fifo_v3.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/spill_register_flushable.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/spill_register.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/axi_lite_xbar.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/addr_decode_dync.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/addr_decode.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/axi_lite_demux.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/axi_lite_mux.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/axi_lite_to_axi.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/axi_err_slv.sv
 
-# go on
+# holy core sources
 VERILOG_SOURCES += $(PWD)/../../packages/axi_if.sv
 VERILOG_SOURCES += $(PWD)/../../packages/axi_lite_if.sv
 VERILOG_SOURCES += $(wildcard $(PWD)/../../src/*.sv)
@@ -40,10 +46,9 @@ VERILOG_SOURCES += $(wildcard $(PWD)/../../src/holy_plic/*.sv)
 VERILOG_SOURCES += $(wildcard $(PWD)/../../src/holy_clint/*.sv)
 VERILOG_SOURCES += $(PWD)/holy_test_harness.sv
 
-EXTRA_ARGS += -I$(PWD)/../../vendor/axi/include
-EXTRA_ARGS += -I$(PWD)/../../vendor/common_cells/include
-EXTRA_ARGS += -I$(PWD)/../../vendor/common_cells/src
-EXTRA_ARGS += -I$(PWD)/../../vendor/axi/src
+EXTRA_ARGS += -I$(PWD)/../../vendor/include
+EXTRA_ARGS += -I$(PWD)/../../vendor/include/axi
+EXTRA_ARGS += -I$(PWD)/../../vendor/include/common_cells
 
 ##################################
 # COMPILE TEST ASSEMBLY
