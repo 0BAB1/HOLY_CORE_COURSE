@@ -1053,19 +1053,21 @@ async def cpu_insrt_test(dut):
     # we use this this NOP (00000013) to mark the beginning of the debug test
     while not binary_to_hex(dut.core.instruction.value) == "00000013":
         await RisingEdge(dut.clk)
+        print("hey")
 
     # send a debug request
     dut.core.debug_halt_addr.value = dut.core.regfile.registers[5].value
     dut.core.debug_exception_addr.value = dut.core.regfile.registers[6].value
-    await Timer(1, units="ns")
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
     dut.core.debug_req.value = 1
+    await Timer(3, units="ns")
 
     while dut.core.stall.value == 1:
         await RisingEdge(dut.clk)
     # wait to switch to debug mode
     while not dut.core.holy_csr_file.debug_mode.value == 1:
+        print("HI")
         # save the last known pc to later check is dpc saves it well
         pc_save = dut.core.pc.value
         await RisingEdge(dut.clk)

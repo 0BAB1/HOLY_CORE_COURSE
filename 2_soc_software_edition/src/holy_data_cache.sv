@@ -221,6 +221,7 @@ module holy_data_cache #(
                 end
 
                 // READ DATA OUT COMB LOGIC AND SOURCE MUX (cachable or not ?)
+                read_data = cache_data[req_index];
                 if(hit && read_enable && ~non_cachable) begin
                     // async reads
                     read_data = cache_data[req_index];

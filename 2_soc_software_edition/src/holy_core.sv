@@ -49,6 +49,7 @@ module holy_core #(
     output logic [1:0] debug_pc_source,
     output logic [31:0] debug_instruction,  
     output logic [3:0] debug_i_cache_state,  
+    output logic [3:0] debug_i_next_cache_state,  
     output logic [3:0] debug_d_cache_state,
     output logic [6:0] debug_i_set_ptr,  
     output logic [6:0] debug_i_next_set_ptr,  
@@ -232,8 +233,8 @@ holy_data_cache instr_cache (
 
     // cachable control (hardcoded fro I$ for now, TODO: add csrs for that)
     // supposed debug memory range is set to non cachable by default
-    .non_cachable_base(32'h0),
-    .non_cachable_limit(32'hFFF),
+    .non_cachable_base(32'hFFFFFFF0),
+    .non_cachable_limit(32'hFFFFFFFF),
 
 
     // M_AXI EXERNAL REQ IF
@@ -241,6 +242,7 @@ holy_data_cache instr_cache (
     .axi_lite(axi_lite_instr),
 
     .cache_state(i_cache_state),
+    .debug_next_cache_state(debug_i_next_cache_state),
     .cache_valid(instr_cache_valid),
 
     //debug

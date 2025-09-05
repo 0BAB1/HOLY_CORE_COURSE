@@ -4,7 +4,11 @@
 #
 # This scripts automates the integration of core in a basic SoC
 #
-# BRH 08/25
+# Note: The exact same design worked on a arty board but it bugs
+# on my basys3 tests. The board I used is corrupted due to heavy
+# academic use BUT it *should* work on a new board. 
+#
+# BRH 09/25
 
 # Create a new project
 create_project holy_soc_project /tmp/HOLY_SOC -part xc7a35tcpg236-1 -force
@@ -167,9 +171,6 @@ apply_bd_automation -rule xilinx.com:bd_rule:board -config { Manual_Source {Auto
 connect_bd_net [get_bd_pins axi_uartlite_0/s_axi_aclk] [get_bd_pins clk_wiz/clk_out1]
 connect_bd_net [get_bd_pins axi_uartlite_0/s_axi_aresetn] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
 
-delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
-assign_bd_address
-
 
 #======================================
 # BRH 08/25 New SoC for v2 soc/software edition
@@ -228,19 +229,36 @@ apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_1/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
 endgroup
 
+# basys3 gpio (led)
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_gpio_0
+endgroup
+
+set_property CONFIG.GPIO_BOARD_INTERFACE {led_16bits} [get_bd_cells axi_gpio_0]
+
+startgroup
+apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {led_16bits ( 16 LEDs ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_gpio_0/GPIO]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_gpio_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_gpio_0/S_AXI]
+endgroup
+
 # Addresses assignments
 
 delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
-assign_bd_address -target_address_space /top_0/m_axi [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
 
-assign_bd_address -target_address_space /top_0/m_axi [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
-set_property offset 0 [get_bd_addr_segs {top_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
-set_property range 32K [get_bd_addr_segs {top_0/m_axi/SEG_axi_bram_ctrl_0_Mem0}]
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
+set_property offset 0x0 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_bram_ctrl_0_Mem0}]
+set_property range 32K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_bram_ctrl_0_Mem0}]
 
-set_property offset 0x8000 [get_bd_addr_segs {top_0/m_axi/SEG_axi_bram_ctrl_1_Mem0}]
-set_property range 32K [get_bd_addr_segs {top_0/m_axi/SEG_axi_bram_ctrl_1_Mem0}]
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
+set_property offset 0x8000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_bram_ctrl_1_Mem0}]
+set_property range 32K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_bram_ctrl_1_Mem0}]
 
-assign_bd_address
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
+set_property offset 0x20000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
+
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
+set_property offset 0x10000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
 
 #irq config stuff
 startgroup
@@ -261,18 +279,6 @@ set_property CONFIG.C_NUM_OF_PROBES {7} [get_bd_cells system_ila_0]
 endgroup
 connect_bd_net [get_bd_pins system_ila_0/probe6] [get_bd_pins xlconcat_0/dout]
 
-# basys3 gpio (led)
-
-startgroup
-create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_gpio_0
-endgroup
-
-set_property CONFIG.GPIO_BOARD_INTERFACE {led_16bits} [get_bd_cells axi_gpio_0]
-
-startgroup
-apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {led_16bits ( 16 LEDs ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_gpio_0/GPIO]
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_gpio_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_gpio_0/S_AXI]
-endgroup
 
 # ADD INCLUDES
 set_property file_type "Verilog Header" [get_files ./2_soc_software_edition/vendor/include/prim_assert_dummy_macros.svh]

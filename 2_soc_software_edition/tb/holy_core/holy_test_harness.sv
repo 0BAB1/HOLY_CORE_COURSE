@@ -135,16 +135,31 @@ module holy_test_harness (
     input  logic        m_axi_lite_rvalid,
     output logic        m_axi_lite_rready,
 
-    // External peripheral interrupts
-    input  logic [NUM_IRQS-1:0]        irq_in
+    // INTERRUPTS & EXTERNAL REQUESTS
+    input logic [NUM_IRQS-1:0]  irq_in,
+
+    // JTAG access to debug module
+    input  logic        tck_i,
+    input  logic        tms_i,
+    input  logic        trst_ni,
+    input  logic        td_i,
+    output logic        td_o,
+
+    // RAW DEBUG HINT SIGNALS FOR ILA
+    output logic [31:0] pc,
+    output logic [31:0] pc_next,
+    output logic [31:0] instruction,
+    output logic i_cache_stall,
+    output logic d_cache_stall
 );
 
 // TB slaves:
 //  - coctb simulated ram
 //  - PLIC
 //  - CLINT
-localparam SLV_NB = 3;
+localparam SLV_NB = 4;
 localparam MST_NB = 1;
+localparam NUM_IRQS = 2;
 
 //=========================
 // INTERFACES DECLARATIONS
@@ -195,9 +210,6 @@ holy_core #(
     .timer_itr(timer_irq),
     .soft_itr(soft_irq),
     .ext_itr(ext_irq)
-
-    // We don't use debug signals in tb
-    // ...
 );
 /* verilator lint_on PINMISSING */
 
@@ -227,15 +239,15 @@ localparam xbar_cfg_t Cfg = '{
     UniqueIds: 1'b0,
     AxiAddrWidth: 32,
     AxiDataWidth: 32,
-    NoAddrRules: 3
+    NoAddrRules: 4
 };
 
 // defined in vendor/axi/src/axi_pkg.sv
-axi_pkg::xbar_rule_32_t [2:0] addr_map;
+axi_pkg::xbar_rule_32_t [Cfg.NoAddrRules-1:0] addr_map;
 
-// EXTERNAL RAM
+// EXTERNAL REQUESTS (RAM)
 assign addr_map[0].idx = 0;
-assign addr_map[0].start_addr = 32'h0000;
+assign addr_map[0].start_addr = 32'h0;
 assign addr_map[0].end_addr = 32'h2FFF;
 
 // CLINT
@@ -247,6 +259,11 @@ assign addr_map[1].end_addr = 32'hEFFF;
 assign addr_map[2].idx = 2;
 assign addr_map[2].start_addr = 32'hF000;
 assign addr_map[2].end_addr = 32'hFFFF;
+
+// DEBUG MODULE
+assign addr_map[3].idx = 3;
+assign addr_map[3].start_addr = 32'h30000000;
+assign addr_map[3].end_addr = 32'h3FFFFFFF;
 
 axi_lite_xbar_intf #(
     .Cfg(Cfg),
@@ -269,7 +286,7 @@ axi_lite_xbar_intf #(
 logic ext_irq;
 
 holy_plic #(
-    NUM_IRQS,
+    .NUM_IRQS (NUM_IRQS),
     .BASE_ADDR('hF000)
 ) plic (
     .clk        (clk),
@@ -304,6 +321,53 @@ holy_clint #(
 pulp_axil_hc_axil_passthrough clint_conv(
     .in_if(m_axi_lite_xbar_out[1]),
     .out_if(axi_lite_clint)
+);
+
+// =========================
+// DEBUG MODULE (LITE SLAVE)
+// =========================
+
+dm_top #(
+    .NrHarts      (1) ,
+    .IdcodeValue  ( 32'h0BA00477 )
+) u_dm_top (
+    .clk_i        (clk),
+    .rst_ni       (rst_n),
+    .testmode_i   (1'b0),
+    .ndmreset_o   (), // not used
+    .dmactive_o   (),
+    .debug_req_o  (), // manually driven in tb
+    .unavailable_i(1'b0),
+
+    // Bus device with debug memory (for execution-based debug).
+    // .device_req_i  (dbg_device_req),
+    // .device_we_i   (dbg_device_we),
+    // .device_addr_i (dbg_device_addr),
+    // .device_be_i   (dbg_device_be),
+    // .device_wdata_i(dbg_device_wdata),
+    // .device_rdata_o(dbg_device_rdata),
+    .device_req_i  ('0),
+    .device_we_i   ('0),
+    .device_addr_i ('0),
+    .device_be_i   ('0),
+    .device_wdata_i('0),
+    .device_rdata_o(),
+
+    // Bus host NOT supported here
+    .host_req_o    (),
+    .host_add_o    (),
+    .host_we_o     (),
+    .host_wdata_o  (),
+    .host_be_o     (),
+    .host_gnt_i    ('0),
+    .host_r_valid_i('0),
+    .host_r_rdata_i('0),
+
+    .tck_i,
+    .tms_i,
+    .trst_ni,
+    .td_i,
+    .td_o
 );
 
 //===================================
@@ -359,9 +423,9 @@ assign m_axi.rlast  = m_axi_rlast;
 assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
 
-//==============================================
-// AXI LITE XBAR OUT <=> COCOTB EXTERNAL RAM
-//=============================================
+//===================================
+// AXI LITE XBAR OUT <=> EXTERNALS
+//===================================
 
 assign m_axi_lite_awaddr = m_axi_lite_xbar_out[0].aw_addr;
 // AW channel
@@ -392,3 +456,4 @@ assign m_axi_lite_xbar_out[0].r_valid = m_axi_lite_rvalid;
 assign m_axi_lite_rready = m_axi_lite_xbar_out[0].r_ready;
 
 endmodule
+

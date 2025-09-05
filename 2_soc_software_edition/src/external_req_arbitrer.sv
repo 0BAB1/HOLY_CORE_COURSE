@@ -72,7 +72,13 @@ always_comb begin : main_axi_mux
     s_axi_data.rlast  = 0;
     s_axi_data.rvalid = 0;
 
-    if (i_cache_state != IDLE) begin
+    if (
+        i_cache_state == SENDING_WRITE_REQ ||
+        i_cache_state == SENDING_WRITE_DATA ||
+        i_cache_state == WAITING_WRITE_RES ||
+        i_cache_state == SENDING_READ_REQ ||
+        i_cache_state == RECEIVING_READ_DATA
+    ) begin
         // Write Address Channel
         m_axi.awid     = s_axi_instr.awid;
         m_axi.awaddr   = s_axi_instr.awaddr;
@@ -112,7 +118,13 @@ always_comb begin : main_axi_mux
         s_axi_instr.rvalid = m_axi.rvalid;
         m_axi.rready       = s_axi_instr.rready;
     
-    end else if (d_cache_state != IDLE && i_cache_state == IDLE) begin
+    end else if (
+        d_cache_state == SENDING_WRITE_REQ ||
+        d_cache_state == SENDING_WRITE_DATA ||
+        d_cache_state == WAITING_WRITE_RES ||
+        d_cache_state == SENDING_READ_REQ ||
+        d_cache_state == RECEIVING_READ_DATA
+    ) begin
         // Write Address Channel
         m_axi.awid     = s_axi_data.awid;
         m_axi.awaddr   = s_axi_data.awaddr;
@@ -205,7 +217,13 @@ always_comb begin : main_axi_lite_mux
     s_axi_lite_data.rresp  = 0;
     s_axi_lite_data.rvalid = 0;
 
-    if (i_cache_state != IDLE) begin
+    if (
+        i_cache_state == LITE_SENDING_WRITE_REQ ||
+        i_cache_state == LITE_SENDING_WRITE_DATA ||
+        i_cache_state == LITE_WAITING_WRITE_RES ||
+        i_cache_state == LITE_SENDING_READ_REQ ||
+        i_cache_state == LITE_RECEIVING_READ_DATA
+    ) begin
         // Write Address Channel
         m_axi_lite.awaddr   = s_axi_lite_instr.awaddr;
         m_axi_lite.awvalid  = s_axi_lite_instr.awvalid;
@@ -233,7 +251,13 @@ always_comb begin : main_axi_lite_mux
         s_axi_lite_instr.rvalid = m_axi_lite.rvalid;
         m_axi_lite.rready       = s_axi_lite_instr.rready;
     
-    end else if (d_cache_state != IDLE && i_cache_state == IDLE) begin
+    end else if (
+        d_cache_state == LITE_SENDING_WRITE_REQ ||
+        d_cache_state == LITE_SENDING_WRITE_DATA ||
+        d_cache_state == LITE_WAITING_WRITE_RES ||
+        d_cache_state == LITE_SENDING_READ_REQ ||
+        d_cache_state == LITE_RECEIVING_READ_DATA
+    ) begin
         // Write Address Channel
         m_axi_lite.awaddr   = s_axi_lite_data.awaddr;
         m_axi_lite.awvalid  = s_axi_lite_data.awvalid;

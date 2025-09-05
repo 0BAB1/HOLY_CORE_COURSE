@@ -38,6 +38,29 @@ VERILOG_SOURCES += $(PWD)/../../vendor/axi_lite_mux.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/axi_lite_to_axi.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/axi_err_slv.sv
 
+# pulp riscv dbg related
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/debug_rom/debug_rom.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_util_pkg.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_fifo_sync_cnt.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_fifo_sync.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_flop_2sync.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_clock_inv.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_generic_clock_mux2.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_generic_flop.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_sync_reqack.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_flop.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_clock_mux2.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/prim_fifo_async_simple.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dmi_cdc.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dmi_jtag_tap.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dmi_jtag.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_pkg.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_csrs.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_sba.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_mem.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_top.sv
+
+
 # holy core sources
 VERILOG_SOURCES += $(PWD)/../../packages/axi_if.sv
 VERILOG_SOURCES += $(PWD)/../../packages/axi_lite_if.sv

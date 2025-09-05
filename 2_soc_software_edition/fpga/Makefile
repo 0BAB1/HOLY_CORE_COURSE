@@ -56,6 +56,7 @@ VERILOG_SOURCES += $(PWD)/../vendor/pulp-riscv-dbg/src/dm_mem.sv
 VERILOG_SOURCES += $(PWD)/../vendor/pulp-riscv-dbg/src/dmi_jtag.sv
 VERILOG_SOURCES += $(PWD)/../vendor/pulp-riscv-dbg/src/dm_top.sv
 
+VERILOG_SOURCES += $(PWD)/../vendor/axi_to_mem.sv
 VERILOG_SOURCES += $(PWD)/../vendor/axi_lite_to_axi.sv
 VERILOG_SOURCES += $(PWD)/../vendor/axi_lite_mux.sv
 VERILOG_SOURCES += $(PWD)/../vendor/axi_err_slv.sv

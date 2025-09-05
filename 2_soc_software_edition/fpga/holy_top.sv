@@ -6,8 +6,6 @@
 *                 another OG VERILOG top wrapper.
 */
 
-// TODO later : Include as much of the SoC here, if not all of it instead of relying on vivado block design tool...
-
 import axi_pkg::*;
 
 module holy_top (
@@ -109,6 +107,8 @@ module holy_top (
     output logic [31:0] pc_next,
     output logic [31:0] instruction,
     output logic i_cache_stall,
+    output logic [3:0] i_cache_state,
+    output logic [3:0] i_cache_next_state,
     output logic d_cache_stall
 );
 
@@ -176,7 +176,9 @@ holy_core #(
     .debug_pc_next(pc_next),
     .debug_instruction(instruction),
     .debug_i_cache_stall(i_cache_stall),
-    .debug_d_cache_stall(d_cache_stall)
+    .debug_d_cache_stall(d_cache_stall),
+    .debug_i_cache_state(i_cache_state),
+    .debug_i_next_cache_state(i_cache_next_state)
 );
 /* verilator lint_on PINMISSING */
 
@@ -236,8 +238,8 @@ axi_lite_xbar_intf #(
     .Cfg(Cfg),
     .rule_t(axi_pkg::xbar_rule_32_t)
 ) crossbar (
-    .clk_i(clk),
-    .rst_ni(rst_n),
+    .clk_i(aclk),
+    .rst_ni(aresetn),
     .test_i(1'b0),
     .slv_ports(m_axi_lite_xbar_in),
     .mst_ports(m_axi_lite_xbar_out),
@@ -256,8 +258,8 @@ holy_plic #(
     .NUM_IRQS (NUM_IRQS),
     .BASE_ADDR('h80000000)
 ) plic (
-    .clk        (clk),
-    .rst_n      (rst_n),
+    .clk        (aclk),
+    .rst_n      (aresetn),
     .irq_in     (irq_in),
     .s_axi_lite (axi_lite_plic),
     .ext_irq_o  (ext_irq)
@@ -278,8 +280,8 @@ logic soft_irq;
 holy_clint #(
     .BASE_ADDR('h40000000)
 ) clint (
-    .clk        (clk),
-    .rst_n      (rst_n),
+    .clk        (aclk),
+    .rst_n      (aresetn),
     .s_axi_lite (axi_lite_clint),
     .timer_irq  (timer_irq),
     .soft_irq   (soft_irq)
@@ -294,12 +296,54 @@ pulp_axil_hc_axil_passthrough clint_conv(
 // DEBUG MODULE (LITE SLAVE)
 // =========================
 
+// core uses axi_lite but dm uses classical pulp's "mem" format
+// so we need conversion layers
+
+AXI_LITE #(32,32) axi_debug_module ();
+
+axi_lite_to_axi_intf #(
+    .AXI_DATA_WIDTH(32)
+) debug_axi_conv (
+    .in_if(m_axi_lite_xbar_out[3]),
+    .slv_aw_cache_i(4'b1111),
+    .slv_ar_cache_i(4'b1111),
+    .out_if(axi_debug_module)
+);
+
+axi_to_mem_intf #(
+    .ADDR_WIDTH(32),
+    .DATA_WIDTH(32),
+    .NUM_BANKS(1)
+) debug_mem_conv (
+    .clk_i(clk),
+    .rst_ni(aresetn),
+    .busy_o(),
+    .slv(axi_debug_module),
+    .mem_req_o(mem_req),
+    .mem_gnt_i('1),
+    .mem_addr_o(mem_addr),
+    .mem_wdata_o(mem_wdata),
+    .mem_strb_o(mem_strb),
+    .mem_we_o(mem_we),
+    .mem_rvalid_i(mem_rvalid),
+    .mem_rdata_i(mem_rdata)
+);
+
+logic mem_req;
+logic mem_we;
+logic [31:0] mem_addr;
+logic [31:0] mem_wdata;
+logic [3:0] mem_strb;
+logic mem_rvalid;
+logic [31:0] mem_rdata;
+assign mem_rvalid = mem_req; // very intuitive..
+
 dm_top #(
     .NrHarts      (1) ,
     .IdcodeValue  ( 32'h0BA00477 )
 ) u_dm_top (
-    .clk_i        (clk),
-    .rst_ni       (rst_n),
+    .clk_i        (aclk),
+    .rst_ni       (aresetn),
     .testmode_i   (1'b0),
     .ndmreset_o   (ndmreset_req),
     .dmactive_o   (),
@@ -313,14 +357,14 @@ dm_top #(
     // .device_be_i   (dbg_device_be),
     // .device_wdata_i(dbg_device_wdata),
     // .device_rdata_o(dbg_device_rdata),
-    .device_req_i  ('0),
-    .device_we_i   ('0),
-    .device_addr_i ('0),
-    .device_be_i   ('0),
-    .device_wdata_i('0),
-    .device_rdata_o(),
+    .device_req_i  (mem_req),
+    .device_we_i   (mem_we),
+    .device_addr_i (mem_addr),
+    .device_be_i   (mem_strb),
+    .device_wdata_i(mem_wdata),
+    .device_rdata_o(mem_rdata),
 
-    // Bus host NOT supported here
+    // BUS ACCESS TODO LATER
     .host_req_o    (),
     .host_add_o    (),
     .host_we_o     (),
@@ -390,9 +434,9 @@ assign m_axi.rlast  = m_axi_rlast;
 assign m_axi.rvalid = m_axi_rvalid;
 assign m_axi_rready = m_axi.rready;
 
-//==============================================
-// AXI LITE XBAR OUT <=> COCOTB EXTERNAL RAM
-//=============================================
+//===================================
+// AXI LITE XBAR OUT <=> EXTERNALS
+//===================================
 
 assign m_axi_lite_awaddr = m_axi_lite_xbar_out[0].aw_addr;
 // AW channel

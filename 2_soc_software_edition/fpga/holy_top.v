@@ -7,7 +7,6 @@
 */
 
 module top #(
-    parameter DEBUG_EN = 1
 )(
     input wire clk,
     input wire rst_n,
@@ -69,7 +68,8 @@ module top #(
     output wire [31:0]              pc_next,
     //output wire                     pc_source,
     output wire [31:0]              instruction,
-    //output wire [3:0]               i_cache_state,
+    output wire [3:0]               i_cache_state,
+    output wire [3:0]               i_cache_next_state,
     //output wire [3:0]               d_cache_state,
     output wire                     i_cache_stall,
     output wire                     d_cache_stall,
@@ -176,6 +176,8 @@ holy_top wrapped (
     //.mem_read(mem_read),
     //.mem_byte_en(mem_byte_en),
     //.wb_data(wb_data),
+    .i_cache_state(i_cache_state),
+    .i_cache_next_state(i_cache_next_state),
 
     // IRQs
     .irq_in(irq_in),
