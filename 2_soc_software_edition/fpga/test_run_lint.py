@@ -27,10 +27,8 @@ async def cpu_reset(dut):
     dut.rst_n.value = 0
     await Timer(1, units="ns")
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
-    await RisingEdge(dut.aclk)     # Wait for a clock edge after reset
     dut.rst_n.value = 1           # De-assert reset
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
-    await RisingEdge(dut.aclk)     # Wait for a clock edge after reset
 
 @cocotb.coroutine
 async def inst_clocks(dut):
@@ -41,12 +39,29 @@ async def inst_clocks(dut):
 @cocotb.test()
 async def cpu_insrt_test(dut):
 
+    print("hi")
+    assert True
+
     await inst_clocks(dut)
 
-    # axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
-    # axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
 
     await cpu_reset(dut)
+    
+    axi_ram_slave.write(0,int.to_bytes(0x0000006f, 4, byteorder='little'))
+    axi_lite_ram_slave.write(0,int.to_bytes(0x0000006f, 4, byteorder='little'))
 
-    for _ in range(100):
-        await RisingEdge(dut)
+    while dut.core.stall.value == 1:
+        await RisingEdge(dut.clk)
+    
+    await RisingEdge(dut.clk)
+
+
+    dut.tb_debug_req.value = 1
+    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
+    dut.tb_debug_req.value = 0
+
+    for _ in range(1000):
+        await RisingEdge(dut.clk)

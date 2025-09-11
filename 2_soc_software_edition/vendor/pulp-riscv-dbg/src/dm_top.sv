@@ -205,7 +205,7 @@ module dm_top #(
     // However, we require that the DM can be placed at arbitrary offsets in the system, which
     // requires the generalized debug ROM implementation and two scratch registers. We hence set
     // this parameter to a non-zero value (inside dm_mem, this just feeds into a comparison with 0).
-    .DmBaseAddress   ( 1               )
+    .DmBaseAddress   ( 32'h30000000               )
   ) i_dm_mem (
     .clk_i                   ( clk_i                 ),
     .rst_ni                  ( rst_ni                ),
@@ -253,11 +253,11 @@ module dm_top #(
     .dmi_resp_valid_i (dmi_rsp_valid),
 
     //JTAG
-    .tck_i,
-    .tms_i,
-    .trst_ni,
-    .td_i,
-    .td_o,
+    .tck_i(tck_i),
+    .tms_i(tms_i),
+    .trst_ni(trst_ni),
+    .td_i(td_i),
+    .td_o(td_o),
     .tdo_oe_o ()
   );
 

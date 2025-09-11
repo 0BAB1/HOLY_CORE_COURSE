@@ -233,7 +233,7 @@ holy_data_cache instr_cache (
 
     // cachable control (hardcoded fro I$ for now, TODO: add csrs for that)
     // supposed debug memory range is set to non cachable by default
-    .non_cachable_base(32'hFFFFFFF0),
+    .non_cachable_base(32'h0),
     .non_cachable_limit(32'hFFFFFFFF),
 
 

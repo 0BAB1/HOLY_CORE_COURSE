@@ -7,7 +7,7 @@
 # BRH 08/25
 
 # Create a new project
-create_project holy_soc_project /tmp/HOLY_SOC -part xc7z010clg400-1 -force
+create_project holy_soc_project /tmp/HOLY_SOC -part xc7s50csga324-1 -force
 set_property board_part digilentinc.com:arty-s7-50:part0:1.1 [current_project]
 
 # Add constraint file
@@ -102,7 +102,7 @@ connect_bd_intf_net [get_bd_intf_pins top_0/m_axi_lite] [get_bd_intf_pins axi_sm
 startgroup
 set_property -dict [list \
   CONFIG.CLKOUT1_JITTER {143.688} \
-  CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {50} \
+  CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {25} \
   CONFIG.MMCM_CLKOUT0_DIVIDE_F {20.000} \
 ] [get_bd_cells clk_wiz]
 endgroup
@@ -228,11 +228,11 @@ endgroup
 startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTB]
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
 
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_1/BRAM_PORTA]
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_1/BRAM_PORTB]
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_1/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_1/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
 endgroup
 
 # artS S7 gpio (led)
@@ -247,8 +247,26 @@ endgroup
 
 startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {led_4bits ( 4 LEDs ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_gpio_0/GPIO]
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (50 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (50 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_gpio_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_gpio_0/S_AXI]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_gpio_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_gpio_0/S_AXI]
 endgroup
+
+# add support for JTAG TAP
+
+startgroup
+make_bd_pins_external  [get_bd_pins top_0/tck_i]
+endgroup
+startgroup
+make_bd_pins_external  [get_bd_pins top_0/tms_i]
+endgroup
+startgroup
+make_bd_pins_external  [get_bd_pins top_0/td_i]
+endgroup
+startgroup
+make_bd_pins_external  [get_bd_pins top_0/td_o]
+endgroup
+connect_bd_net [get_bd_pins top_0/trst_ni] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
+regenerate_bd_layout
+
 
 # Addresses assignments
 

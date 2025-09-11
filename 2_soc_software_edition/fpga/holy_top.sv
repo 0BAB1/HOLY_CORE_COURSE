@@ -109,7 +109,10 @@ module holy_top (
     output logic i_cache_stall,
     output logic [3:0] i_cache_state,
     output logic [3:0] i_cache_next_state,
-    output logic d_cache_stall
+    output logic d_cache_stall,
+
+    // test debug stuff
+    input logic tb_debug_req
 );
 
 // TB slaves:
@@ -153,6 +156,9 @@ holy_core #(
     .clk(clk), 
     .rst_n(rst_n),
 
+    .debug_halt_addr(32'h30000800),
+    .debug_exception_addr(32'h30000810),
+
     // Note : the AXI MASTER interface
     // is only used to retrieve instructions
     // in this tb. so it is a striahgt passthrough
@@ -169,7 +175,7 @@ holy_core #(
     .timer_itr(timer_irq),
     .soft_itr(soft_irq),
     .ext_itr(ext_irq),
-    .debug_req(dm_debug_req),
+    .debug_req(core_debug_req),
 
     // DBUG SIGNALS
     .debug_pc(pc),
@@ -181,6 +187,9 @@ holy_core #(
     .debug_i_next_cache_state(i_cache_next_state)
 );
 /* verilator lint_on PINMISSING */
+
+logic core_debug_req;
+assign core_debug_req = tb_debug_req || dm_debug_req;
 
 // convert axil intf to pulp's for axil xbar
 hc_axil_pulp_axil_passthrough hc_to_xbar(
@@ -299,7 +308,7 @@ pulp_axil_hc_axil_passthrough clint_conv(
 // core uses axi_lite but dm uses classical pulp's "mem" format
 // so we need conversion layers
 
-AXI_LITE #(32,32) axi_debug_module ();
+AXI_BUS #(32,32) axi_debug_module();
 
 axi_lite_to_axi_intf #(
     .AXI_DATA_WIDTH(32)
@@ -336,18 +345,19 @@ logic [31:0] mem_wdata;
 logic [3:0] mem_strb;
 logic mem_rvalid;
 logic [31:0] mem_rdata;
-assign mem_rvalid = mem_req; // very intuitive..
+logic dm_debug_req;
+assign mem_rvalid = mem_req; // bruh
 
 dm_top #(
     .NrHarts      (1) ,
     .IdcodeValue  ( 32'h0BA00477 )
 ) u_dm_top (
-    .clk_i        (aclk),
+    .clk_i        (clk),
     .rst_ni       (aresetn),
     .testmode_i   (1'b0),
-    .ndmreset_o   (ndmreset_req),
+    .ndmreset_o   (),
     .dmactive_o   (),
-    .debug_req_o  (dm_debug_req), // not linked to anything yet. TODO: make all soc in verilog 
+    .debug_req_o  (dm_debug_req),
     .unavailable_i(1'b0),
 
     // Bus device with debug memory (for execution-based debug).
@@ -374,11 +384,11 @@ dm_top #(
     .host_r_valid_i('0),
     .host_r_rdata_i('0),
 
-    .tck_i,
-    .tms_i,
-    .trst_ni,
-    .td_i,
-    .td_o
+    .tck_i(tck_i),
+    .tms_i(tms_i),
+    .trst_ni(trst_ni),
+    .td_i(td_i),
+    .td_o(td_o)
 );
 
 //===================================
