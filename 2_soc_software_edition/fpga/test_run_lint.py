@@ -48,9 +48,9 @@ async def cpu_insrt_test(dut):
     axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
 
     await cpu_reset(dut)
-    
-    axi_ram_slave.write(0,int.to_bytes(0x0000006f, 4, byteorder='little'))
-    axi_lite_ram_slave.write(0,int.to_bytes(0x0000006f, 4, byteorder='little'))
+
+    axi_ram_slave.write(0,int.to_bytes(0x000000ef, 4, byteorder='little'))
+    axi_lite_ram_slave.write(0,int.to_bytes(0x000000ef, 4, byteorder='little'))
 
     while dut.core.stall.value == 1:
         await RisingEdge(dut.clk)
