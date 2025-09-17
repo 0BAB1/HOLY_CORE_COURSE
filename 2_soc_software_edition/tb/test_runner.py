@@ -85,6 +85,8 @@ def test_holy_core():
             + [
                 f"{proj_path}/tb/holy_core/holy_test_harness.sv"
             ]
+            + list(proj_path.glob("vendor/pulp-riscv-dbg/src/*.sv")).remove(f"{proj_path}/vendor/pulp-riscv-dbg/src/dmi_test.sv")# TODO : fix for CI
+            + list(proj_path.glob("vendor/pulp-riscv-dbg/debug_rom/*.sv"))
         ),
         includes=[
             f"-I{proj_path}/vendor/include",

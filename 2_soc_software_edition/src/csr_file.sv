@@ -281,7 +281,7 @@ always_comb begin : next_csr_value_logic
 
     // dcsr
     next_dpc = dpc;
-    if (~stall && jump_to_debug) begin
+    if (~stall && jump_to_debug && ~debug_exception_detected) begin // if we jump back because od an ebreak, dpc shall not change
         next_dpc = current_core_pc;
     end
 
@@ -374,6 +374,7 @@ end
 
 // Some CSRs have direct control over the core's behavior.
 // This logic block outputs control signals
+logic debug_exception_detected;
 always_comb begin : control_assignments
     // Cache control logic
     flush_cache_flag        = flush_cache[0];
@@ -382,8 +383,14 @@ always_comb begin : control_assignments
 
     // Debug logic
     // We can goto debug once a trap has been handled !
-    jump_to_debug = ~trap_taken & debug_req & ~debug_mode & ~stall;
-    jump_to_debug_exception = exception & debug_mode & ~stall;
+
+    // an exception has been raised in debug mode.. watch out !
+    // an expected ebreak will jump back to park loop, not to exception address
+    // thus this intermediary logic.
+    debug_exception_detected = exception & debug_mode & ~stall; 
+
+    jump_to_debug = (~trap_taken & debug_req & ~debug_mode & ~stall) | (debug_exception_detected & (exception_cause == 31'd3));
+    jump_to_debug_exception = debug_exception_detected & (exception_cause != 31'd3);
 
     // Trap logic
     // We cannot start a trap if we are debuging or about to enter debug mode !

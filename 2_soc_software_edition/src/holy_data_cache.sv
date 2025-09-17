@@ -172,6 +172,10 @@ module holy_data_cache #(
         next_axi_lite_tx_done = axi_lite_tx_done;
         next_axi_lite_cached_addr = axi_lite_cached_addr;
 
+        // TODO : POSSIBLE BUG !!!
+        // Add as musch DEFAULTS as possible here !
+        // i had bugs with axi master instruction cache, probably comming from that...
+
         // AXI DEFAULT
         axi.wlast = 1'b0;
         // the data being send is always set, "ready to go"

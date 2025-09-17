@@ -12,9 +12,7 @@
 
 import holy_core_pkg::*;
 
-module holy_data_no_cache #(
-    parameter CACHE_SIZE = 128
-)(
+module holy_data_no_cache (
     // CPU LOGIC CLOCK & RESET
     input logic clk,
     input logic rst_n,

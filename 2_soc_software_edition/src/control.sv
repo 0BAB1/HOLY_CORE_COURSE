@@ -80,6 +80,7 @@ always_comb begin
     csr_write_enable = 1'b0;
     m_ret = 1'b0;
     d_ret = 1'b0;
+    jump = 0;
 
     // if the instruction being fectched
     // is not valid, exception should NOT

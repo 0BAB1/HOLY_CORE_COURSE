@@ -43,6 +43,7 @@ add_files [glob ./2_soc_software_edition/vendor/include/*.sv]
 add_files [glob ./2_soc_software_edition/vendor/include/*.svh]
 add_files [glob ./2_soc_software_edition/vendor/include/common_cells/*.svh]
 add_files [glob ./2_soc_software_edition/vendor/include/axi/*.svh]
+add_files [glob ./2_soc_software_edition/fpga/glue/*.sv]
 # set_property include_dirs {./2_soc_software_edition/vendor/axi/include} [current_fileset]
 
 

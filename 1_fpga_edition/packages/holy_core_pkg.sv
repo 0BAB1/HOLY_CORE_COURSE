@@ -111,4 +111,25 @@ package holy_core_pkg;
     logic valid;
   } write_back_t;
 
+  // HART INFOS for debug
+  typedef struct packed {
+    logic [31:24] zero1;
+    logic [23:20] nscratch;
+    logic [19:17] zero0;
+    logic         dataaccess;
+    logic [15:12] datasize;
+    logic [11:0]  dataaddr;
+  } hartinfo_t;
+
+  localparam logic [3:0] DataCount = 4'h2;
+
+  localparam hartinfo_t DebugHartInfo = '{
+    zero1: '0,
+    nscratch: 2,  // Debug module needs at least two scratch regs
+    zero0: '0,
+    dataaccess: 1'b1,  // data registers are memory mapped in the debugger
+    datasize: DataCount,
+    dataaddr: DataAddr
+  };
+
 endpackage

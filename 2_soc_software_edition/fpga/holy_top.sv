@@ -1,7 +1,7 @@
 /** holy_top
 *
 *   Author : BRH
-*   Project : Holy Core V2
+*   Project : Holy re V2
 *   Description : Top wrapper for holy core. May not be used as top in vivado or synth tool as this may require
 *                 another OG VERILOG top wrapper.
 */
@@ -249,7 +249,7 @@ axi_lite_xbar_intf #(
     .rule_t(axi_pkg::xbar_rule_32_t)
 ) crossbar (
     .clk_i(clk),
-    .rst_ni(rst_n),
+    .rst_ni(aresetn),
     .test_i(1'b0),
     .slv_ports(m_axi_lite_xbar_in),
     .mst_ports(m_axi_lite_xbar_out),
@@ -308,35 +308,28 @@ pulp_axil_hc_axil_passthrough clint_conv(
 
 // core uses axi_lite but dm uses classical pulp's "mem" format
 // so we need conversion layers
+axi_lite_if debug_module_axi_lite();
 
-AXI_BUS #(32,32) axi_debug_module();
-
-axi_lite_to_axi_intf #(
-    .AXI_DATA_WIDTH(32)
-) debug_axi_conv (
+// conv back to holy_core's axi lite interface definition
+pulp_axil_hc_axil_passthrough axil_dm_conv_hc (
     .in_if(m_axi_lite_xbar_out[3]),
-    .slv_aw_cache_i(4'b1111),
-    .slv_ar_cache_i(4'b1111),
-    .out_if(axi_debug_module)
+    .out_if(debug_module_axi_lite)
 );
 
-axi_to_mem_intf #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32),
-    .NUM_BANKS(1)
-) debug_mem_conv (
-    .clk_i(clk),
-    .rst_ni(aresetn),
-    .busy_o(),
-    .slv(axi_debug_module),
-    .mem_req_o(mem_req),
-    .mem_gnt_i('1),
-    .mem_addr_o(mem_addr),
-    .mem_wdata_o(mem_wdata),
-    .mem_strb_o(mem_strb),
-    .mem_we_o(mem_we),
-    .mem_rvalid_i(mem_rvalid),
-    .mem_rdata_i(mem_rdata)
+// use custom glue logic to talk with the debug module
+axi_lite_to_dm_top #(
+    .AXI_DATA_WIDTH(32)
+) debug_axi_conv (
+    .clk(clk),
+    .rst_n(aresetn),
+    .s_axi_lite(debug_module_axi_lite),
+
+    .device_req_o  (mem_req),
+    .device_we_o   (mem_we),
+    .device_addr_o (mem_addr),
+    .device_be_o   (mem_strb),
+    .device_wdata_o(mem_wdata),
+    .device_rdata_i(mem_rdata)
 );
 
 logic mem_req;
@@ -370,7 +363,7 @@ dm_top #(
     // .device_rdata_o(dbg_device_rdata),
     .device_req_i  (mem_req),
     .device_we_i   (mem_we),
-    .device_addr_i (mem_addr),
+    .device_addr_i (mem_addr & 32'h00FFFFFF),
     .device_be_i   (mem_strb),
     .device_wdata_i(mem_wdata),
     .device_rdata_o(mem_rdata),
@@ -381,9 +374,9 @@ dm_top #(
     .host_we_o     (),
     .host_wdata_o  (),
     .host_be_o     (),
-    .host_gnt_i    ('0),
-    .host_r_valid_i('0),
-    .host_r_rdata_i('0),
+    .host_gnt_i    ('1),
+    .host_r_valid_i('1),
+    .host_r_rdata_i('hABCABCAB),
 
     .tck_i(tck_i),
     .tms_i(tms_i),

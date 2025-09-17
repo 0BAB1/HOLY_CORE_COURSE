@@ -25,8 +25,10 @@ CPU_PERIOD = 10
 async def cpu_reset(dut):
     # Init and reset
     dut.rst_n.value = 0
+    dut.aresetn.value = 0
     await Timer(1, units="ns")
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
+    dut.aresetn.value = 1
     dut.rst_n.value = 1           # De-assert reset
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
 

@@ -1057,6 +1057,7 @@ async def cpu_insrt_test(dut):
 
     # send a debug request
     dut.core.debug_halt_addr.value = dut.core.regfile.registers[5].value
+    halt_value = dut.core.regfile.registers[5].value
     dut.core.debug_exception_addr.value = dut.core.regfile.registers[6].value
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
@@ -1065,13 +1066,24 @@ async def cpu_insrt_test(dut):
 
     while dut.core.stall.value == 1:
         await RisingEdge(dut.clk)
+
     # wait to switch to debug mode
     while not dut.core.holy_csr_file.debug_mode.value == 1:
-        print("HI")
         # save the last known pc to later check is dpc saves it well
         pc_save = dut.core.pc.value
         await RisingEdge(dut.clk)
 
+    # wait for ebreak
+    while not binary_to_hex(dut.core.instruction.value) == "00100073":
+        assert dut.core.holy_csr_file.debug_mode.value == 1
+        await RisingEdge(dut.clk)
+    
+    # RV debug specs : "When ebreak is executed (indicating the end
+    # of the Program Buffer code) the hart returns to its park loop.
+    # If an exception is encountered, the hart jumps to a debug
+    # exception address within the Debug Module."
+    await NextInstr(dut)
+    assert dut.core.pc.value == halt_value
 
     # wait for dret
     while not binary_to_hex(dut.core.instruction.value) == "7B200073":

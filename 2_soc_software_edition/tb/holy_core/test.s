@@ -357,6 +357,14 @@ debug_rom:
     nop
     nop
     nop
+    # we first make an ebreak test
+    # which should return to the "normal" park loop
+    # and then we'll branch to test dret bhavior
+    beq x0, x5, d_ret
+    addi x5, x0, 0x0
+    ebreak
+d_ret:
+    nop
     nop
     nop
     dret

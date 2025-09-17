@@ -73,6 +73,7 @@ VERILOG_SOURCES += $(PWD)/../vendor/axi_lite_xbar.sv
 # go on
 VERILOG_SOURCES += $(PWD)/../packages/axi_if.sv
 VERILOG_SOURCES += $(PWD)/../packages/axi_lite_if.sv
+VERILOG_SOURCES += $(PWD)/glue/axi_lite_to_dm_top.sv
 VERILOG_SOURCES += $(wildcard $(PWD)/../src/*.sv)
 VERILOG_SOURCES += $(wildcard $(PWD)/../src/holy_plic/*.sv)
 VERILOG_SOURCES += $(wildcard $(PWD)/../src/holy_clint/*.sv)
