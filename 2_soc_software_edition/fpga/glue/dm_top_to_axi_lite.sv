@@ -22,10 +22,7 @@ module dm_top_to_axi_lite (
     output logic [31:0]  r_rdata_o,
 
     // AXI LITE Interface for external requests
-    axi_lite_if.master out_if_axil_m,
-
-    // (for debugging)
-    output cache_state_t cache_state
+    axi_lite_if.master out_if_axil_m
 );
 
     // AXI LITE's result for reads will be stored here
@@ -39,7 +36,6 @@ module dm_top_to_axi_lite (
     // FSM LOGIC
     // =======================
     cache_state_t state, next_state;
-    assign cache_state = state;// out for muxes hints
 
     // MAIN CLOCK DRIVEN SEQ LOGIC
     always_ff @(posedge clk) begin
@@ -57,10 +53,15 @@ module dm_top_to_axi_lite (
     always_ff @(posedge clk) begin
         if (~rst_n) begin
             state <= IDLE;
+            aw_addr <= '0;
         end else begin
             state <= next_state;
+            aw_addr <= aw_addr_next;
         end
     end
+
+    // try at BUG FIX : ensure aw latch to better fit write protocol
+    logic [31:0] aw_addr, aw_addr_next;
 
     // =======================
     // READ & MAIN FSM LOGIC
@@ -68,6 +69,7 @@ module dm_top_to_axi_lite (
     always_comb begin
         // State transition 
         next_state = state; // Default
+        aw_addr_next = aw_addr;
 
         // AXI LITE DEFAULT
         out_if_axil_m.wstrb = be_i;
@@ -92,6 +94,7 @@ module dm_top_to_axi_lite (
                     // WRITE REQ
                     if ( we_i ) begin
                         next_state = LITE_SENDING_WRITE_REQ;
+                        aw_addr_next = add_i;
                     end
                     // READ REQ
                     else begin
@@ -114,7 +117,7 @@ module dm_top_to_axi_lite (
 
             LITE_SENDING_WRITE_REQ : begin
                 // NON CACHED DATA, WE WRITE DIRECTLY TO REQ ADDRESS
-                out_if_axil_m.awaddr = add_i;
+                out_if_axil_m.awaddr = aw_addr;
                 
                 if(out_if_axil_m.awready) next_state = LITE_SENDING_WRITE_DATA;
 
@@ -150,16 +153,14 @@ module dm_top_to_axi_lite (
             LITE_WAITING_WRITE_RES : begin
                 if(out_if_axil_m.bvalid && (out_if_axil_m.bresp == 2'b00)) begin
                     gnt_o = 1;
-                    if(~req_i)begin
-                        next_state = IDLE;
-                    end
                 end else if(out_if_axil_m.bvalid && (out_if_axil_m.bresp != 2'b00)) begin
                     // TODO : TRAP HERE (?)
                     $display("ERROR WRITING TO MAIN MEMORY !");
                     gnt_o = 1;
-                    if(~req_i)begin
-                        next_state = IDLE;
-                    end
+                end
+
+                if(~req_i)begin
+                    next_state = IDLE;
                 end
 
                 // SENDING_WRITE_DATA AXI SIGNALS : ready for response
@@ -189,11 +190,13 @@ module dm_top_to_axi_lite (
 
             LITE_RECEIVING_READ_DATA : begin
                 if (out_if_axil_m.rvalid) begin
-                    if(~req_i)begin
-                        next_state = IDLE;
-                    end
                     r_rdata_o = out_if_axil_m.rdata;
                     gnt_o = 1;
+                    r_valid_o = 1;
+                end
+
+                if(~req_i)begin
+                    next_state = IDLE;
                 end
             
                 // AXI LITE Signals
