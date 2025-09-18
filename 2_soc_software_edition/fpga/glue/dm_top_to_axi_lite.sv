@@ -3,7 +3,11 @@
 *   Author : BRH
 */
 
+`include "typedef.svh"
+`include "assign.svh"
+
 import holy_core_pkg::*;
+import axi_pkg::*;
 
 module dm_top_to_axi_lite (
     // CPU LOGIC CLOCK & RESET
@@ -25,193 +29,135 @@ module dm_top_to_axi_lite (
     axi_lite_if.master out_if_axil_m
 );
 
-    // AXI LITE's result for reads will be stored here
-    logic [31:0]                    axi_lite_read_result;
+    // BASED ON PULP'S CONVERTER
+    AXI_LITE #(
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32)
+    ) mst_pulp_axi();
 
-    // Don't do anything if byte enable is not set.
-    logic actual_write_enable;
-    assign actual_write_enable = we_i & |be_i;
+    // Fucking macros are broken, so type definitions here
+    typedef logic [31:0]   addr_t;
+    typedef logic [31:0]   data_t;
+    typedef logic [3:0] strb_t;
 
-    // =======================
-    // FSM LOGIC
-    // =======================
-    cache_state_t state, next_state;
+    typedef struct packed {                                   
+        addr_t          addr;
+        axi_pkg::prot_t prot;
+    } aw_chan_lite_t;
 
-    // MAIN CLOCK DRIVEN SEQ LOGIC
-    always_ff @(posedge clk) begin
-        if (~rst_n) begin
-            axi_lite_read_result <='0;
-        end else begin
-            if(out_if_axil_m.rvalid && state == LITE_RECEIVING_READ_DATA && out_if_axil_m.rready) begin
-                // Write incomming axi lite read
-                axi_lite_read_result <= out_if_axil_m.rdata;
-            end
-        end
-    end
+    typedef struct packed {
+        data_t   data;
+        strb_t   strb;
+    } w_chan_lite_t;
 
-    // AXI CLOCK DRIVEN SEQ LOGIC
-    always_ff @(posedge clk) begin
-        if (~rst_n) begin
-            state <= IDLE;
-            aw_addr <= '0;
-        end else begin
-            state <= next_state;
-            aw_addr <= aw_addr_next;
-        end
-    end
+    typedef struct packed {
+        axi_pkg::resp_t resp;
+    } b_chan_lite_t;
 
-    // try at BUG FIX : ensure aw latch to better fit write protocol
-    logic [31:0] aw_addr, aw_addr_next;
+    typedef struct packed {
+        addr_t          addr;
+        axi_pkg::prot_t prot;
+    } ar_chan_lite_t;
 
-    // =======================
-    // READ & MAIN FSM LOGIC
-    // =======================
-    always_comb begin
-        // State transition 
-        next_state = state; // Default
-        aw_addr_next = aw_addr;
+    typedef struct packed {
+        data_t          data;
+        axi_pkg::resp_t resp;
+    } r_chan_lite_t;
 
-        // AXI LITE DEFAULT
-        out_if_axil_m.wstrb = be_i;
-        out_if_axil_m.araddr  = add_i;
-        out_if_axil_m.wdata   = wdata_i;
-        out_if_axil_m.awaddr  = {add_i[31:2],2'b00};
-        out_if_axil_m.arvalid = 0;
-        out_if_axil_m.awvalid = 0;
-        out_if_axil_m.wvalid  = 0;
-        out_if_axil_m.bready  = 0;
-        out_if_axil_m.rready  = 0;
+    typedef struct packed {
+        aw_chan_lite_t aw;   
+        logic          aw_valid; 
+        w_chan_lite_t  w; 
+        logic          w_valid;    
+        logic          b_ready;
+        ar_chan_lite_t ar;
+        logic          ar_valid;
+        logic          r_ready;
+    } req_lite_t;
+   
+   typedef struct packed {   
+        logic          aw_ready;
+        logic          w_ready; 
+        b_chan_lite_t  b;
+        logic          b_valid; 
+        logic          ar_ready;
+        r_chan_lite_t  r;
+        logic          r_valid; 
+    } resp_lite_t;
 
-        // READ DATA ALWAYS OUT
-        r_rdata_o = axi_lite_read_result;
-        r_valid_o = 0;
-        gnt_o = 0;
+    req_lite_t                   axi_lite_req;
+    resp_lite_t                  axi_lite_resp;
 
+    // assign req and rest to actual interface
+    // have to do it ourselve because the fucking macro don't work,
+    // which is what happens when you do nerdy shit like
+    // Oh MaCrOs ArE sO hAnDy DanDy
+    // like no omfg it is not intuitive and does not fucking work.
+    // anyways, here is to a other hours, lost, to trying to glue brick
+    // toghether instead of solving real problems. Great. I lose SO MUCH time
+    // like this, that I wonder if starting to pull open source code
+    // really was a gain of time. I should've made EVERYTHING my self ffs.
+    
+    // AW Channel
+    assign mst_pulp_axi.aw_valid = axi_lite_req.aw_valid;
+    assign mst_pulp_axi.aw_addr = axi_lite_req.aw.addr;
+    assign mst_pulp_axi.aw_prot = 3'b000;
+    assign axi_lite_resp.aw_ready = mst_pulp_axi.aw_ready;
 
-        case (state)
-            IDLE: begin
-                if ( req_i ) begin
-                    // WRITE REQ
-                    if ( we_i ) begin
-                        next_state = LITE_SENDING_WRITE_REQ;
-                        aw_addr_next = add_i;
-                    end
-                    // READ REQ
-                    else begin
-                        next_state = LITE_SENDING_READ_REQ;
-                    end
-                end
+    // W Channel
+    assign mst_pulp_axi.w_valid = axi_lite_req.w_valid;
+    assign mst_pulp_axi.w_data = axi_lite_req.w.data;
+    assign mst_pulp_axi.w_strb = axi_lite_req.w.strb;
+    assign axi_lite_resp.w_ready = mst_pulp_axi.w_ready;
 
+    // B Channel
+    assign mst_pulp_axi.b_ready = axi_lite_req.b_ready;
+    assign axi_lite_resp.b.resp = mst_pulp_axi.b_resp;
+    assign axi_lite_resp.b_valid = mst_pulp_axi.b_valid;
 
-                // -----------------------------------
-                // IDLE AXI LITE SIGNALS : no request
+    // AR Channel
+    assign mst_pulp_axi.ar_valid = axi_lite_req.ar_valid;
+    assign mst_pulp_axi.ar_addr = axi_lite_req.ar.addr;
+    assign mst_pulp_axi.ar_prot = 3'b000;
+    assign axi_lite_resp.ar_ready = mst_pulp_axi.ar_ready;
 
-                // no write
-                out_if_axil_m.awvalid = 1'b0;
-                out_if_axil_m.wvalid = 1'b0;
-                out_if_axil_m.bready = 1'b0;
-                // no read
-                out_if_axil_m.arvalid = 1'b0;
-                out_if_axil_m.rready = 1'b0;
-            end
+    // R Channel
+    assign mst_pulp_axi.r_ready = axi_lite_req.r_ready;
+    assign axi_lite_resp.r.data = mst_pulp_axi.r_data;
+    assign axi_lite_resp.r.resp = mst_pulp_axi.r_resp;
+    assign axi_lite_resp.r_valid = mst_pulp_axi.r_valid;
 
-            LITE_SENDING_WRITE_REQ : begin
-                // NON CACHED DATA, WE WRITE DIRECTLY TO REQ ADDRESS
-                out_if_axil_m.awaddr = aw_addr;
-                
-                if(out_if_axil_m.awready) next_state = LITE_SENDING_WRITE_DATA;
+    // wow, i had so musch fun making these assigns by fucking hand
+    // like each and every fucking time men. fuck.
 
-                // SENDING_WRITE_REQ AXI SIGNALS : address request
-                // No write
-                out_if_axil_m.awvalid = 1'b1;
-                out_if_axil_m.wvalid = 1'b0;
-                out_if_axil_m.bready = 1'b0;
-                // No read
-                out_if_axil_m.arvalid = 1'b0;
-                out_if_axil_m.rready = 1'b0;
-            end
+    axi_lite_from_mem #(
+        .MemAddrWidth(32'd32),
+        .AxiAddrWidth(32'd32),
+        .DataWidth(32'd32),
+        .MaxRequests(32'd1), // (Depth of the response mux FIFO).
+        .AxiProt(3'b000),
+        .axi_req_t(req_lite_t),
+        .axi_rsp_t(resp_lite_t)
+    ) pulp_conv (
+        .clk_i(clk),
+        .rst_ni(rst_n),
+        .mem_req_i(req_i),
+        .mem_addr_i(add_i),
+        .mem_we_i(we_i),
+        .mem_wdata_i(wdata_i),
+        .mem_be_i(be_i),
+        .mem_gnt_o(gnt_o),
+        .mem_rsp_valid_o(r_valid_o),
+        .mem_rsp_rdata_o(r_rdata_o),
+        .mem_rsp_error_o(), // not used
+        .axi_req_o(axi_lite_req),
+        .axi_rsp_i(axi_lite_resp)
+    );
 
-            LITE_SENDING_WRITE_DATA : begin
-                // Data to write is the regular write data
-                if(out_if_axil_m.wready) begin
-                    next_state = LITE_WAITING_WRITE_RES;
-                end
-
-                out_if_axil_m.wdata = wdata_i;
-
-                // SENDING_WRITE_DATA AXI SIGNALS : sending data
-                // Write stuff
-                out_if_axil_m.awvalid = 1'b0;
-                out_if_axil_m.wvalid = 1'b1;
-                out_if_axil_m.bready = 1'b0;
-                // No read
-                out_if_axil_m.arvalid = 1'b0;
-                out_if_axil_m.rready = 1'b0;
-
-            end
-
-            LITE_WAITING_WRITE_RES : begin
-                if(out_if_axil_m.bvalid && (out_if_axil_m.bresp == 2'b00)) begin
-                    gnt_o = 1;
-                end else if(out_if_axil_m.bvalid && (out_if_axil_m.bresp != 2'b00)) begin
-                    // TODO : TRAP HERE (?)
-                    $display("ERROR WRITING TO MAIN MEMORY !");
-                    gnt_o = 1;
-                end
-
-                if(~req_i)begin
-                    next_state = IDLE;
-                end
-
-                // SENDING_WRITE_DATA AXI SIGNALS : ready for response
-                // No write
-                out_if_axil_m.awvalid = 1'b0;
-                out_if_axil_m.wvalid = 1'b0;
-                out_if_axil_m.bready = 1'b1;
-                // No read
-                out_if_axil_m.arvalid = 1'b0;
-                out_if_axil_m.rready = 1'b0;
-            end
-
-            LITE_SENDING_READ_REQ : begin
-                if(out_if_axil_m.arready) begin
-                    next_state = LITE_RECEIVING_READ_DATA;
-                end
-
-                // SENDING_READ_REQ axi_lite SIGNALS : address request
-                // No write
-                out_if_axil_m.awvalid = 1'b0;
-                out_if_axil_m.wvalid = 1'b0;
-                out_if_axil_m.bready = 1'b0;
-                // No read but address is okay
-                out_if_axil_m.arvalid = 1'b1;
-                out_if_axil_m.rready = 1'b0;
-            end
-
-            LITE_RECEIVING_READ_DATA : begin
-                if (out_if_axil_m.rvalid) begin
-                    r_rdata_o = out_if_axil_m.rdata;
-                    gnt_o = 1;
-                    r_valid_o = 1;
-                end
-
-                if(~req_i)begin
-                    next_state = IDLE;
-                end
-            
-                // AXI LITE Signals
-                out_if_axil_m.awvalid = 1'b0;
-                out_if_axil_m.wvalid = 1'b0;
-                out_if_axil_m.bready = 1'b0;
-                out_if_axil_m.arvalid = 1'b0;
-                out_if_axil_m.rready = 1'b1;
-            end
-            
-            default : begin
-                $display("CACHE FSM STATE ERROR");
-                // TODO : TRAP HERE (?)
-            end
-        endcase
-    end
+    // Convert master to holy_core's interface definition
+    pulp_axil_hc_axil_passthrough conv_pulp_hc(
+        .in_if(mst_pulp_axi),
+        .out_if(out_if_axil_m)
+    );
 
 endmodule

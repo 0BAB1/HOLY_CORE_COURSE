@@ -29,6 +29,9 @@ VERILOG_SOURCES += $(PWD)/../vendor/pulp-riscv-dbg/debug_rom/debug_rom.sv
 VERILOG_SOURCES += $(PWD)/../vendor/addr_decode_dync.sv
 VERILOG_SOURCES += $(PWD)/../vendor/addr_decode.sv
 
+VERILOG_SOURCES += $(PWD)/../vendor/axi_lite_from_mem.sv
+VERILOG_SOURCES += $(PWD)/../vendor/lzc.sv
+VERILOG_SOURCES += $(PWD)/../vendor/rr_arb_tree.sv
 VERILOG_SOURCES += $(PWD)/../vendor/prim_fifo_sync_cnt.sv
 VERILOG_SOURCES += $(PWD)/../vendor/prim_generic_clock_mux2.sv
 VERILOG_SOURCES += $(PWD)/../vendor/prim_clock_inv.sv
@@ -74,6 +77,7 @@ VERILOG_SOURCES += $(PWD)/../vendor/axi_lite_xbar.sv
 VERILOG_SOURCES += $(PWD)/../packages/axi_if.sv
 VERILOG_SOURCES += $(PWD)/../packages/axi_lite_if.sv
 VERILOG_SOURCES += $(PWD)/glue/axi_lite_to_dm_top.sv
+VERILOG_SOURCES += $(PWD)/glue/dm_top_to_axi_lite.sv
 VERILOG_SOURCES += $(wildcard $(PWD)/../src/*.sv)
 VERILOG_SOURCES += $(wildcard $(PWD)/../src/holy_plic/*.sv)
 VERILOG_SOURCES += $(wildcard $(PWD)/../src/holy_clint/*.sv)

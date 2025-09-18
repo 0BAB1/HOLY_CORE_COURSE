@@ -1,2 +1,1 @@
-- fence instr is not really anticipated by control nd trus can cause big problems in real programs. Tip : don't use fence, it's useless anyway. TODO: fx that, its not long but RN im onto something else.
-- holy data cache file : no defaults leading to weird behavior in edge case, TODO : fix and text better. For now I simply dumped axi master, focusing on debug impl.
+- holy data cache file : no defaults leading to weird behavior in edge case and bugs on fpga tests, TODO : fix and test better !! For now I simply dumped axi master, focusing on debug impl.

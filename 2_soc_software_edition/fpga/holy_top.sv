@@ -115,12 +115,6 @@ module holy_top (
     input logic tb_debug_req
 );
 
-// TB slaves:
-//  - coctb simulated ram
-//  - PLIC
-//  - CLINT
-localparam SLV_NB = 4;
-localparam MST_NB = 1;
 localparam NUM_IRQS = 2;
 
 //=========================
@@ -194,7 +188,7 @@ assign core_debug_req = tb_debug_req || dm_debug_req;
 // convert axil intf to pulp's for axil xbar
 hc_axil_pulp_axil_passthrough hc_to_xbar(
     .in_if(m_axi_lite),
-    .out_if(m_axi_lite_xbar_in[0])
+    .out_if(m_axi_lite_xbar_in[1])
 );
 
 //=======================
@@ -203,6 +197,9 @@ hc_axil_pulp_axil_passthrough hc_to_xbar(
 
 // Cofig docs
 // https://github.com/pulp-platform/axi/blob/master/doc/axi_lite_xbar.md
+
+localparam SLV_NB = 4;
+localparam MST_NB = 2;
 
 localparam xbar_cfg_t Cfg = '{
     NoSlvPorts: MST_NB, // HC MST -> XBAR SLV
@@ -254,7 +251,7 @@ axi_lite_xbar_intf #(
     .slv_ports(m_axi_lite_xbar_in),
     .mst_ports(m_axi_lite_xbar_out),
     .addr_map_i(addr_map),
-    .en_default_mst_port_i(4'b1111),
+    .en_default_mst_port_i(2'b11),
     .default_mst_port_i('{default: 2'b01})
 );
 
@@ -368,21 +365,58 @@ dm_top #(
     .device_wdata_i(mem_wdata),
     .device_rdata_o(mem_rdata),
 
-    // BUS ACCESS TODO LATER
-    .host_req_o    (),
-    .host_add_o    (),
-    .host_we_o     (),
-    .host_wdata_o  (),
-    .host_be_o     (),
-    .host_gnt_i    ('1),
-    .host_r_valid_i('1),
-    .host_r_rdata_i('hABCABCAB),
+    // BUS ACCESS
+    .host_req_o    (bus_req),
+    .host_add_o    (bus_add),
+    .host_we_o     (bus_we),
+    .host_wdata_o  (bus_wdata),
+    .host_be_o     (bus_be),
+    .host_gnt_i    (bus_gnt),
+    .host_r_valid_i(bus_rvalid),
+    .host_r_rdata_i(bus_rdata),
 
     .tck_i(tck_i),
     .tms_i(tms_i),
     .trst_ni(trst_ni),
     .td_i(td_i),
     .td_o(td_o)
+);
+
+logic           bus_req;
+logic [31:0]    bus_add;
+logic           bus_we;
+logic [31:0]    bus_wdata;
+logic [3:0]     bus_be;
+logic           bus_gnt;
+logic           bus_rvalid;
+logic [31:0]    bus_rdata;
+
+dm_top_to_axi_lite dm_top_as_master_conv (
+    // CPU LOGIC CLOCK & RESET
+    .clk(clk),
+    .aclk(clk),
+    .rst_n(aresetn),
+
+    // dm_top Interface 
+    .req_i(bus_req),
+    .add_i(bus_add),
+    .we_i(bus_we),
+    .wdata_i(bus_wdata),
+    .be_i(bus_be),
+    .gnt_o(bus_gnt),
+    .r_valid_o(bus_rvalid),
+    .r_rdata_o(bus_rdata),
+
+    // AXI LITE Interface for external requests
+    .out_if_axil_m(axi_lite_dm_hc)
+);
+
+axi_lite_if axi_lite_dm_hc();
+
+// convert this to pulp compliant interface
+hc_axil_pulp_axil_passthrough dm_top_sba_axil_conv(
+    .in_if(axi_lite_dm_hc),
+    .out_if(m_axi_lite_xbar_in[0])
 );
 
 //===================================
