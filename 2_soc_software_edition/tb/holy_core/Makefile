@@ -15,12 +15,7 @@ WAVES ?= 1
 
 TOPLEVEL = holy_test_harness
 
-# Manim animation test
-ifeq ($(ANIMATION),true)
-MODULE = manim_animation
-else
 MODULE = test_holy_core
-endif
 
 # Verilog sources (packages)
 VERILOG_SOURCES += $(PWD)/../../vendor/axi_pkg.sv
