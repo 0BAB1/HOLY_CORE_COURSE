@@ -14,7 +14,13 @@ EXTRA_ARGS += --trace --trace-structs --sv -Wno-fatal
 WAVES ?= 1
 
 TOPLEVEL = holy_test_harness
-MODULE   = test_holy_core
+
+# Manim animation test
+ifeq ($(ANIMATION),true)
+MODULE = manim_animation
+else
+MODULE = test_holy_core
+endif
 
 # Verilog sources (packages)
 VERILOG_SOURCES += $(PWD)/../../vendor/axi_pkg.sv
@@ -51,10 +57,10 @@ VERILOG_SOURCES += $(PWD)/../../vendor/prim_sync_reqack.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/prim_flop.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/prim_clock_mux2.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/prim_fifo_async_simple.sv
+VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_pkg.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dmi_cdc.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dmi_jtag_tap.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dmi_jtag.sv
-VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_pkg.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_csrs.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_sba.sv
 VERILOG_SOURCES += $(PWD)/../../vendor/pulp-riscv-dbg/src/dm_mem.sv
