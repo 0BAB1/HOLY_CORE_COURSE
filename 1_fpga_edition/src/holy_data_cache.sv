@@ -161,17 +161,29 @@ module holy_data_cache #(
         next_cache_valid = cache_valid;
         next_axi_lite_tx_done = axi_lite_tx_done;
 
+        // AXI LITE DEFAULT
+        axi_lite.wstrb = 4'b1111; // we write all by default.
+        axi_lite.wdata   = write_data;
+        axi_lite.arvalid = 0;
+        axi_lite.awvalid = 0;
+        axi_lite.wvalid  = 0;
+        axi_lite.bready  = 0;
+        axi_lite.rready  = 0;
+
         // AXI DEFAULT
-        axi.wlast = 1'b0;
-        // the data being send is always set, "ready to go"
+        axi.wlast = 0;
+        axi.arvalid = 0;
+        axi.awvalid = 0;
+        axi.wvalid  = 0;
+        axi.bready  = 0;
+        axi.rready  = 0;
+
+        // WDATA OUT
         axi.wdata = cache_data[set_ptr];
         cache_state = state;
         next_set_ptr = set_ptr;
 
-        // AXI LITE DEFAULT
-        axi_lite.wstrb = 4'b1111; // we write all by default.
-
-        // csr flushing keeps value by default, only set at beginning of flush and deset a end of flush
+        // MISC CACHE CONTROL
         next_csr_flushing = csr_flushing;
 
         case (state)

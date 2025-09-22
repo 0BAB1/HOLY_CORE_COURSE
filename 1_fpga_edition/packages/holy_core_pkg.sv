@@ -123,13 +123,4 @@ package holy_core_pkg;
 
   localparam logic [3:0] DataCount = 4'h2;
 
-  localparam hartinfo_t DebugHartInfo = '{
-    zero1: '0,
-    nscratch: 2,  // Debug module needs at least two scratch regs
-    zero0: '0,
-    dataaccess: 1'b1,  // data registers are memory mapped in the debugger
-    datasize: DataCount,
-    dataaddr: DataAddr
-  };
-
 endpackage

@@ -112,7 +112,11 @@ module holy_top (
     output logic d_cache_stall,
 
     // test debug stuff
-    input logic tb_debug_req
+    input logic tb_debug_req,
+
+    // TMP : debugging
+    output logic [31:0] bus_add,
+    output logic bus_req
 );
 
 localparam NUM_IRQS = 2;
@@ -360,7 +364,7 @@ dm_top #(
     // .device_rdata_o(dbg_device_rdata),
     .device_req_i  (mem_req),
     .device_we_i   (mem_we),
-    .device_addr_i (mem_addr & 32'h00FFFFFF),
+    .device_addr_i (mem_addr & 32'h0FFFFFFF),
     .device_be_i   (mem_strb),
     .device_wdata_i(mem_wdata),
     .device_rdata_o(mem_rdata),
@@ -382,8 +386,8 @@ dm_top #(
     .td_o(td_o)
 );
 
-logic           bus_req;
-logic [31:0]    bus_add;
+//logic           bus_req;
+//logic [31:0]    bus_add;
 logic           bus_we;
 logic [31:0]    bus_wdata;
 logic [3:0]     bus_be;

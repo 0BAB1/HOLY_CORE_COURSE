@@ -94,7 +94,11 @@ module top #(
     input  wire        tms_i,
     input  wire        trst_ni,
     input  wire        td_i,
-    output wire        td_o
+    output wire        td_o,
+
+    // TMP : debugging
+    output wire [31:0] bus_add,
+    output wire bus_req
 );
 
 // Internal wiring
@@ -187,7 +191,11 @@ holy_top wrapped (
     .tms_i(tms_i),
     .trst_ni(trst_ni),
     .td_i(td_i),
-    .td_o(td_o)
+    .td_o(td_o),
+
+    // TMP
+    .bus_add(bus_add),
+    .bus_req(bus_req)
 );
 
 endmodule
