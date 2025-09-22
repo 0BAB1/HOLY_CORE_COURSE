@@ -12,13 +12,7 @@ module holy_top (
     // CPU clock and active low reset
     input logic clk,
     input logic rst_n,
-
-    // axi clock
-    input logic aclk,
-    input logic aresetn,
-
-    // In reality, clk and aclk are the same as CDC
-    // is not supported in holy core's inner cache
+    input logic periph_rst_n,
 
     //===================================
     // TOP AXI FULL Interface
@@ -115,8 +109,8 @@ module holy_top (
     input logic tb_debug_req,
 
     // TMP : debugging
-    output logic [31:0] bus_add,
-    output logic bus_req
+    output logic [31:0] debug_bus_add,
+    output logic debug_bus_req
 );
 
 localparam NUM_IRQS = 2;
@@ -250,7 +244,7 @@ axi_lite_xbar_intf #(
     .rule_t(axi_pkg::xbar_rule_32_t)
 ) crossbar (
     .clk_i(clk),
-    .rst_ni(aresetn),
+    .rst_ni(periph_rst_n),
     .test_i(1'b0),
     .slv_ports(m_axi_lite_xbar_in),
     .mst_ports(m_axi_lite_xbar_out),
@@ -269,8 +263,8 @@ holy_plic #(
     .NUM_IRQS (NUM_IRQS),
     .BASE_ADDR('h80000000)
 ) plic (
-    .clk        (aclk),
-    .rst_n      (aresetn),
+    .clk        (clk),
+    .rst_n      (periph_rst_n),
     .irq_in     (irq_in),
     .s_axi_lite (axi_lite_plic),
     .ext_irq_o  (ext_irq)
@@ -291,8 +285,8 @@ logic soft_irq;
 holy_clint #(
     .BASE_ADDR('h40000000)
 ) clint (
-    .clk        (aclk),
-    .rst_n      (aresetn),
+    .clk        (clk),
+    .rst_n      (periph_rst_n),
     .s_axi_lite (axi_lite_clint),
     .timer_irq  (timer_irq),
     .soft_irq   (soft_irq)
@@ -322,7 +316,7 @@ axi_lite_to_dm_top #(
     .AXI_DATA_WIDTH(32)
 ) debug_axi_conv (
     .clk(clk),
-    .rst_n(aresetn),
+    .rst_n(periph_rst_n),
     .s_axi_lite(debug_module_axi_lite),
 
     .device_req_o  (mem_req),
@@ -347,8 +341,8 @@ dm_top #(
     .NrHarts      (1) ,
     .IdcodeValue  ( 32'h0BA00477 )
 ) u_dm_top (
-    .clk_i        (aclk),
-    .rst_ni       (aresetn),
+    .clk_i        (clk),
+    .rst_ni       (periph_rst_n),
     .testmode_i   (1'b0),
     .ndmreset_o   (),
     .dmactive_o   (),
@@ -386,8 +380,10 @@ dm_top #(
     .td_o(td_o)
 );
 
-//logic           bus_req;
-//logic [31:0]    bus_add;
+logic           bus_req;
+logic [31:0]    bus_add;
+assign debug_bus_req = bus_req;
+assign debug_bus_add = bus_add;
 logic           bus_we;
 logic [31:0]    bus_wdata;
 logic [3:0]     bus_be;
@@ -398,8 +394,7 @@ logic [31:0]    bus_rdata;
 dm_top_to_axi_lite dm_top_as_master_conv (
     // CPU LOGIC CLOCK & RESET
     .clk(clk),
-    .aclk(clk),
-    .rst_n(aresetn),
+    .rst_n(periph_rst_n),
 
     // dm_top Interface 
     .req_i(bus_req),
@@ -433,8 +428,6 @@ hc_axil_pulp_axil_passthrough dm_top_sba_axil_conv(
 // to the top IF.
 
 // Connect the discrete AXI signals to the m_axi
-assign m_axi.aclk       = aclk;
-assign m_axi.aresetn    = aresetn;
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;

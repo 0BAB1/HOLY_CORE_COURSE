@@ -219,7 +219,6 @@ cache_state_t i_cache_state;
 holy_data_cache instr_cache (
     .clk(clk),
     .rst_n(rst_n),
-    .aclk(m_axi.aclk),
 
     // CPU IF
     .address(pc),
@@ -375,7 +374,7 @@ end
 regfile regfile(
     // basic signals
     .clk(clk),
-    .rst_n(rst_n | m_axi.aresetn),
+    .rst_n(rst_n),
 
     // Read In
     .address1(source_reg1),
@@ -565,8 +564,6 @@ generate
             .clk(clk),
             .rst_n(rst_n),
 
-            .aclk(m_axi.aclk),
-
             // CPU IF
             .address(alu_result),
             .write_data(mem_write_data),
@@ -603,8 +600,6 @@ generate
         holy_data_no_cache data_no_cache (
             .clk(clk),
             .rst_n(rst_n),
-
-            .aclk(m_axi.aclk),
 
             // CPU IF
             .address(alu_result),

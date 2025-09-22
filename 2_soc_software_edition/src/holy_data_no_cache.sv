@@ -17,9 +17,6 @@ module holy_data_no_cache (
     input logic clk,
     input logic rst_n,
 
-    // AXI Clock, separate necessary as arbitrer can't output it.
-    input logic aclk,
-
     // CPU Interface
     input logic [31:0]  address,
     input logic [31:0]  write_data,

@@ -64,20 +64,13 @@ startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto"} [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto"} [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTB]
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config {Clk_master {Auto} Clk_slave {Auto} Clk_xbar {Auto} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_0/S_AXI} ddr_seg {Auto} intc_ip {New AXI SmartConnect} master_apm {0}} [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
-apply_bd_automation -rule xilinx.com:bd_rule:clkrst -config {Clk {New Clocking Wizard} Freq {100} Ref_Clk0 {} Ref_Clk1 {} Ref_Clk2 {}} [get_bd_pins top_0/clk]
 endgroup
-
-# Regenerate layout and connect nets
-regenerate_bd_layout
-delete_bd_objs [get_bd_nets clk_wiz_1_clk_out1] [get_bd_cells clk_wiz_1]
-connect_bd_net [get_bd_pins top_0/clk] [get_bd_pins clk_wiz/clk_out1]
 
 # Configure resets and clock interfaces
 startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:board -config {Manual_Source {New External Port (ACTIVE_HIGH)}} [get_bd_pins clk_wiz/reset]
 set_property name axi_reset [get_bd_ports reset_rtl]
 apply_bd_automation -rule xilinx.com:bd_rule:board -config {Board_Interface {sys_clock (System Clock)} Manual_Source {Auto}} [get_bd_pins clk_wiz/clk_in1]
-connect_bd_net [get_bd_ports axi_reset] [get_bd_pins top_0/aresetn]
 endgroup
 
 # Make pins external
@@ -141,8 +134,7 @@ connect_bd_net [get_bd_pins top_0/i_cache_stall] [get_bd_pins system_ila_0/probe
 
 # Fix pin areset for CPU
 
-disconnect_bd_net /reset_rtl_1 [get_bd_pins top_0/aresetn]
-connect_bd_net [get_bd_pins top_0/aresetn] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
+connect_bd_net [get_bd_pins top_0/periph_rst_n] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
 
 #======================================
 # BRH 05/25 New SoC with UART LITE
@@ -166,8 +158,6 @@ endgroup
 connect_bd_intf_net [get_bd_intf_pins axi_uartlite_0/S_AXI] [get_bd_intf_pins axi_smc/M02_AXI]
 
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Manual_Source {Auto}}  [get_bd_intf_pins axi_uartlite_0/UART]
-
-connect_bd_net [get_bd_pins axi_uartlite_0/s_axi_aclk] [get_bd_pins clk_wiz/clk_out1]
 connect_bd_net [get_bd_pins axi_uartlite_0/s_axi_aresetn] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
 
 
@@ -299,7 +289,7 @@ set_property HDL_ATTRIBUTE.DEBUG true [get_bd_intf_nets {axi_uartlite_0_UART}]
 apply_bd_automation -rule xilinx.com:bd_rule:debug -dict [list \
                                                           [get_bd_intf_nets axi_uartlite_0_UART] {NON_AXI_SIGNALS "Data and Trigger" CLK_SRC "/clk_wiz/clk_out1" SYSTEM_ILA "New" } \
                                                          ]
-
+apply_bd_automation -rule xilinx.com:bd_rule:clkrst -config { Clk {/clk_wiz/clk_out1 (25 MHz)} Freq {25} Ref_Clk0 {} Ref_Clk1 {} Ref_Clk2 {}}  [get_bd_pins axi_uartlite_0/s_axi_aclk]
 
 
 connect_bd_net [get_bd_pins system_ila_0/probe6] [get_bd_pins xlconcat_0/dout]

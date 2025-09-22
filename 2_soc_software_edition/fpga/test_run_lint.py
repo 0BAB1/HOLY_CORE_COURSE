@@ -1,14 +1,12 @@
-# HOLY_CORE TESTBECH
+# HOLY_CORE TESTBECH (FPGA LINT)
 #
-# Based on a fixed test prgram to test
-# The basics (very) quickly. This test
-# Does not ensure compliance but rather
-# serve as a quick reference to know if
-# the design compiles and if a change
-# broke the basic CPU behavior. RV
-# standards compliance is ensured by
-# another tesbench meant to work with
-# riscof signature system.
+# This test runs on the top module
+# detnied to FPGA use. The goal is to LINT
+# this code and check if it can synth before
+# throwing it in vivado. We also us this
+# TB to run various SoC level tests 
+# (e.g. debug) to check if the core reacts as
+# expected in this top module.
 #
 # BRH 10/24
 
@@ -18,34 +16,29 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 
 # WARNING : Passing test on async clocks does not mean CDC timing sync is met !
-AXI_PERIOD = 10
 CPU_PERIOD = 10
+NUM_CYCLES = 10_000
 
 @cocotb.coroutine
 async def cpu_reset(dut):
     # Init and reset
     dut.rst_n.value = 0
-    dut.aresetn.value = 0
+    dut.periph_rst_n.value = 0
     await Timer(1, units="ns")
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
-    dut.aresetn.value = 1
     dut.rst_n.value = 1           # De-assert reset
+    dut.periph_rst_n.value = 1
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
 
 @cocotb.coroutine
 async def inst_clocks(dut):
     """this instantiates the axi environement & clocks"""
-    cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
 
 @cocotb.test()
 async def cpu_insrt_test(dut):
-
-    print("hi")
-    assert True
-
     await inst_clocks(dut)
-
+    
     axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
     axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
 
@@ -65,5 +58,7 @@ async def cpu_insrt_test(dut):
     await Timer(1, units="ns")
     dut.tb_debug_req.value = 0
 
-    for _ in range(1000):
+    # Run a loop for X amount of cycles for
+    # behavior tests
+    for _ in range(NUM_CYCLES):
         await RisingEdge(dut.clk)

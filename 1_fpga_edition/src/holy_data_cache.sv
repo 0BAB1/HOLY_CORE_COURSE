@@ -20,9 +20,6 @@ module holy_data_cache #(
     input logic clk,
     input logic rst_n,
 
-    // AXI Clock, separate necessary as arbitrer can't output it.
-    input logic aclk,
-
     // CPU Interface
     input logic [31:0]  address,
     input logic [31:0]  write_data,
@@ -142,7 +139,7 @@ module holy_data_cache #(
     end
 
     // AXI CLOCK DRIVEN SEQ LOGIC
-    always_ff @(posedge aclk) begin
+    always_ff @(posedge clk) begin
         if (~rst_n) begin
             state <= IDLE;
             set_ptr <= 7'd0;
