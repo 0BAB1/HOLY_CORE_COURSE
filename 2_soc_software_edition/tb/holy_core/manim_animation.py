@@ -9,9 +9,38 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
-import random
 from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
-import numpy as np
+from manim import *
+from pyverilog.vparser.parser import parse
+import os
+
+SRC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
+
+def get_ports_from_verilog(file_path: str, top_module: str):
+    ast, _ = parse([file_path])
+    ports = []
+
+    # Traverse AST
+    for description in ast.description.definitions:
+        if description.name == top_module:  # Match the module you care about
+            for item in description.portlist.ports:
+                decl = item.first  # Port object -> Decl
+                if decl is None:
+                    continue
+                # direction: Input, Output, Inout
+                direction = type(decl).__name__.lower()
+                # name
+                name = decl.name
+                # width (if vector)
+                msb = getattr(decl.width.msb, 'value', None) if decl.width else None
+                lsb = getattr(decl.width.lsb, 'value', None) if decl.width else None
+                if msb is not None and lsb is not None:
+                    width = abs(int(msb) - int(lsb)) + 1
+                else:
+                    width = 1
+
+                ports.append((name, direction, width))
+    return ports
 
 # WARNING : Passing test on async clocks does not mean CDC timing sync is met !
 CPU_PERIOD = 10
@@ -37,23 +66,6 @@ async def NextInstr(dut):
         await RisingEdge(dut.clk)
     # Then step one more cycle
     await RisingEdge(dut.clk)
-
-def binary_to_hex(bin_str):
-    # Convert binary string to hexadecimal
-    hex_str = hex(int(str(bin_str), 2))[2:]
-    hex_str = hex_str.zfill(8)
-    return hex_str.upper()
-
-def hex_to_bin(hex_str):
-    # Convert hex str to bin
-    bin_str = bin(int(str(hex_str), 16))[2:]
-    bin_str = bin_str.zfill(32)
-    return bin_str.upper()
-
-def read_cache(cache_data, line) :
-    """To read cache_data, because the packed array makes it an array of bits..."""
-    l = 127 - line
-    return (int(str(cache_data.value[32*l:(32*l)+31]),2))
 
 @cocotb.coroutine
 async def cpu_reset(dut):
@@ -83,6 +95,8 @@ async def init_memory(axi_ram : AxiRam, hexfile, base_addr):
             axi_ram.write(addr, instruction)
             axi_ram.hexdump(addr,4)
             addr_offset += 4
+
+module : list[VGroup] = []
 
 @cocotb.test()
 async def cpu_insrt_test(dut):
@@ -128,10 +142,6 @@ async def cpu_insrt_test(dut):
     await init_memory(axi_lite_ram_slave, "./test.hex", 0x0000)
     await init_memory(axi_lite_ram_slave, "./test_dmemory.hex", 0x1000)
 
-    # explore every component and their metadata
-    for component in dut.core:
-        print(component)
-
-    for wire in dut.core.control_unit:
-        print(wire._handle)
-
+    for handle in dut.core:
+        if handle._type == "GPI_MODULE":
+            
