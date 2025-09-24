@@ -168,6 +168,7 @@ external_req_arbitrer_lite lite_mux(
 
 reg [31:0] pc;
 logic [31:0] pc_next;
+logic [31:0] pc_anticipated;
 logic [31:0] second_add_result;
 logic [31:0] pc_plus_four;
 
@@ -185,16 +186,22 @@ always_comb begin : pc_select
     if(stall)begin
         pc_next = pc;
     end else begin
+        // determine normal flow PC
         case (pc_source)
-            SOURCE_PC_PLUS_4 : pc_next = pc_plus_four;
-            SOURCE_PC_SECOND_ADD : pc_next = second_add_result;
-            SOURCE_PC_MTVEC : pc_next = csr_mtvec;
-            SOURCE_PC_MEPC : pc_next = csr_mepc;
-            SOURCE_PC_DPC : pc_next = csr_dpc;
-            // note : halt addr is specified as a parameter
-            SOURCE_PC_DEBUG_HALT : pc_next = debug_halt_addr;
-            SOURCE_PC_DEBUG_EXCEPTION : pc_next = debug_exception_addr;
+            SOURCE_PC_PLUS_4 : pc_anticipated = pc_plus_four;
+            SOURCE_PC_SECOND_ADD : pc_anticipated = second_add_result;
+            SOURCE_PC_MTVEC : pc_anticipated = csr_mtvec;
+            SOURCE_PC_MEPC : pc_anticipated = csr_mepc;
+            SOURCE_PC_DPC : pc_anticipated = csr_dpc;
         endcase
+
+        pc_next = pc_anticipated;
+
+        if(jump_to_debug)begin
+            pc_next = debug_halt_addr;
+        end else if(jump_to_debug_exception) begin
+            pc_next = debug_exception_addr;
+        end
     end
 end
 
@@ -449,6 +456,7 @@ csr_file holy_csr_file(
     .write_enable(csr_write_enable),
     .address(csr_address),
     .current_core_pc(pc),
+    .anticipated_core_pc(pc_anticipated),
     .current_core_fetch_instr(instruction),
 
     // interrupts in

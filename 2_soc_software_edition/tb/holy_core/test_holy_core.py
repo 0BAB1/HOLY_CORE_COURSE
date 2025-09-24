@@ -1045,10 +1045,11 @@ async def cpu_insrt_test(dut):
     # DEBUG REQUEST TEST
     #################
 
+    assert dut.core.holy_csr_file.dscratch0.value == 0
+
     # we use this this NOP (00000013) to mark the beginning of the debug test
     while not binary_to_hex(dut.core.instruction.value) == "00000013":
         await RisingEdge(dut.clk)
-        print("hey")
 
     # send a debug request
     dut.core.debug_halt_addr.value = dut.core.regfile.registers[5].value
@@ -1091,3 +1092,73 @@ async def cpu_insrt_test(dut):
     dut.core.debug_req.value = 0
 
     await Timer(500, units="ns")
+
+    #################
+    # SINGLE STEP DEBUG REQUEST TEST
+    #################
+
+    assert dut.core.holy_csr_file.dscratch0.value == 1
+
+    # ======
+    # The core is now back in wait for debug loop
+    # This test is broken down in 2 parts :
+    # ====
+    # 1. We make the core enter debug mode, because dscratch is 1
+    #    the program will send us to a single step test in which we'll
+    #    set "step" flag in dscr. We have to make sure that only 1 instr
+    #    is executed before going back.
+    # ====
+    # 2. After the step, HOLY CORE goes back to debug mode and to single
+    #    step step. The program sees that step is set, so it clears it and
+    #    sets dsratch to 2, signaling a sucess of this test. when then dret
+    #    a final time
+    # ======
+
+
+    # ====
+    # 1
+    # ====
+
+    dut.core.debug_req.value = 1
+    await NextInstr(dut)
+    dut.core.debug_req.value = 0
+
+    while dut.core.stall.value == 1:
+        await RisingEdge(dut.clk)
+
+    assert (dut.core.holy_csr_file.dcsr.value >> 2 & 0b1) != 1
+
+    while dut.core.holy_csr_file.dcsr.value >> 2 & 0b1 != 1:
+        # we wait for step to be set
+        await RisingEdge(dut.clk)
+        
+    await NextInstr(dut) # execute dret from the "set step" section
+    await Timer(1, units="ns")
+
+    # check if we exited debug mode
+    assert dut.core.holy_csr_file.debug_mode == 0
+
+    await NextInstr(dut) # execute EXACTLY 1 instruction
+
+    # we should be back to debug mode
+    assert dut.core.holy_csr_file.debug_mode == 1
+
+    # ====
+    # 2
+    # ====
+
+    # back to debug mode after the single step
+    # the program shall clear the step flag
+
+    while dut.core.holy_csr_file.dcsr.value >> 2 & 0b1 != 0:
+        # we wait for step to be cleared
+        await RisingEdge(dut.clk)
+
+    # then, the dscratch0 is set to 0x2 to signal 
+    # success of the procedure
+
+    while dut.core.holy_csr_file.dscratch0.value != 2:
+        # we wait for step to be cleared
+        await RisingEdge(dut.clk)
+
+    

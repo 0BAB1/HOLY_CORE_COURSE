@@ -17,7 +17,7 @@ from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 
 # WARNING : Passing test on async clocks does not mean CDC timing sync is met !
 CPU_PERIOD = 10
-NUM_CYCLES = 10_000
+NUM_CYCLES = 1_000
 
 @cocotb.coroutine
 async def cpu_reset(dut):

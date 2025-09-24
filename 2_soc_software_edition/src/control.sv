@@ -413,13 +413,7 @@ end
 
 always_comb begin : pc_source_select
     pc_source = SOURCE_PC_PLUS_4;
-    if (jump_to_debug)begin
-        pc_source = SOURCE_PC_DEBUG_HALT;
-    end
-    else if (jump_to_debug_exception) begin
-        pc_source = SOURCE_PC_DEBUG_EXCEPTION;
-    end
-    else if (trap || trap_pending) begin
+    if (trap || trap_pending) begin
         pc_source = SOURCE_PC_MTVEC;
     end else if (m_ret) begin
         pc_source = SOURCE_PC_MEPC;
