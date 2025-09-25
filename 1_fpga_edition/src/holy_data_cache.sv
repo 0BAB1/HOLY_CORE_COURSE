@@ -18,6 +18,7 @@ module holy_data_cache #(
 )(
     // CPU LOGIC CLOCK & RESET
     input logic clk,
+    input logic aclk, // deprecated, mostly here to make test pass tbh
     input logic rst_n,
 
     // CPU Interface

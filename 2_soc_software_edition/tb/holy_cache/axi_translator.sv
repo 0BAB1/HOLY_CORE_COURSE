@@ -11,9 +11,6 @@ module axi_translator (
     input  logic                     clk,
     input  logic                     rst_n,
 
-    // Axi Clock
-    input  logic                     aclk,
-
     // Write Address Channel
     output logic [3:0]               axi_awid,
     output logic [31:0]              axi_awaddr,
@@ -69,10 +66,6 @@ module axi_translator (
     axi_if axi_master_intf();
     logic [6:0] set_ptr_out;
 
-    // Connect the discrete AXI signals to the axi_master_intf
-    assign axi_master_intf.aclk      = clk;
-    assign axi_master_intf.aresetn   = rst_n;
-
     // Write Address Channel
     assign axi_awid       = axi_master_intf.awid;
     assign axi_awaddr     = axi_master_intf.awaddr;
@@ -122,8 +115,6 @@ module axi_translator (
     ) cache_system (
         .clk(clk), 
         .rst_n(rst_n),
-
-        .aclk(aclk),
 
         // AXI Master Interface
         .axi(axi_master_intf),

@@ -14,9 +14,6 @@ module axi_translator (
     input  logic                     clk,
     input  logic                     rst_n,
 
-    // Axi Clock
-    input  logic                     aclk,
-
     // ==========
     // AXI LITE
     // ==========
@@ -69,10 +66,6 @@ module axi_translator (
     // Declare AXI Lite interface
     axi_lite_if axi_lite_master_intf();
 
-    // Clock and Reset
-    assign axi_lite_master_intf.aclk    = clk;
-    assign axi_lite_master_intf.aresetn = rst_n;
-
     // Write Address Channel
     assign axi_lite_awaddr  = axi_lite_master_intf.awaddr;
     assign axi_lite_awvalid = axi_lite_master_intf.awvalid;
@@ -109,8 +102,6 @@ module axi_translator (
     ) cache_system (
         .clk(clk), 
         .rst_n(rst_n),
-
-        .aclk(aclk),
 
         // AXI LITE Master Interface
         .axi_lite(axi_lite_master_intf),
