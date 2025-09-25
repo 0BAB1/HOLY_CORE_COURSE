@@ -249,7 +249,7 @@ holy_data_cache instr_cache (
 
     .cache_state(i_cache_state),
     .debug_next_cache_state(debug_i_next_cache_state),
-    .cache_valid(instr_cache_valid),
+    .instr_valid(instr_cache_valid),
 
     //debug
     .set_ptr_out(debug_i_set_ptr),

@@ -26,14 +26,7 @@ module holy_test_harness (
     // CPU clock and active low reset
     input logic clk,
     input logic rst_n,
-
-    // axi clock
-    input logic aclk,
-    input logic aresetn,
-
-    // In reality, clk and aclk are the same as CDC
-    // is not supported in holy core's inner cache
-
+    
     //===================================
     // TOP AXI FULL Interface
     // (for cocotb simulated components)
@@ -282,10 +275,6 @@ pulp_axil_hc_axil_passthrough clint_conv(
 // is only used to retrieve instructions
 // in this tb. so it is a striahgt passthrough
 // to the top IF.
-
-// Connect the discrete AXI signals to the m_axi
-assign m_axi.aclk       = aclk;
-assign m_axi.aresetn    = aresetn;
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;

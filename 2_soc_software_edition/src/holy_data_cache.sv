@@ -31,7 +31,7 @@ module holy_data_cache #(
     input logic [3:0]   byte_enable,
     output logic [31:0] read_data,
     output logic        cache_stall,
-    output logic        cache_valid,
+    output logic        instr_valid,
 
     // incomming CSR Orders
     input logic         csr_flush_order,
@@ -54,12 +54,6 @@ module holy_data_cache #(
     output logic       debug_comb_stall,
     output logic [3:0] debug_next_cache_state
 );
-    // debug assignements
-    assign set_ptr_out = set_ptr;
-    assign next_set_ptr_out = next_set_ptr;
-    assign debug_seq_stall = seq_stall;
-    assign debug_comb_stall = comb_stall;
-    assign debug_next_cache_state = next_state;
 
     // Here is how a cache line is organized:
     // | DIRTY | VALID | BLOCK TAG | INDEX/SET | OFFSET | DATA |
@@ -68,7 +62,7 @@ module holy_data_cache #(
     // CACHE TABLE DECLARATION
     logic [CACHE_SIZE-1:0][31:0]    cache_data;
     logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
-    //logic                           cache_valid;  // is the current block valid ?
+    logic                           cache_valid;  // is the current block valid ?
     logic                           next_cache_valid;
     logic                           cache_dirty;
     // register to retain info on wether we are writing back because of miss or because of CSR order
@@ -107,6 +101,9 @@ module holy_data_cache #(
     logic comb_stall, seq_stall;
     assign comb_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
     assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done;
+
+    // Instruction valid flagging
+    assign instr_valid = non_cachable ? ~cache_stall : cache_valid;
 
     // =======================
     // CACHE LOGIC
@@ -165,14 +162,9 @@ module holy_data_cache #(
     always_comb begin
         // State transition 
         next_state = state; // Default
-        next_cache_valid = cache_valid;
+        next_cache_valid =  cache_valid;
         next_axi_lite_tx_done = axi_lite_tx_done;
         next_axi_lite_cached_addr = axi_lite_cached_addr;
-
-        // State transition 
-        next_state = state; // Default
-        next_cache_valid = cache_valid;
-        next_axi_lite_tx_done = axi_lite_tx_done;
 
         // AXI LITE DEFAULT
         axi_lite.wstrb = 4'b1111; // we write all by default.
@@ -503,4 +495,10 @@ module holy_data_cache #(
     // Write data
     assign axi.wstrb = 4'b1111; // We handle data masking in cache itself
 
+    // misc debug assignements
+    assign set_ptr_out = set_ptr;
+    assign next_set_ptr_out = next_set_ptr;
+    assign debug_seq_stall = seq_stall;
+    assign debug_comb_stall = comb_stall;
+    assign debug_next_cache_state = next_state;
 endmodule
