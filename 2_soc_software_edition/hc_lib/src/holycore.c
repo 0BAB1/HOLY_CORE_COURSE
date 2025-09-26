@@ -17,6 +17,17 @@ void uart_puts(const char *s) {
     }
 }
 
+void uart_putdec(int val) {
+    // assumes 0 <= val < 100
+    int tens = 0;
+    while (val >= 10) {
+        val -= 10;
+        tens++;
+    }
+    if (tens) uart_putchar('0' + tens);
+    uart_putchar('0' + val);
+}
+
 // Helper: Convert a nibble to hex character
 static char hex_digit(uint8_t nibble) {
     return (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
