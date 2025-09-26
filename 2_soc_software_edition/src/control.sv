@@ -314,6 +314,14 @@ always_comb begin
                 end
             endcase
         end
+        // FENCE SUPPORT
+        OPCODE_FENCE: begin
+            // fence acts as nop in holy core
+            // (for now) so we simply set exception to 0
+            if(func3 == 3'b000 && func7 == 7'b0000111) begin
+                exception = 0;
+            end
+        end
         default:;
     endcase
 

@@ -47,7 +47,8 @@ package holy_core_pkg;
     OPCODE_U_TYPE_AUIPC   = 7'b0010111,
     OPCODE_J_TYPE         = 7'b1101111,
     OPCODE_J_TYPE_JALR    = 7'b1100111,
-    OPCODE_SYSTEM         = 7'b1110011
+    OPCODE_SYSTEM         = 7'b1110011,
+    OPCODE_FENCE          = 7'b0001111
   } opcode_t;
 
   // ALU OPs for ALU DECODER
