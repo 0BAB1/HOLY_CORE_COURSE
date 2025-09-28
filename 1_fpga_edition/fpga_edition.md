@@ -12,7 +12,7 @@ LAST EDIT : 05/25
 
 Oh boy, making a whole core sure was a thing ! But now, the real part is about to start !
 
-Making a RISC-V is a project many students do, but doing it by implementing the whole RV32I ISA and then actually start using it on FPGA is going beyond that !
+Making a RISC-V core is a project many students do, but doing it by implementing the whole RV32I ISA and then actually start using it on FPGA is going beyond that !
 
 Regardless of the fact that you made your own core or that you followed the HOLY CORE (single cycle edition) course, porting your core on FPGA is another story and will really deepen our understanding of the design by tackling the "_memory problem_".
 
@@ -47,7 +47,7 @@ I really encourage you to read the [blog post](https://0bab1.github.io/BRH/posts
 
 ### Hardware
 
-Towards the end of this \*fpga editionù, I'll use a ZYBO Z7-20 embedding a Zynq. I won't use the Zynq's processing system and anything works just fine as long as it's programable logic so your average FPGA shall do.
+Towards the end of this \*fpga editionù, I'll use a ZYBO Z7-20 embedding a Zynq. I won't use the Zynq's processing system and anything works just fine as long as it's programable logic **so your average FPGA should do the trick**.
 
 ![Zybo board](../images/zybo.jpg)
 
@@ -2410,9 +2410,9 @@ This code is pretty self explainatory except there are a few software trick to m
 
 - We have to trigger a cache miss after each data update for the cache to create a write-back sequence.
 - We fill the **ENTIRE** cache with the data we want to write. Because AXI GPIO only has a `0x0` to `0xF` address range. Addresses above that "wraps around" instead of being ignored,
-  meaning if we have 0s in the cache (or any other un-related data) in the higher addresses,
-  they will overwrite the lower ones.
-  There are others ways to tackle this specific problem but here the simplest way was just to fill the entire cache with the data and call it a day.
+meaning if we have 0s in the cache (or any other un-related data) in the higher addresses,
+they will overwrite the lower ones.
+There are others ways to tackle this specific problem but here the simplest way was just to fill the entire cache with the data and call it a day.
 
 Then we can compile this to raw hexadecimal. To get the right syntax, use `make build_test_hex` in the
 `Makefile` under `fpga_edition/fpga/test_programs/`.
@@ -2457,39 +2457,43 @@ To run it simply realease the CORE's `reset` signal. And _voilà_ ! blinking LED
 
 ![counter program running](../images/working%20leds.png)
 
-## 7 : Making the core more usable, introducing Zicsr and Zicntr
+## 7 : Making the core more usable: introducing CSRs (Zicsr)
 
 > The core works ! That's great !
 
-Yes it's great, but we have to move on because the core is not really usable as we have to manually make weird manipulations to clear the cache and us MMIO (Memory Mapped Input Output).
+Yes it's great, but we have to move on because the core is **not really usable** as we have to manually make weird manipulations to clear the cache and us MMIO (Memory Mapped Input Output).
 
 To handle this problem, we can use multiple techniques :
 
-- Add a cache bypasser (non cachable ranges) to a certain memory range
+- Add a way to bypass the cache (non-cachable range) to a certain memory range
   - e.g. 0x4000_0000 to 0x4000_FFFF would bypass the cache by using AXI-LITE to write directly to the destination.
   - means we have to complexify our interface and development (add AXI-LITE, which we'll have to live debug on top of tb)
   - weird user experience (has to know core specific memory ranges)
-- Add CSR (Control Status Registers) extension support (Zicsr and Zicntr)
-  - Zicsr allows us to set control registers to allows the user to have direct control on the core behavior (like order a cache flush easily)
-  - Zicntr allows us to create useful counters that the user can use (time) and that we can use for performances measurements (number of cycles and instrctions fectched)
+  
 
-And how about doing both ? Well, doing both may be overwelming. Let's implement CSRs to give a great, classical RISC-V experience to the dev and let's keep the idea of a non-cachble range for later, It may become handy later if we encounter cache coherency or performances problems with our MMIOs ;)
+We'll do so by adding CSRs (**Control Status Registers**) extension support (Zicsr) which allows us to set control registers to allows the user to have direct control on the core behavior (like order a cache flush easily.
 
-> CSRs are not mandatory from what I read, meaning we can create fully custom one in the Zicsr extension, COOL ! Note tthat the dev will still have to read our docs as CSRs kinda depends on the core (some are standard in privileged mode but still..) BUT non cachable ranges are more on the "SoC" design side and theorically immutable.
+> Note : Zicsr defines a whole set of CSRs to handle stuff like interrupts, exceptions and priviledges. for now, we will focus on creating simple custom CSRs that will be used to set non cachable range and flush the cache when needed. In the next *HOLY CORE* course edition (*SoC & Software Edition*), we will use CSRs extensively to support traps, but for now, let's keep it simple to lay dfown the basics and understand how these special registers work.
 
-**Okay so what really are CSR registers ?**
+#### Okay so what really are CSRs ? (Control Status Registers)
 
-Well we can say it's just another register file the user (the guy who will program stuff for our core) can use to interact **DIRECTLY** with the core !
+Well we can say it's just another register file the user (the guy who will program stuff for our core) can use to interact **DIRECTLY** with the core ! And by "interacting" I mean checking status on what's happenning of send directives on how to behave in certain situations, which sound complicated and abstract but don't worry, this will become very clear in a minute.
 
-And you may be seeing it comming, but we'll allows the user to control cache behavior via these CSR.
+You may have seen it comming, but we'll allows the user to control cache behavior via these CSRs.
 
-So we'll start by reding what are CSR here : [link](https://five-embeddev.com/riscv-user-isa-manual/latest-latex/csr.html#csrinsts) and we see that the ISA only defines an instruction type that looks like an I-type :
+> Note that because this is proper to the HOLY CORE architecture, these CSRs wil be "custom". This is a good start to learn how to manipulate these.
 
-| csr          | rs1 / unsigned imm | f3  | rd   | op      |
+So we'll start by reading what are CSRs here : [(clickable link)](https://five-embeddev.com/riscv-user-isa-manual/latest-latex/csr.html#csrinsts) and we see that the ISA only defines an instruction type that looks like an I-type :
+
+| csr addr     | rs1 / unsigned imm | f3  | rd   | op      |
 | ------------ | ------------------ | --- | ---- | ------- |
 | XXXXXXXXXXXX | XXXXX              | XXX | XXXX | 1110011 |
 
-The F3 field will control what specific operation we want to do but the idea is lways the same :
+> We'll call this OP type "**SYSTEM**".
+
+You may also see that there are 12 bits to address the CSRs, which means there are 8192 possible CSRs, 
+
+The F3 field will control what specific operation we want to do but the idea is always the same :
 
 1. We write CSR content into `rd`
 2. We replace that said content by what is rs1
@@ -2501,34 +2505,36 @@ Here is what they do :
 | Name   | What they do                                                               | f3  |
 | ------ | -------------------------------------------------------------------------- | --- |
 | CSRRW  | Exactly what we just described                                             | 001 |
-| CSRRS  | Same, but does not reaplce ! It runs a bitwise OR (csr <= rs \| csr)       | 010 |
-| CSRRC  | Same, but does not reaplce ! It runs a bitwise NOT AND (csr <= ~rs \& csr) | 011 |
+| CSRRS  | Same, but does not replace entirly ! It runs a bitwise OR (csr <= rs \| csr)       | 010 |
+| CSRRC  | Same, but does not replace entirly ! It runs a bitwise NAND (csr <= ~rs \& csr) | 011 |
 | CSRRI  | Same but rs is replaced with 5bits immediate, zero exented                 | 101 |
 | CSRRSI | Same but rs is replaced with 5bits immediate, zero exented                 | 110 |
 | CSRRCI | Same but rs is replaced with 5bits immediate, zero exented                 | 111 |
 
-But why these bitwise operations ? Well here are some use case where it's useful :
+But why these bitwise operations ? Well here are some use cases where it's useful :
 
 - CSRRS for setting flags
 - CSRRS / CSRRS for simply reading (set rs / uimm to 0)
 - CSRRC to unset flags
 - ...
 
-> Side note, operations here are atomic, meaning that if you peak on what's in the register using another system (another core, or whatever) the data inside will not have "intermediary state" but in our core it is the case by default so we don't have to care about that.
-
-Last thing, the elephant in the room : **yes, CSR are addressable on 12bits**, meaning you can have 4096 of them (they still act as regular registers), and because the bas RV32I specs only defines the instruction, you get to define whatever you feel like, no mandatory CSR ! (except for priviledged ISA but we don't aim for that so it's okay).
+Last thing, the elephant in the room : **yes, CSR are addressable on 12bits**, meaning you can have 4096 CSRs, which is a lot of possibilities, but some address ranges are reserved by the specs (which we will explore in the next edition of this course). Just know that the custum CSRs can only be addressed in the 0x7C0 to 0x7FF in our case. This range choice is in preparation for the next edition.
 
 Alright so not that we have the idea down, time to get to work and implement it !
 
-## 8 : Implementing `Zicsr` and `Zicntr` : building the CSR Regfile
+## 8 : Implementing `Zicsr` : building the CSR Regfile
 
 ## 8.1 : Todo for `Zicsr`
 
-Alright, so the requirements are pretty stright forward for this one. On top of that, we only have 1 CSR to implement, and we'll call it : `flush_cache`.
+Alright, we will start with 1 simple example : `flush_cache`. The objective is for the user to simply send a cache invalidation order that wil invalidate the cache and write back if needed.
 
-The way `flush_cache` will work is by simply setting the lowest bi to 1, the cache will stall and **write back** all its data through AXI, after that, all data will be **invalidated**.
+The way `flush_cache` will work is by simply setting the lowest bit to 1, the cache will stall and **write back** all its data through AXI. In a nutshell, it will simply force a transition into the SEND_WRITE_REQ state and the rest will flow naturally as the state transition logic is already written and tested.
 
-Then the harware resets the flag to 0 and life goes on.
+> To keep this example simple, we'll say that the cache will only write back and do so unconditionally on every cache flush order. It will be the user's responsability to use this wisely.
+
+Then the harware automatically resets the flag to 0 afeter its raised and life goes on:
+
+![alt text](image.png)
 
 Here is what the module would look like :
 
