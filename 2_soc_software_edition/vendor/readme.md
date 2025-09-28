@@ -1,8 +1,5 @@
 # External IPs list
 
-The goal here is everything literrally from scratch. BUT sometimes it's also nice to use a little help ;)
+This folder contains code from external parties, all in the same folder to ease imports.
 
-What IP do we **actually use** list:
-
-- AXI CROSSBAR
-- BBG module from pulp (stitched together from ibex exmple platform)
+Most of these (if not all) come from pulp platform.

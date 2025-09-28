@@ -16,6 +16,8 @@
 *              on previous work by Andreas Traber for the PULP project.
 *              This is mainly a wrapper around the existing CDCs.
 */
+import dm::*;
+
 module dmi_cdc (
   // Test controls
   input  logic             testmode_i,

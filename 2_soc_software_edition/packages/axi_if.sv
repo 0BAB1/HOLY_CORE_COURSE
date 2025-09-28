@@ -4,10 +4,6 @@ interface axi_if #(
     parameter ID_WIDTH   = 4
 );
 
-    // Global AXI Signals
-    logic aclk;
-    logic aresetn;
-
     // Write Address Channel
     logic [ID_WIDTH-1:0] awid;
     logic [ADDR_WIDTH-1:0] awaddr;
@@ -53,9 +49,6 @@ interface axi_if #(
 
     // Define modport for master
     modport master (
-        input  aclk,
-        input  aresetn,
-
         // Write Address Channel
         output awid,
         output awaddr,
@@ -102,9 +95,6 @@ interface axi_if #(
 
     // Define modport for slave
     modport slave (
-        input  aclk,
-        input  aresetn,
-
         // Write Address Channel
         input  awid,
         input  awaddr,
@@ -159,10 +149,6 @@ interface aximm #(
     parameter ID_WIDTH   = 4
 );
 
-    // Global AXI Signals
-    logic aclk;
-    logic aresetn;
-
     // Write Address Channel
     logic [ID_WIDTH-1:0] awid;
     logic [ADDR_WIDTH-1:0] awaddr;
@@ -208,8 +194,6 @@ interface aximm #(
 
     // Define modport for master
     modport master (
-        input  aclk,
-        input  aresetn,
 
         // Write Address Channel
         output awid,
@@ -257,9 +241,6 @@ interface aximm #(
 
     // Define modport for slave
     modport slave (
-        input  aclk,
-        input  aresetn,
-
         // Write Address Channel
         input  awid,
         input  awaddr,

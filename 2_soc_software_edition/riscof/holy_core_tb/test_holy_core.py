@@ -14,7 +14,7 @@ import os
 AXI_PERIOD = 10
 CPU_PERIOD = 10
 
-THRESHOLD = 1e6
+THRESHOLD = 50_000
 
 CSR_MAP = {
     0x300: "mstatus",
@@ -61,15 +61,12 @@ async def cpu_reset(dut):
     dut.rst_n.value = 0
     await Timer(1, units="ns")
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
-    await RisingEdge(dut.aclk)     # Wait for a clock edge after reset
     dut.rst_n.value = 1           # De-assert reset
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
-    await RisingEdge(dut.aclk)     # Wait for a clock edge after reset
 
 @cocotb.coroutine
 async def inst_clocks(dut):
     """this instantiates the axi environement & clocks"""
-    cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
 
 @cocotb.coroutine

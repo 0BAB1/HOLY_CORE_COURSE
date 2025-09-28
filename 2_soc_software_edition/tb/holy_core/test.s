@@ -355,6 +355,11 @@ m_ret: # return form trap routine
 debug_rom:
     # some nops and a dret
     nop
+    # if dscratch0 == 1, we want to do the single
+    #step debug test
+    csrr t2, dscratch0
+    li t3, 0x1
+    beq t2, t3, single_step_test
     nop
     nop
     # we first make an ebreak test
@@ -367,6 +372,9 @@ d_ret:
     nop
     nop
     nop
+    # right before dret, we set dscratch0 to 1
+    # to signal the first debug pass was done
+    csrwi dscratch0, 0x1
     dret
     
 debug_exception:
@@ -376,3 +384,23 @@ debug_exception:
     nop
     nop
     j debug_rom
+
+single_step_test:
+    nop
+    nop
+    # we set dscr's step flag to 1
+    # and d_ret. the cu should come back
+    # right after. Except if single step already was 1
+    # in which case we clear it, write 2 to scratch for
+    # the testbench to check and  leave
+    csrr   t0, 0x7b0        # dcsr
+    andi   t1, t0, (1 << 2) # t1 = dcsr.step ? 4 : 0
+    beqz   t1, set_step     # if step == 0, go set it
+clear_step:
+    csrci  0x7b0, 4
+    li     t2, 2
+    csrw   0x7b2, t2
+    dret
+set_step:
+    csrsi  0x7b0, 4
+    dret

@@ -5,6 +5,7 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
+from cocotb.handle import Force, Release
 import random
 import numpy as np
 from copy import deepcopy
@@ -331,7 +332,8 @@ async def test_debug_behavior(dut):
     await RisingEdge(dut.clk)
     await Timer(2, units="ns")
     assert dut.debug_mode.value == 1
-
+    # check cause in dcsr (simple HALT req)
+    assert (dut.dcsr.value >> 6 & 0b111) == 3
 
     dut.debug_req.value = 0
 
@@ -363,6 +365,8 @@ async def test_debug_behavior(dut):
         await RisingEdge(dut.clk)
 
     dut.exception.value = 0
+    # check cause
+    assert (dut.dcsr.value >> 6 & 0b111) == 1
 
     # leave debug mode
     await RisingEdge(dut.clk)
@@ -419,6 +423,7 @@ async def test_debug_behavior(dut):
     dut.soft_itr.value = 0
     await RisingEdge(dut.clk)
     assert dut.debug_mode.value == 0
+    dut.d_ret.value = 0
 
     # stalling delays the jump to debug signals until stalling is no more
 
@@ -452,6 +457,50 @@ async def test_debug_behavior(dut):
     assert dut.trap_taken.value == 1
 
     dut.debug_req.value = 1
-    await Timer(2, units="ns")
+    await Timer(1, units="ns")
 
     assert dut.jump_to_debug.value == 0
+    # clear test signals...
+    dut.debug_req.value = 0
+    dut.exception.value = 0
+
+    # ==================================
+    # single step behavior tests
+
+    dut.anticipated_core_pc.value = 0xDEADBEEF
+
+    # leave debug mode and set step bit inf dcsr
+    await RisingEdge(dut.clk)
+    dut.dcsr.value = Force(dut.dcsr.value | (1 << 2))
+    await Timer(1, units="ns")
+    assert dut.debug_mode.value == 0
+
+    # CSR BEHAVIORAL ASSETIONS when we set step
+    assert dut.single_step.value == 1
+    assert dut.next_dpc == 0xDEADBEEF
+    assert dut.jump_to_debug.value == 1
+    assert dut.jump_to_debug_exception.value == 0
+    assert dut.debug_mode.value == 0
+
+    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
+    # we should be back in the debug mode now
+    assert dut.debug_mode.value == 1
+
+    # Wait a few clock cycles, make sure dcsr cause and dpc stays the same
+    dut.anticipated_core_pc.value = 0xAEAEAEAE
+    for _ in range(10):
+        await RisingEdge(dut.clk)
+        assert dut.dpc.value == 0xDEADBEEF
+        assert (dut.dcsr.value >> 6 & 0b111) == 4
+
+    # The debugger now set dcsr step to 0, we reverify that dcsr cause and dpc stays the same
+    dut.dcsr.value = Force(dut.dcsr.value & ~(1 << 2))
+    await Timer(1, units="ns")
+    assert dut.single_step.value == 0
+
+    for _ in range(10):
+        await RisingEdge(dut.clk)
+        assert (dut.dcsr.value >> 6 & 0b111) == 4
+
+    dut.dcsr.value = Release()

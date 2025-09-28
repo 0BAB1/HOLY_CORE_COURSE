@@ -10,8 +10,7 @@ module top #(
 )(
     input wire clk,
     input wire rst_n,
-    input wire aclk,
-    input wire aresetn,
+    input wire periph_rst_n,
 
     // AXI FULL interface
     output wire [3:0]               m_axi_awid,
@@ -94,7 +93,11 @@ module top #(
     input  wire        tms_i,
     input  wire        trst_ni,
     input  wire        td_i,
-    output wire        td_o
+    output wire        td_o,
+
+    // TMP : debugging
+    output wire [31:0] bus_add,
+    output wire bus_req
 );
 
 // Internal wiring
@@ -102,8 +105,7 @@ holy_top wrapped (
     // System signals
     .clk(clk),
     .rst_n(rst_n),
-    .aclk(aclk),
-    .aresetn(aresetn),
+    .periph_rst_n(periph_rst_n),
 
     // AXI FULL
     .m_axi_awid(m_axi_awid),
@@ -187,7 +189,11 @@ holy_top wrapped (
     .tms_i(tms_i),
     .trst_ni(trst_ni),
     .td_i(td_i),
-    .td_o(td_o)
+    .td_o(td_o),
+
+    // TMP
+    .debug_bus_add(bus_add),
+    .debug_bus_req(bus_req)
 );
 
 endmodule

@@ -2,11 +2,6 @@ interface axi_lite_if #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32
 );
-
-    // Global signals
-    logic aclk;
-    logic aresetn;
-
     // Write Address Channel
     logic [ADDR_WIDTH-1:0] awaddr;
     logic awvalid;
@@ -36,9 +31,6 @@ interface axi_lite_if #(
 
     // Master modport
     modport master (
-        input  aclk,
-        input  aresetn,
-
         output awaddr,
         output awvalid,
         input  awready,
@@ -64,9 +56,6 @@ interface axi_lite_if #(
 
     // Slave modport
     modport slave (
-        input  aclk,
-        input  aresetn,
-
         input  awaddr,
         input  awvalid,
         output awready,

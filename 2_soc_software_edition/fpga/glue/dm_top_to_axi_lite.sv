@@ -12,7 +12,6 @@ import axi_pkg::*;
 module dm_top_to_axi_lite (
     // CPU LOGIC CLOCK & RESET
     input logic clk,
-    input logic aclk,
     input logic rst_n,
 
     // dm_top Interface

@@ -54,14 +54,11 @@ import axi_pkg::*;
 module holy_test_harness (
     // CPU clock and active low reset
     input logic clk,
+    // Only 1 reset in tb
+    // note that on FPGA, we prefer to
+    // separate the core's reset and peripheral reset.
+    // This is not an industry standard, just how I do it.
     input logic rst_n,
-
-    // axi clock
-    input logic aclk,
-    input logic aresetn,
-
-    // In reality, clk and aclk are the same as CDC
-    // is not supported in holy core's inner cache
 
     //===================================
     // TOP AXI FULL Interface
@@ -378,10 +375,6 @@ dm_top #(
 // is only used to retrieve instructions
 // in this tb. so it is a striahgt passthrough
 // to the top IF.
-
-// Connect the discrete AXI signals to the m_axi
-assign m_axi.aclk       = aclk;
-assign m_axi.aresetn    = aresetn;
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;

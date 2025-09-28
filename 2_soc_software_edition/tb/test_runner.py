@@ -59,6 +59,7 @@ def test_holy_core():
         initial_sources=[
             # Verilog sources (packages)
             # f"{proj_path}/packages/holy_core_pkg.sv",
+            f"{proj_path}/vendor/prim_util_pkg.sv",
             f"{proj_path}/vendor/axi_pkg.sv",
             f"{proj_path}/vendor/cf_math_pkg.sv",
             f"{proj_path}/vendor/axi_intf.sv",
@@ -77,15 +78,35 @@ def test_holy_core():
             f"{proj_path}/vendor/axi_lite_demux.sv",
             f"{proj_path}/vendor/axi_lite_mux.sv",
             f"{proj_path}/vendor/axi_lite_to_axi.sv",
-            f"{proj_path}/vendor/axi_err_slv.sv"
+            f"{proj_path}/vendor/axi_err_slv.sv",
+            f"{proj_path}/vendor/prim_clock_inv.sv",
+            f"{proj_path}/vendor/prim_flop_2sync.sv",
+            f"{proj_path}/vendor/prim_clock_mux2.sv",
+            f"{proj_path}/vendor/prim_fifo_async_simple.sv",
+            f"{proj_path}/vendor/prim_fifo_sync.sv",
+            f"{proj_path}/vendor/prim_sync_reqack.sv",
+            f"{proj_path}/vendor/prim_generic_clock_mux2.sv",
+            f"{proj_path}/vendor/prim_flop.sv",
+            f"{proj_path}/vendor/prim_fifo_sync_cnt.sv",
+            f"{proj_path}/vendor/prim_generic_flop.sv"
         ],
         additional_sources= (
             list(proj_path.glob("src/holy_plic/*.sv"))
             + list(proj_path.glob("src/holy_clint/*.sv"))
             + [
-                f"{proj_path}/tb/holy_core/holy_test_harness.sv"
+                f"{proj_path}/tb/holy_core/holy_test_harness.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dm_csrs.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dm_mem.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dm_obi_top.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dm_pkg.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dm_sba.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dm_top.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dmi_cdc.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dmi_intf.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dmi_jtag_tap.sv",
+                f"{proj_path}/vendor/pulp-riscv-dbg/src/dmi_jtag.sv"
             ]
-            + list(proj_path.glob("vendor/pulp-riscv-dbg/src/*.sv")).remove(f"{proj_path}/vendor/pulp-riscv-dbg/src/dmi_test.sv")# TODO : fix for CI
+
             + list(proj_path.glob("vendor/pulp-riscv-dbg/debug_rom/*.sv"))
         ),
         includes=[

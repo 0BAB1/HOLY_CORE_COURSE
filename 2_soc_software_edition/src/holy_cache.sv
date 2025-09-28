@@ -13,6 +13,9 @@
 *   Created 11/24
 *   Modification : 05/25 (add manual flush support from incomming csr flag)
 *   Modification : 07/25 (add a cache valid output flag)
+*
+*   IMPORTANT NOTE : this cache is AXI only and very basic. It is NOT USED
+*                    ANYMORE in the 2_soc_edition.
 */
 
 import holy_core_pkg::*;
@@ -23,9 +26,6 @@ module holy_cache #(
     // CPU LOGIC CLOCK & RESET
     input logic clk,
     input logic rst_n,
-
-    // AXI Clock, separate necessary as arbitrer can't output it.
-    input logic aclk,
 
     // CPU Interface
     input logic [31:0]  address,

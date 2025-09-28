@@ -943,40 +943,40 @@ async def simple_debug_return_test(dut):
     assert dut.write_back_source.value == "000"
     assert dut.csr_write_enable.value == "0"
 
-@cocotb.test()
-async def jump_to_debug_test(dut):
-    await set_unknown(dut)
+# @cocotb.test()
+# async def jump_to_debug_test(dut):
+#     await set_unknown(dut)
 
-    await Timer(10, units="ns")
-    dut.jump_to_debug = 1
-    await Timer(1, units="ns")
+#     await Timer(10, units="ns")
+#     dut.jump_to_debug = 1
+#     await Timer(1, units="ns")
 
-    assert dut.pc_source.value == 0b101 # SOURCE_PC_DEBUG_HALT
+#     assert dut.pc_source.value == 0b101 # SOURCE_PC_DEBUG_HALT
 
-    # CPU state should be preserved !
-    assert dut.mem_read.value == "0"
-    assert dut.mem_write.value == "0"
-    assert dut.reg_write.value == "0"
-    assert dut.branch.value == "0"
-    assert dut.jump.value == "0"
-    assert dut.write_back_source.value == "000"
-    assert dut.csr_write_enable.value == "0"
+#     # CPU state should be preserved !
+#     assert dut.mem_read.value == "0"
+#     assert dut.mem_write.value == "0"
+#     assert dut.reg_write.value == "0"
+#     assert dut.branch.value == "0"
+#     assert dut.jump.value == "0"
+#     assert dut.write_back_source.value == "000"
+#     assert dut.csr_write_enable.value == "0"
 
-@cocotb.test()
-async def jump_to_debug_exception_test(dut):
-    await set_unknown(dut)
+# @cocotb.test()
+# async def jump_to_debug_exception_test(dut):
+#     await set_unknown(dut)
 
-    await Timer(10, units="ns")
-    dut.jump_to_debug_exception = 1
-    await Timer(1, units="ns")
+#     await Timer(10, units="ns")
+#     dut.jump_to_debug_exception = 1
+#     await Timer(1, units="ns")
 
-    assert dut.pc_source.value == 0b110 # SOURCE_PC_DEBUG_EXCEPTION
+#     assert dut.pc_source.value == 0b110 # SOURCE_PC_DEBUG_EXCEPTION
 
-    # CPU state should be preserved !
-    assert dut.mem_read.value == "0"
-    assert dut.mem_write.value == "0"
-    assert dut.reg_write.value == "0"
-    assert dut.branch.value == "0"
-    assert dut.jump.value == "0"
-    assert dut.write_back_source.value == "000"
-    assert dut.csr_write_enable.value == "0"
+#     # CPU state should be preserved !
+#     assert dut.mem_read.value == "0"
+#     assert dut.mem_write.value == "0"
+#     assert dut.reg_write.value == "0"
+#     assert dut.branch.value == "0"
+#     assert dut.jump.value == "0"
+#     assert dut.write_back_source.value == "000"
+#     assert dut.csr_write_enable.value == "0"

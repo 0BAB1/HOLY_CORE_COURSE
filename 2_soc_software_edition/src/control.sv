@@ -314,6 +314,14 @@ always_comb begin
                 end
             endcase
         end
+        // FENCE SUPPORT
+        OPCODE_FENCE: begin
+            // fence acts as nop in holy core
+            // (for now) so we simply set exception to 0
+            if(func3 == 3'b000 && func7 == 7'b0000111) begin
+                exception = 0;
+            end
+        end
         default:;
     endcase
 
@@ -413,13 +421,7 @@ end
 
 always_comb begin : pc_source_select
     pc_source = SOURCE_PC_PLUS_4;
-    if (jump_to_debug)begin
-        pc_source = SOURCE_PC_DEBUG_HALT;
-    end
-    else if (jump_to_debug_exception) begin
-        pc_source = SOURCE_PC_DEBUG_EXCEPTION;
-    end
-    else if (trap || trap_pending) begin
+    if (trap || trap_pending) begin
         pc_source = SOURCE_PC_MTVEC;
     end else if (m_ret) begin
         pc_source = SOURCE_PC_MEPC;

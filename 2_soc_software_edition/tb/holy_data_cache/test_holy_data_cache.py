@@ -27,15 +27,9 @@ LITE_SENDING_WRITE_DATA     = 0b0111
 LITE_WAITING_WRITE_RES      = 0b1000
 LITE_SENDING_READ_REQ       = 0b1001
 LITE_RECEIVING_READ_DATA    = 0b1010
-
-
-# clock perdiods, if different, make sure AXI_PERIOD >= CPU_PERIOD
-AXI_PERIOD = 10
 CPU_PERIOD = 10
-
-# Cach stuff
-SIZE = 2**13 # adressable by 3B/12b
-CACHE_SIZE = 128 #7 b addressable, SYNC IT WITH THE ACTUAL TB CACHE SIZE
+SIZE = 2**13
+CACHE_SIZE = 128 # 7 bits addressable
 
 def generate_random_bytes(length):
     return bytes([random.randint(0, 255) for _ in range(length)])
@@ -83,9 +77,8 @@ async def main_test(dut):
     # ==================================
 
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
-    cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
-    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.aclk, dut.rst_n, size=SIZE, reset_active_level=False)
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n, size=SIZE, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n, size=SIZE, reset_active_level=False)
     await RisingEdge(dut.clk)
     await reset(dut)
 
@@ -152,7 +145,7 @@ async def main_test(dut):
         assert dut.cache_system.state.value == IDLE
         assert dut.cache_system.next_state.value == SENDING_READ_REQ
 
-        await RisingEdge(dut.aclk) # STATE SWITCH
+        await RisingEdge(dut.clk) # STATE SWITCH
         await Timer(1, units="ns")
 
         # Verify constant axi signals
@@ -168,7 +161,7 @@ async def main_test(dut):
 
         assert dut.cache_system.next_state.value == RECEIVING_READ_DATA
 
-        await RisingEdge(dut.aclk) # STATE SWITCH
+        await RisingEdge(dut.clk) # STATE SWITCH
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == RECEIVING_READ_DATA
@@ -178,7 +171,7 @@ async def main_test(dut):
 
         i = 0
         while( (not dut.axi_rvalid.value == 1) and (not i > DEADLOCK_THRESHOLD)) :
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             await Timer(1, units="ns")
 
         i = 0
@@ -191,7 +184,7 @@ async def main_test(dut):
 
             assert dut.axi_rlast.value == 0b0
             assert dut.cache_system.cache_stall.value == 0b1
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             await Timer(1, units="ps")
 
         # set_ptr = 126, set_ptr = 127 is the last
@@ -199,9 +192,9 @@ async def main_test(dut):
         assert dut.axi_rlast.value == 0b1
         assert dut.cache_system.next_state.value == IDLE
 
-        await RisingEdge(dut.aclk) # STATE SWITCH
+        await RisingEdge(dut.clk) # STATE SWITCH
         await Timer(1, units="ps")
-        await RisingEdge(dut.aclk) # SEQ STALL DE-ASSERTED
+        await RisingEdge(dut.clk) # SEQ STALL DE-ASSERTED
         await Timer(1, units="ps")
         
         assert dut.cache_system.state.value == IDLE
@@ -276,7 +269,7 @@ async def main_test(dut):
         # Cache miss : The cache should send a write request because it's now dirty
         assert dut.cache_system.next_state.value == SENDING_WRITE_REQ
 
-        await RisingEdge(dut.aclk) # STATE SWITCH
+        await RisingEdge(dut.clk) # STATE SWITCH
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == SENDING_WRITE_REQ
@@ -297,7 +290,7 @@ async def main_test(dut):
 
         assert dut.cache_system.next_state.value == SENDING_WRITE_DATA
 
-        await RisingEdge(dut.aclk) # STATE SWITCH
+        await RisingEdge(dut.clk) # STATE SWITCH
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == SENDING_WRITE_DATA
@@ -317,7 +310,7 @@ async def main_test(dut):
 
             assert dut.axi_wlast.value == 0b0
             assert dut.cache_system.cache_stall.value == 0b1
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             await Timer(1, units="ns")
 
         # LAST write
@@ -325,7 +318,7 @@ async def main_test(dut):
         assert dut.axi_wlast.value == 0b1
         assert dut.cache_system.next_state.value == WAITING_WRITE_RES
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == WAITING_WRITE_RES
@@ -335,7 +328,7 @@ async def main_test(dut):
 
         i = 0
         while (not dut.axi_bvalid.value == 0b1) and (not i > DEADLOCK_THRESHOLD):
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             await Timer(1, units="ns")
             i += 1
 
@@ -350,7 +343,7 @@ async def main_test(dut):
         # After write_back is done, we can read
         assert dut.cache_system.next_state.value == SENDING_READ_REQ
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == SENDING_READ_REQ
@@ -362,7 +355,7 @@ async def main_test(dut):
 
         assert dut.cache_system.next_state.value == RECEIVING_READ_DATA
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == RECEIVING_READ_DATA
@@ -377,7 +370,7 @@ async def main_test(dut):
 
             assert dut.axi_rlast.value == 0b0
             assert dut.cache_system.cache_stall.value == 0b1 
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             await Timer(1, units="ns")
 
         assert dut.axi_rvalid.value == 0b1
@@ -385,9 +378,9 @@ async def main_test(dut):
         assert dut.axi_rlast.value == 0b1
         assert dut.cache_system.next_state.value == IDLE
 
-        await RisingEdge(dut.aclk) # STATE SWITCH
+        await RisingEdge(dut.clk) # STATE SWITCH
         await Timer(1, units="ns")
-        await RisingEdge(dut.aclk) # SEQ STALL DE-ASSERTED
+        await RisingEdge(dut.clk) # SEQ STALL DE-ASSERTED
         await Timer(1, units="ns")
 
         # cache should also be flagged clean now
@@ -411,7 +404,7 @@ async def main_test(dut):
         assert dut.cache_system.next_state.value == SENDING_READ_REQ
         assert dut.cpu_cache_stall.value == 0b1 # miss
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == SENDING_READ_REQ
@@ -421,7 +414,7 @@ async def main_test(dut):
 
         assert dut.cache_system.next_state.value == RECEIVING_READ_DATA
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == RECEIVING_READ_DATA
@@ -436,7 +429,7 @@ async def main_test(dut):
 
             assert dut.axi_rlast.value == 0b0
             assert dut.cache_system.cache_stall.value == 0b1 
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             await Timer(1, units="ns")
 
         assert dut.axi_rvalid.value == 0b1
@@ -445,9 +438,9 @@ async def main_test(dut):
         assert dut.cache_system.cache_stall.value == 0b1 
         assert dut.cache_system.next_state.value == IDLE
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
-        await RisingEdge(dut.aclk) # SEQ STALL DE-ASSERTED
+        await RisingEdge(dut.clk) # SEQ STALL DE-ASSERTED
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == IDLE
@@ -487,7 +480,7 @@ async def main_test(dut):
         assert dut.cache_system.next_state.value == SENDING_WRITE_REQ
         assert dut.cpu_cache_stall.value == 0b1
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         assert dut.cache_system.state.value == SENDING_WRITE_REQ
@@ -497,10 +490,10 @@ async def main_test(dut):
 
         while not dut.cache_system.state.value == WAITING_WRITE_RES:
             # wait for next IDLE state
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             await Timer(1, units="ns")
 
-        await RisingEdge(dut.aclk)
+        await RisingEdge(dut.clk)
         await Timer(1, units="ns")
         # after WB flush, we go straight to IDLE and bypass read
         assert dut.axi_bvalid.value == 0b1
@@ -511,13 +504,13 @@ async def main_test(dut):
         dut.cache_system.csr_flush_order.value = 0b0
         
         # csr flushin should be low again
-        await RisingEdge(dut.aclk)
+        await RisingEdge(dut.clk)
         await Timer(1, units="ns")
         assert dut.cache_system.csr_flushing.value == 0b0
 
         # wait for flush to be finished
         while not dut.cache_system.state.value == IDLE :
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
 
         # ==================================
         # NON CACHABLE RANGE WRITE TEST
@@ -544,7 +537,7 @@ async def main_test(dut):
         assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_REQ
 
         # Then we switch to AXI LITE write
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
         
         assert dut.cpu_cache_stall.value == 0b1
@@ -557,7 +550,7 @@ async def main_test(dut):
         assert dut.cache_system.next_state.value == LITE_SENDING_WRITE_DATA
 
         # Then we switch to sending the data...
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         # assume memory is ready, check the data is the one expected and state is about to switch..
@@ -568,9 +561,9 @@ async def main_test(dut):
         assert dut.axi_lite_wdata.value == 0xABCDABCD
 
         # Then we switch to sending the data...
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
-        await RisingEdge(dut.aclk) # wait for bvalid manually...
+        await RisingEdge(dut.clk) # wait for bvalid manually...
         await Timer(1, units="ns")
 
         # We are now waiting for a response from the memory... we assume it is instantly given
@@ -584,7 +577,7 @@ async def main_test(dut):
         # update the golden ref
         lite_mem_golden_ref[int(0x0000_0404/4)] = 0xABCDABCD
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         # ==================================
@@ -609,7 +602,7 @@ async def main_test(dut):
         assert dut.cache_system.next_axi_lite_tx_done.value == 0b0 # and it should auto reset ...
 
 
-        await RisingEdge(dut.aclk) # let the tx_done flag go low ...
+        await RisingEdge(dut.clk) # let the tx_done flag go low ...
         await Timer(1, units="ns")
 
         # stop interracting, wait a bit and check for stall to stay low !
@@ -618,7 +611,7 @@ async def main_test(dut):
         await Timer(1, units="ns")
 
         for _ in range(10):
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             assert dut.cpu_cache_stall.value == 0b0
 
         # we have to test the exactitude of the read and that the actual output data is the right one
@@ -638,7 +631,7 @@ async def main_test(dut):
         old_data_in_axi_read_result = dut.cache_system.axi_lite_read_result.value
         assert dut.cache_system.read_data.value == old_data_in_axi_read_result
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         # assuming memory is ready... req is ack and we switch to recieving the data
@@ -648,9 +641,9 @@ async def main_test(dut):
         assert dut.cache_system.state.value == LITE_SENDING_READ_REQ
         assert dut.cache_system.next_state.value == LITE_RECEIVING_READ_DATA
 
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
-        await RisingEdge(dut.aclk) # wait for rvalid manually
+        await RisingEdge(dut.clk) # wait for rvalid manually
         await Timer(1, units="ns")
 
         # We are recieving the incomming data, asuming memory sends valid data
@@ -662,7 +655,7 @@ async def main_test(dut):
         expected_axi_result = dut.axi_lite_rdata.value
         assert dut.cache_system.next_state.value == IDLE
         
-        await RisingEdge(dut.aclk) # STATE SWITCH !
+        await RisingEdge(dut.clk) # STATE SWITCH !
         await Timer(1, units="ns")
 
         # check that we are in IDLE, not stalling anymore and sending the right data to the cpu !
@@ -693,7 +686,7 @@ async def main_test(dut):
         await Timer(1, units="ns")
 
         for _ in range(10):
-            await RisingEdge(dut.aclk)
+            await RisingEdge(dut.clk)
             assert dut.cpu_cache_stall.value == 0b0
 
         # And now we create a cache miss to a large address

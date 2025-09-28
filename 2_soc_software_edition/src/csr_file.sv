@@ -25,6 +25,7 @@ module csr_file (
     input logic write_enable,
     input logic [11:0] address,
     input logic [31:0] current_core_pc,
+    input logic [31:0] anticipated_core_pc,
     input logic [31:0] current_core_fetch_instr,
 
     // Interrupts In
@@ -63,7 +64,9 @@ module csr_file (
     output logic [31:0] csr_mepc,
 
     // Debug pc for exiting debug mode
-    output logic [31:0] csr_dpc
+    output logic [31:0] csr_dpc,
+    // Are we single stepping ?
+    output logic        single_step
 );
 
 /*  
@@ -78,6 +81,7 @@ module csr_file (
 assign csr_mtvec = mtvec;
 assign csr_mepc  = mepc;
 assign csr_dpc = dpc;
+assign single_step = dcsr[2];
 
 // Declare all CSRs and they next signals here
 
@@ -277,22 +281,71 @@ always_comb begin : next_csr_value_logic
     next_dcsr = dcsr;
     if (~stall && write_enable && (address == 12'h7b0)) begin
         next_dcsr = write_back_to_csr;
-    end // TODO : actually treat each field independatly. But really... fuck that shit.
+    end
+    if (jump_to_debug || jump_to_debug_exception) begin
+        // set cause when we are about to jump to debug mode
 
-    // dcsr
-    next_dpc = dpc;
-    if (~stall && jump_to_debug && ~debug_exception_detected) begin // if we jump back because od an ebreak, dpc shall not change
-        next_dpc = current_core_pc;
+        /* Explains why Debug Mode was entered.
+        *  When there are multiple reasons to enter Debug
+        *  Mode in a single cycle, hardware should set cause
+        *  to the cause with the highest priority.
+        *  1: An ebreak instruction was executed. (priority
+        *  3)
+        *  2: The Trigger Module caused a breakpoint ex-
+        *  ception. (priority 4, highest)
+        *  3: The debugger requested entry to Debug Mode
+        *  using haltreq. (priority 1)
+        *  4: The hart single stepped because step was set.
+        *  (priority 0, lowest)
+        *  5: The hart halted directly out of reset due to
+        *  resethaltreq. It is also acceptable to report 3 when
+        *  this happens. (priority 2) TODO : implement that
+        *  Other values are reserved for future use.
+        */
+
+        // Note: This core only supports execution based
+        // debugging, meaning we don't need "trigger module"
+        // cause support.
+
+        if (debug_exception_detected) begin
+            next_dcsr[8:6] = 1;
+        end else if (0) begin 
+            // TODO : reserved for future rest halt req support
+        end else if (~debug_exception_detected && ~single_step) begin
+            next_dcsr[8:6] = 3;
+        end else if (single_step) begin
+            next_dcsr[8:6] = 4;
+        end
     end
 
+    // dpc
+    next_dpc = dpc;
+    if (~stall && jump_to_debug && ~debug_exception_detected) begin 
+        // Note: if we jump back because of an ebreak, dpc shall not change
+        if(~single_step) begin
+            next_dpc = current_core_pc;
+        end else begin
+            next_dpc = anticipated_core_pc;
+        end
+    end
+    if (~stall && write_enable && (address == 12'h7b1) && debug_mode) begin
+        next_dpc = write_back_to_csr;
+        // TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
+        // TODO : the core should trap if this is access outside of debug more
+        // (in general I did not implement illegal accesses at all, or any of 
+        // the privileged bs.. big TODO here !)
+        // TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
+    end
+    
+
     // dscratch0
-    next_dscratch0 = dpc;
+    next_dscratch0 = dscratch0;
     if (~stall && write_enable && (address == 12'h7b2)) begin
         next_dscratch0 = write_back_to_csr;
     end
 
     // dscratch1
-    next_dscratch1 = dpc;
+    next_dscratch1 = dscratch1;
     if (~stall && write_enable && (address == 12'h7b3)) begin
         next_dscratch1 = write_back_to_csr;
     end
@@ -343,6 +396,12 @@ always_comb begin : csr_read_logic
         12'h7C1: read_data = non_cachable_base;
         12'h7C2: read_data = non_cachable_limit;
 
+        // Debug CSRs readout
+        12'h7B0: read_data = dcsr;
+        12'h7B1: read_data = dpc;
+        12'h7B2: read_data = dscratch0;
+        12'h7B3: read_data = dscratch1;
+
         default: read_data = 32'd0;
     endcase
 end
@@ -385,11 +444,11 @@ always_comb begin : control_assignments
     // We can goto debug once a trap has been handled !
 
     // an exception has been raised in debug mode.. watch out !
-    // an expected ebreak will jump back to park loop, not to exception address
-    // thus this intermediary logic.
+    // an expected ebreak (exc. cause = 3) will jump back to park
+    // loop, not to exception address thus this intermediary logic.
     debug_exception_detected = exception & debug_mode & ~stall; 
 
-    jump_to_debug = (~trap_taken & debug_req & ~debug_mode & ~stall) | (debug_exception_detected & (exception_cause == 31'd3));
+    jump_to_debug = (~trap_taken & debug_req & ~debug_mode & ~stall) | (debug_exception_detected & (exception_cause == 31'd3)) | (single_step && ~debug_mode && ~stall);
     jump_to_debug_exception = debug_exception_detected & (exception_cause != 31'd3);
 
     // Trap logic
