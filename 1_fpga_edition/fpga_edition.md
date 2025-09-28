@@ -2457,7 +2457,7 @@ To run it simply realease the CORE's `reset` signal. And _voilà_ ! blinking LED
 
 ![counter program running](../images/working%20leds.png)
 
-## 7 : Making the core more usable: introducing CSRs (Zicsr)
+## 7 : Making the core's cache more usable: introducing CSRs ! (Zicsr)
 
 > The core works ! That's great !
 
@@ -2524,9 +2524,9 @@ Alright so not that we have the idea down, time to get to work and implement it 
 
 ## 8 : Implementing `Zicsr` : building the CSR Regfile
 
-## 8.1 : Todo for `Zicsr`
+## 8.1 : Todo for our simple `Zicsr` example.
 
-Alright, we will start with 1 simple example : `flush_cache`. The objective is for the user to simply send a cache invalidation order that wil invalidate the cache and write back if needed.
+Alright, we will start with our simple `Zicsr` introductory example : adding a `flush_cache` order. The objective is for the user to simply send a cache dump order that will re-write all the cache content back to memory unconditionnally.
 
 The way `flush_cache` will work is by simply setting the lowest bit to 1, the cache will stall and **write back** all its data through AXI. In a nutshell, it will simply force a transition into the SEND_WRITE_REQ state and the rest will flow naturally as the state transition logic is already written and tested.
 
@@ -2534,23 +2534,25 @@ The way `flush_cache` will work is by simply setting the lowest bit to 1, the ca
 
 Then the harware automatically resets the flag to 0 afeter its raised and life goes on:
 
-![alt text](image.png)
+![flushing timing diagram](../images/flush_timing.png)
 
 Here is what the module would look like :
 
 ![csr file scheme](../images/csr_file.png)
 
+The broad idea is to add a 12bits addressable register file, where we implement ONLY the registers we need. The CSR file then ouput some arbitrary control signals from these CSRs (and in the future, will also be able to recieve inputs to set different CSRs).
+
 So, without further ado, let's create a new `csr_file.sv` file !
 
 ### 8.1.a : HDL Code
 
-The HDL is a bit special here : we are **NOT** going to declare a BRAM block (paccked array or whatever) or 4096 registers sitting there in the CPU. Oh no ! That would be such a waste of space.
+The HDL is a bit special here : we are **NOT** going to declare a BRAM block (packed array or whatever) of 4096 registers sitting there in the CPU. Oh no ! That would be such a waste of space.
 
-What we'll do instead is declare it 1 by 1 ! This can seem tidious bit remember : _we only have 1 CSR so far_ ! The logic will be completely separate as well ! This is beacause each CSR does not behave the same, some wil increment without dev intervention, some are meant to bea read only and some meant to be written ! (like out `flush_cach` CSR).
+What we'll do instead is declare it 1 by 1 ! You could do some fancy syntax to only generate the CSRs you need but it would be tidious to read, maintain, and really... who cares about them nerdy ways ? let's focus on doing something that **works**.
 
 And before moving on to the HDL, some final details on the behavior of the module :
 
-- It outputs control signals / flags (like `flush_cache_flag`)
+- It outputs control signals / flags (like `flush_cache_flag`) that will go **into** the cache to tell it when to flush.
 - If the address asked is not attributed, then we read 0x0000_0000
 - If the `f3` is not specified (000 or 100) then we write 0x0000_0000 to the CSR
 - `flush_cache` should be immedialty set back to 0 once the **flag** is asserted.
