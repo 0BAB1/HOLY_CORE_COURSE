@@ -96,17 +96,21 @@ module holy_top (
     input  logic        td_i,
     output logic        td_o,
 
-    // testbench requests
-    input logic tb_debug_req,
-
-    // TEMPORARY DEBUG SIGNALS BELOW FOR ILA
+    // RAW DEBUG HINT SIGNALS FOR ILA
     output logic [31:0] pc,
     output logic [31:0] pc_next,
     output logic [31:0] instruction,
     output logic i_cache_stall,
     output logic [3:0] i_cache_state,
     output logic [3:0] i_cache_next_state,
-    output logic d_cache_stall
+    output logic d_cache_stall,
+
+    // test debug stuff
+    input logic tb_debug_req,
+
+    // TMP : debugging
+    output logic [31:0] debug_bus_add,
+    output logic debug_bus_req
 );
 
 localparam NUM_IRQS = 2;
@@ -378,6 +382,8 @@ dm_top #(
 
 logic           bus_req;
 logic [31:0]    bus_add;
+assign debug_bus_req = bus_req;
+assign debug_bus_add = bus_add;
 logic           bus_we;
 logic [31:0]    bus_wdata;
 logic [3:0]     bus_be;

@@ -1,25 +1,98 @@
 # Blink leds loader
 #
-# BRH 06/25
+# BRH Auto-Generated
 
 reset_hw_axi [get_hw_axis hw_axi_1]
 set bram_address 0x00000000
-set wt axi_bram_wt
-create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address -len 157 -data {
-    00001117
-    a7310113
-    00002337
-    000033b7
-    fff3e393
-    7c131073
-    7c239073
-    008000ef
-    0000006f
+
+# Clear previous write transactions if any
+if {[llength [get_hw_axi_txns]]} {
+    delete_hw_axi_txns [get_hw_axi_txns]
+}
+
+create_hw_axi_txn axi_bram_wt_0 [get_hw_axis hw_axi_1] -type write -address 0x00000000 -len 247 -data {
+    00000297
+    01028293
+    34129073
+    30200073
+    00008117
     ff010113
-    26000513
-    00112623
-    020000ef
+    0e8000ef
     0000006f
+    fe010113
+    00112e23
+    00812c23
+    02010413
+    fea42623
+    feb42423
+    00060793
+    fef403a3
+    01b00513
+    104000ef
+    05b00513
+    0fc000ef
+    fe842783
+    00178793
+    00078513
+    130000ef
+    03b00513
+    0e4000ef
+    fec42783
+    00178793
+    00078513
+    118000ef
+    04800513
+    0cc000ef
+    fe744783
+    00078513
+    0c0000ef
+    00000013
+    01c12083
+    01812403
+    02010113
+    00008067
+    ff010113
+    00812623
+    01010413
+    00000013
+    00c12403
+    01010113
+    00008067
+    ff010113
+    00112623
+    00812423
+    01010413
+    3c800513
+    090000ef
+    3d402703
+    3d802783
+    04f00613
+    00078593
+    00070513
+    f39ff0ef
+    00000013
+    00c12083
+    00812403
+    01010113
+    00008067
+    fe010113
+    00112e23
+    00812c23
+    02010413
+    fadff0ef
+    3d402783
+    00178713
+    3ce02a23
+    fe042623
+    0100006f
+    fec42783
+    00178793
+    fef42623
+    fec42703
+    000027b7
+    70f78793
+    fee7d4e3
+    fcdff06f
     00010737
     00872783
     0087f793
@@ -37,8 +110,30 @@ create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address 
     00054683
     fe0694e3
     00008067
+    00900793
+    02a7da63
+    00000793
+    00900713
+    ff650513
+    00178793
+    fea74ce3
+    000106b7
+    0086a703
+    00877713
+    fe071ce3
+    03078793
+    0ff7f793
+    00f68223
+    03050513
+    0ff57513
+    00010737
+    00872783
+    0087f793
+    fe079ce3
+    00a70223
+    00008067
     03000613
-    27000693
+    3d000693
     00010737
     00168693
     00872783
@@ -158,15 +253,10 @@ create_hw_axi_txn $wt [get_hw_axis hw_axi_1] -type write -address $bram_address 
     fef58fa3
     fed594e3
     00008067
-    6c6c6548
-    77202c6f
-    646c726f
-    000d0a21
+    4a325b1b
+    00485b1b
     00007830
+    00000001
+    00000001
 }
-
-run_hw_axi [get_hw_axi_txns $wt]
-
-set rt axi_bram_rt
-create_hw_axi_txn $rt [get_hw_axis hw_axi_1] -type read -address $bram_address -len 35
-run_hw_axi [get_hw_axi_txns $rt]
+run_hw_axi [get_hw_axi_txns axi_bram_wt_0]

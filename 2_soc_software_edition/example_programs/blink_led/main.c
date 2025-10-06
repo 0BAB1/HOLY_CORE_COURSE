@@ -1,5 +1,6 @@
 #include <stdint.h>
-#include "holy_core_soc.h"
+
+#define LED_REG (*(volatile uint32_t*)0x20000)
 
 void delay(volatile uint32_t count) {
     while (count--) {
@@ -9,9 +10,9 @@ void delay(volatile uint32_t count) {
 
 int main() {
     while (1) {
-        GPIO_LED = 1;     // LED ON
+        LED_REG = 1;     // LED ON
         delay(500000);
-        GPIO_LED = 0;     // LED OFF
+        LED_REG = 0;     // LED OFF
         delay(500000);
     }
 }
