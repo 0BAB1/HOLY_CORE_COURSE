@@ -3,13 +3,13 @@
 CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
-CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -Wall -Wextra -O2
+CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -Wall -Wextra -O2 -I../../hc_lib/include
 LDFLAGS = -T linker.ld -nostdlib
 
 all: blink.bin blink.hex
 
 blink.elf: startup.o main.o
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ -L ../../hc_lib -lholycore
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
