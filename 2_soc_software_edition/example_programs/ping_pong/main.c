@@ -15,7 +15,7 @@
 #define LINE_BUF_SIZE 64
 
 char line_buf[LINE_BUF_SIZE];
-uint8_t line_len = 0;
+uint8_t line_len;
 
 extern uint32_t _stack_top;
 extern uint32_t _stack_bottom;
@@ -116,6 +116,8 @@ int main() {
     uart_puts("HOLY CORE - Ping Pong - Interrupt test program\n\r");
     uart_puts("===================================================\n\r");
     uart_puts("> ");
+
+    line_len = 0;
     
     while (1) {
         // Do nothing, let interrupts handle the rest

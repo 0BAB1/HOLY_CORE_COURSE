@@ -1,9 +1,11 @@
 # CONSTRAINT FILE FOR TARGET BOARD : ARTY S7-50 ONLY
 
-set_property PACKAGE_PIN M5 [get_ports cpu_reset]
-set_property IOSTANDARD LVCMOS18 [get_ports cpu_reset]
+# SW3
+set_property PACKAGE_PIN G18 [get_ports cpu_reset]
+set_property IOSTANDARD LVCMOS33 [get_ports cpu_reset]
 
-set_property PACKAGE_PIN G18 [get_ports axi_reset]
+# SW2     
+set_property PACKAGE_PIN H18 [get_ports axi_reset]
 set_property IOSTANDARD LVCMOS33 [get_ports axi_reset]
 
 # UART Constraints

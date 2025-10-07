@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#define LED_REG (*(volatile uint32_t*)0x20000)
+#define LED_REG (*(volatile uint32_t*)0x10000000)
 
 void delay(volatile uint32_t count) {
     while (count--) {

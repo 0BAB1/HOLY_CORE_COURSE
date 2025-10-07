@@ -306,6 +306,114 @@ set_property is_global_include true [get_files ./2_soc_software_edition/vendor/i
 set_property file_type "Verilog Header" [get_files ./2_soc_software_edition/vendor/include/prim_flop_macros.sv]
 set_property is_global_include true [get_files ./2_soc_software_edition/vendor/include/prim_flop_macros.sv]
 
+# ADD MIG FOR DDR
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:mig_7series:4.2 mig_7series_0
+apply_board_connection -board_interface "ddr3_sdram" -ip_intf "mig_7series_0/mig_ddr_interface" -diagram "design_1" 
+endgroup
+
+delete_bd_objs [get_bd_nets sys_clk_i_1] [get_bd_ports sys_clk_i]
+delete_bd_objs [get_bd_nets clk_ref_i_1] [get_bd_ports clk_ref_i]
+
+startgroup
+set_property -dict [list \
+  CONFIG.CLKOUT1_JITTER {754.542} \
+  CONFIG.CLKOUT1_PHASE_ERROR {613.025} \
+  CONFIG.CLKOUT2_JITTER {571.161} \
+  CONFIG.CLKOUT2_PHASE_ERROR {613.025} \
+  CONFIG.CLKOUT2_USED {true} \
+  CONFIG.CLKOUT3_JITTER {522.440} \
+  CONFIG.CLKOUT3_PHASE_ERROR {613.025} \
+  CONFIG.CLKOUT3_REQUESTED_OUT_FREQ {200.000} \
+  CONFIG.CLKOUT3_USED {true} \
+  CONFIG.CLK_OUT2_PORT {clk_100} \
+  CONFIG.CLK_OUT3_PORT {clk_200} \
+  CONFIG.MMCM_CLKFBOUT_MULT_F {50.000} \
+  CONFIG.MMCM_CLKOUT0_DIVIDE_F {24.000} \
+  CONFIG.MMCM_CLKOUT1_DIVIDE {6} \
+  CONFIG.MMCM_CLKOUT2_DIVIDE {3} \
+  CONFIG.NUM_OUT_CLKS {3} \
+] [get_bd_cells clk_wiz]
+endgroup
+connect_bd_net [get_bd_pins clk_wiz/clk_100] [get_bd_pins mig_7series_0/sys_clk_i]
+connect_bd_net [get_bd_pins mig_7series_0/clk_ref_i] [get_bd_pins clk_wiz/clk_200]
+
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {/mig_7series_0/ui_clk (81 MHz)} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/jtag_axi_0/M_AXI} Slave {/mig_7series_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins mig_7series_0/S_AXI]
+
+exec cp ./2_soc_software_edition/fpga/arty_S7/mig_HC.prj /tmp/HOLY_SOC/holy_soc_project.srcs/sources_1/bd/design_1/ip/design_1_mig_7series_0_0/mig_HC.prj
+set_property CONFIG.XML_INPUT_FILE ./mig_HC.prj [get_bd_cells mig_7series_0]
+set_property CONFIG.RESET_BOARD_INTERFACE {Custom} [get_bd_cells mig_7series_0]
+set_property CONFIG.MIG_DONT_TOUCH_PARAM {Custom} [get_bd_cells mig_7series_0]
+set_property CONFIG.BOARD_MIG_PARAM {ddr3_sdram} [get_bd_cells mig_7series_0]
+
+# temp addresses for testing TODO : get rid of that
+delete_bd_objs [get_bd_addr_segs top_0/m_axi/SEG_mig_7series_0_memaddr] [get_bd_addr_segs top_0/m_axi_lite/SEG_mig_7series_0_memaddr]
+set_property range 64K [get_bd_addr_segs {jtag_axi_0/Data/SEG_mig_7series_0_memaddr}]
+set_property offset 0x30000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_mig_7series_0_memaddr}]
+assign_bd_address -target_address_space /top_0/m_axi [get_bd_addr_segs mig_7series_0/memmap/memaddr] -force
+assign_bd_address -target_address_space /top_0/m_axi_lite [get_bd_addr_segs mig_7series_0/memmap/memaddr] -force
+
+# try to fix reset
+
+disconnect_bd_net /rst_clk_wiz_100M_peripheral_aresetn [get_bd_pins top_0/trst_ni]
+
+apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {reset ( System Reset ) } Manual_Source {Auto}}  [get_bd_pins mig_7series_0/sys_rst]
+delete_bd_objs [get_bd_ports axi_reset]
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 util_vector_logic_0
+endgroup
+set_property -dict [list \
+  CONFIG.C_OPERATION {not} \
+  CONFIG.C_SIZE {1} \
+] [get_bd_cells util_vector_logic_0]
+
+connect_bd_net [get_bd_ports reset] [get_bd_pins util_vector_logic_0/Op1]
+connect_bd_net [get_bd_pins util_vector_logic_0/Res] [get_bd_pins clk_wiz/reset]
+
+disconnect_bd_net /rst_clk_wiz_100M_peripheral_aresetn [get_bd_pins axi_smc/aresetn]
+connect_bd_net [get_bd_pins rst_clk_wiz_100M/interconnect_aresetn] [get_bd_pins axi_smc/aresetn]
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_1
+endgroup
+
+
+delete_bd_objs [get_bd_cells system_ila_1]
+startgroup
+set_property HDL_ATTRIBUTE.DEBUG false [get_bd_intf_nets { axi_uartlite_0_UART } ]
+endgroup
+
+# Use MIG to repalce BRAM
+
+# delete old BRAMS
+delete_bd_objs [get_bd_intf_nets axi_smc_M01_AXI] [get_bd_intf_nets axi_bram_ctrl_1_BRAM_PORTA] [get_bd_intf_nets axi_bram_ctrl_1_BRAM_PORTB] [get_bd_cells axi_bram_ctrl_1]
+delete_bd_objs [get_bd_intf_nets axi_smc_M00_AXI] [get_bd_intf_nets axi_bram_ctrl_0_BRAM_PORTA] [get_bd_intf_nets axi_bram_ctrl_0_BRAM_PORTB] [get_bd_cells axi_bram_ctrl_0]
+delete_bd_objs [get_bd_cells axi_bram_ctrl_0_bram]
+delete_bd_objs [get_bd_cells axi_bram_ctrl_1_bram]
+
+# rewire smart connect correctly
+set_property CONFIG.NUM_MI {3} [get_bd_cells axi_smc]
+delete_bd_objs [get_bd_intf_nets axi_smc_M03_AXI] [get_bd_intf_nets axi_smc_M04_AXI]
+endgroup
+connect_bd_intf_net [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins mig_7series_0/S_AXI]
+connect_bd_intf_net [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
+
+# set addresses
+delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs mig_7series_0/memmap/memaddr] -force
+set_property offset 0x0000000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_mig_7series_0_memaddr}]
+
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
+set_property offset 0x10000000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
+set_property range 32K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
+
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
+set_property range 32K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
+set_property offset 0x10008000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
+
+assign_bd_address
+
 # Validate + wrapper
 assign_bd_address
 validate_bd_design
