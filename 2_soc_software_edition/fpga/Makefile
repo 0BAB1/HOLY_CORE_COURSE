@@ -83,6 +83,8 @@ VERILOG_SOURCES += $(wildcard $(PWD)/../src/holy_plic/*.sv)
 VERILOG_SOURCES += $(wildcard $(PWD)/../src/holy_clint/*.sv)
 
 # top module
+VERILOG_SOURCES += $(PWD)/ROM/boot_rom.v
+VERILOG_SOURCES += $(PWD)/boot_rom.sv
 VERILOG_SOURCES += $(PWD)/holy_top.sv
 
 # includes

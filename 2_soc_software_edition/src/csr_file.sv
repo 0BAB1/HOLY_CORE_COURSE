@@ -307,7 +307,9 @@ always_comb begin : next_csr_value_logic
         // debugging, meaning we don't need "trigger module"
         // cause support.
 
-        if (debug_exception_detected) begin
+        if (breakpoint_detected) begin
+            next_dcsr[8:6] = 2;
+        end else if (debug_exception_detected) begin
             next_dcsr[8:6] = 1;
         end else if (0) begin 
             // TODO : reserved for future rest halt req support
@@ -434,6 +436,8 @@ end
 // Some CSRs have direct control over the core's behavior.
 // This logic block outputs control signals
 logic debug_exception_detected;
+logic breakpoint_detected;
+
 always_comb begin : control_assignments
     // Cache control logic
     flush_cache_flag        = flush_cache[0];
@@ -441,14 +445,17 @@ always_comb begin : control_assignments
     non_cachable_limit_addr = non_cachable_limit;
 
     // Debug logic
-    // We can goto debug once a trap has been handled !
+    // If a trap is being handled, we shall not enter debug mode yet.
+    // Exception in debug mode goto debug' excpetion handler.
+    // In debug mode, an expected ebreak (exc. cause = 3) will re-enter debug (not goto debug exception handler)
+    // If dscr's ebreak<m|u|s> is set (bits 12,13 or 15), the csr_file file flag this as a jump to debug as this is a GDB breakpoint outside debug mode.
+    //
+    // Note : i know the logic below is a mess but I had to tinker around, feel free to simplify but youll have to TEST debug features MANUALLY
+    // and back it up for the chages to ba accepted. 
+    debug_exception_detected = exception & debug_mode & ~stall;
+    breakpoint_detected = exception && dcsr[15:12] && (exception_cause == 31'd3) && ~debug_mode;
 
-    // an exception has been raised in debug mode.. watch out !
-    // an expected ebreak (exc. cause = 3) will jump back to park
-    // loop, not to exception address thus this intermediary logic.
-    debug_exception_detected = exception & debug_mode & ~stall; 
-
-    jump_to_debug = (~trap_taken & debug_req & ~debug_mode & ~stall) | (debug_exception_detected & (exception_cause == 31'd3)) | (single_step && ~debug_mode && ~stall);
+    jump_to_debug = (~trap_taken & debug_req & ~debug_mode & ~stall) | (debug_exception_detected & (exception_cause == 31'd3)) | (single_step && ~debug_mode && ~stall) | breakpoint_detected;
     jump_to_debug_exception = debug_exception_detected & (exception_cause != 31'd3);
 
     // Trap logic

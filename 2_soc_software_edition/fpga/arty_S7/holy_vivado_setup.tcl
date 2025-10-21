@@ -33,6 +33,8 @@ add_files -norecurse {
     ./2_soc_software_edition/src/load_store_decoder.sv
     ./2_soc_software_edition/src/csr_file.sv
     ./2_soc_software_edition/tb/holy_core/axi_if_convert.sv
+    ./2_soc_software_edition/fpga/boot_rom.sv
+    ./2_soc_software_edition/fpga/ROM/boot_rom.v
 }
 
 add_files [glob ./2_soc_software_edition/vendor/*.sv]
@@ -374,11 +376,6 @@ connect_bd_net [get_bd_pins util_vector_logic_0/Res] [get_bd_pins clk_wiz/reset]
 disconnect_bd_net /rst_clk_wiz_100M_peripheral_aresetn [get_bd_pins axi_smc/aresetn]
 connect_bd_net [get_bd_pins rst_clk_wiz_100M/interconnect_aresetn] [get_bd_pins axi_smc/aresetn]
 
-startgroup
-create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_1
-endgroup
-
-
 delete_bd_objs [get_bd_cells system_ila_1]
 startgroup
 set_property HDL_ATTRIBUTE.DEBUG false [get_bd_intf_nets { axi_uartlite_0_UART } ]
@@ -393,27 +390,29 @@ delete_bd_objs [get_bd_cells axi_bram_ctrl_0_bram]
 delete_bd_objs [get_bd_cells axi_bram_ctrl_1_bram]
 
 # rewire smart connect correctly
+startgroup
 set_property CONFIG.NUM_MI {3} [get_bd_cells axi_smc]
 delete_bd_objs [get_bd_intf_nets axi_smc_M03_AXI] [get_bd_intf_nets axi_smc_M04_AXI]
 endgroup
 connect_bd_intf_net [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins mig_7series_0/S_AXI]
 connect_bd_intf_net [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
-
-# set addresses
+# assign addresses
 delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
 assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs mig_7series_0/memmap/memaddr] -force
-set_property offset 0x0000000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_mig_7series_0_memaddr}]
-
-assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
-set_property offset 0x10000000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
-set_property range 32K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
-
 assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
-set_property range 32K [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
-set_property offset 0x10008000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
-
+set_property offset 0x10000000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
+assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
+set_property offset 0x10010000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0_Reg}]
 assign_bd_address
 
+# MISC
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_1
+endgroup
+connect_bd_net [get_bd_pins xlconstant_1/dout] [get_bd_pins top_0/trst_ni]
+regenerate_bd_layout
+
+assign_bd_address
 # Validate + wrapper
 assign_bd_address
 validate_bd_design

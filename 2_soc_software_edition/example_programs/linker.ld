@@ -2,7 +2,7 @@ ENTRY(_start)
 
 MEMORY
 {
-    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 256M
+    RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 256M
 }
 
 SECTIONS
@@ -24,10 +24,8 @@ SECTIONS
         *(.bss*)
         *(COMMON)
     } > RAM
-
-    /* STACK AT TOP OF RAM */
-    .stack (NOLOAD) : ALIGN(16) {
-        _stack_top = ORIGIN(RAM) + LENGTH(RAM);
-        _stack_bottom = _stack_top - 0x20000; /* 128KB stack */
-    } > RAM
 }
+
+/* Define stack symbols outside of sections */
+_stack_top    = ORIGIN(RAM) + LENGTH(RAM);
+_stack_bottom = _stack_top - 0x40000; /* 256 KB */

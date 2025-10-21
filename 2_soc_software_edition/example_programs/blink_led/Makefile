@@ -4,9 +4,9 @@ CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
 CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -Wall -Wextra -O2
-LDFLAGS = -T linker.ld -nostdlib
+LDFLAGS = -T ../linker.ld -nostdlib
 
-all: blink.bin blink.hex
+all: blink.bin blink.hex bootloader.tcl
 
 blink.elf: startup.o main.o
 	$(CC) $(LDFLAGS) -o $@ $^
@@ -25,6 +25,9 @@ blink.hex: blink.bin
 
 dump.txt: blink.elf
 	$(OBJDUMP) -D -M no-aliases blink.elf > dump.txt
+
+bootloader.tcl: blink.hex
+	python gen_bootloader.py
 
 clean:
 	rm -f *.o *.elf *.bin dump.txt *.hex

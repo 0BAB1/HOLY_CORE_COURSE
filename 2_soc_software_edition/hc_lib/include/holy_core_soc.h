@@ -11,10 +11,10 @@
 #include <stdint.h>
 
 // GPIO
-#define GPIO_BASE 0x10000000
+#define GPIO_BASE 0x10010000
 
 // UART
-#define UART_BASE 0x10008000
+#define UART_BASE 0x10000000
 #define RX_FIFO (*(volatile uint8_t *)(UART_BASE + 0x0))
 #define TX_REG (*(volatile uint8_t *)(UART_BASE + 0x4))
 #define UART_STATUS (*(volatile uint32_t *)(UART_BASE + 0x8))
@@ -38,7 +38,7 @@
 // TODO ..
 
 // PLIC
-#define PLIC_BASE 0x80000000
+#define PLIC_BASE 0x90000000
 #define PLIC_ENABLE (*(volatile uint32_t *)(PLIC_BASE + 0x0))
 #define PLIC_CLAIM (*(volatile uint32_t *)(PLIC_BASE + 0x4))
 

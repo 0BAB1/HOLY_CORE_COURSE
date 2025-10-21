@@ -107,11 +107,16 @@ always_comb begin
                 // if not, an exeption is thrown.
                 case (func3)
                     F3_WORD: begin
-                        exception = ~alu_aligned_addr.word_aligned;
+                        // && ~stall introduced to avoid rasing exception when
+                        // loading into rd when rd == rs and stalling immediatly.
+                        // as rd will change to some unaligned stuff and because we
+                        // stall, jump instr stays fetched making the alu result
+                        // unaligned and raising exception.
+                        exception = ~alu_aligned_addr.word_aligned && ~stall;
                         exception_cause = exception ? 31'd4 : exception_cause;
                     end
                     F3_HALFWORD, F3_HALFWORD_U: begin
-                        exception = ~alu_aligned_addr.halfword_aligned;
+                        exception = ~alu_aligned_addr.halfword_aligned && ~stall;
                         exception_cause = exception ? 31'd4 : exception_cause;
                     end
                     F3_BYTE, F3_BYTE_U: begin

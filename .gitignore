@@ -33,3 +33,4 @@ venv
 output/
 test.D
 .vscode
+bootloader.tcl

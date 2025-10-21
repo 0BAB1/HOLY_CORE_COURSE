@@ -38,23 +38,31 @@ async def inst_clocks(dut):
 @cocotb.test()
 async def cpu_insrt_test(dut):
     await inst_clocks(dut)
-    
-    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
-    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=1028, reset_active_level=False)
+
+    axi_ram_slave = AxiRam(AxiBus.from_prefix(dut, "m_axi"), dut.clk, dut.rst_n, size=0x90000000, reset_active_level=False)
+    axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=0x90000000, reset_active_level=False)
 
     await cpu_reset(dut)
 
-    axi_ram_slave.write(0,int.to_bytes(0x000000ef, 4, byteorder='little'))
-    axi_lite_ram_slave.write(0,int.to_bytes(0x000000ef, 4, byteorder='little'))
+    axi_ram_slave.write(0x800006ec,int.to_bytes(0x1, 4, byteorder='little'))
+    axi_lite_ram_slave.write(0x800006ec,int.to_bytes(0x1, 4, byteorder='little'))
 
     while dut.core.stall.value == 1:
         await RisingEdge(dut.clk)
     
-    await RisingEdge(dut.clk)
+    # wait a bit to check ROM behavior
+    for _ in range(15000):
+        await RisingEdge(dut.clk)
 
-
+    # send a debug req to verify the core can enter debug mode.
     dut.tb_debug_req.value = 1
     await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+
     await Timer(1, units="ns")
     dut.tb_debug_req.value = 0
 

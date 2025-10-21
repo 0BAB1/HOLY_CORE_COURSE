@@ -3,8 +3,8 @@
 CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
-CFLAGS = -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -g -I../../hc_lib/include
-LDFLAGS = -T linker.ld -nostdlib -g
+CFLAGS = -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -I../../hc_lib/include
+LDFLAGS = -T ../linker.ld -nostdlib
 
 all: pong.bin pong.hex dump.txt bootloader.tcl
 

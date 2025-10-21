@@ -125,6 +125,8 @@ axi_if m_axi();
 axi_lite_if m_axi_lite();
 AXI_LITE #(32,32) m_axi_lite_xbar_in [MST_NB-1:0] ();
 AXI_LITE #(32,32) m_axi_lite_xbar_out [SLV_NB-1:0] ();
+// AXIL CROSSBAR <=> BOOT ROM
+axi_lite_if axi_lite_boot_rom();
 // AXIL CROSSBAR <=> PLIC
 axi_lite_if axi_lite_plic();
 // AXIL CROSSBAR <=> CLINT
@@ -196,7 +198,7 @@ hc_axil_pulp_axil_passthrough hc_to_xbar(
 // Cofig docs
 // https://github.com/pulp-platform/axi/blob/master/doc/axi_lite_xbar.md
 
-localparam SLV_NB = 4;
+localparam SLV_NB = 5;
 localparam MST_NB = 2;
 
 localparam xbar_cfg_t Cfg = '{
@@ -212,16 +214,21 @@ localparam xbar_cfg_t Cfg = '{
     UniqueIds: 1'b0,
     AxiAddrWidth: 32,
     AxiDataWidth: 32,
-    NoAddrRules: 4
+    NoAddrRules: 6
 };
 
 // defined in vendor/axi/src/axi_pkg.sv
 axi_pkg::xbar_rule_32_t [Cfg.NoAddrRules-1:0] addr_map;
 
-// EXTERNAL REQUESTS (RAM)
-assign addr_map[0].idx = 0;
+// BOOT ROM
+assign addr_map[0].idx = 4;
 assign addr_map[0].start_addr = 32'h0;
-assign addr_map[0].end_addr = 32'h2FFFFFFF;
+assign addr_map[0].end_addr = 32'h0FFFFFFF;
+
+// EXTERNAL REQUESTS (peripherals)
+assign addr_map[5].idx = 0;
+assign addr_map[5].start_addr = 32'h10000000;
+assign addr_map[5].end_addr = 32'h2FFFFFFF;
 
 // DEBUG MODULE
 assign addr_map[3].idx = 3;
@@ -233,9 +240,14 @@ assign addr_map[1].idx = 1;
 assign addr_map[1].start_addr = 32'h40000000;
 assign addr_map[1].end_addr = 32'h7FFFFFFF;
 
+// EXTERNAL REQUESTS (RAM)
+assign addr_map[4].idx = 0;
+assign addr_map[4].start_addr = 32'h80000000;
+assign addr_map[4].end_addr = 32'h8FFFFFFF;
+
 // PLIC
 assign addr_map[2].idx = 2;
-assign addr_map[2].start_addr = 32'h80000000;
+assign addr_map[2].start_addr = 32'h90000000;
 assign addr_map[2].end_addr = 32'hFFFFFFFF;
 
 
@@ -254,6 +266,23 @@ axi_lite_xbar_intf #(
 );
 
 //=======================
+// HOLY BOOT ROM (LITE SLAVE)
+//=======================
+
+pulp_axil_hc_axil_passthrough boot_conv(
+    .in_if(m_axi_lite_xbar_out[4]),
+    .out_if(axi_lite_boot_rom)
+);
+
+holy_boot_rom #(
+    .BASE_ADDR(0)
+) boot_rom (
+    .clk(clk),
+    .rst_n(periph_rst_n),
+    .axi(axi_lite_boot_rom)
+);
+
+//=======================
 // HOLY PLIC (LITE SLAVE)
 //=======================
 
@@ -261,7 +290,7 @@ logic ext_irq;
 
 holy_plic #(
     .NUM_IRQS (NUM_IRQS),
-    .BASE_ADDR('h80000000)
+    .BASE_ADDR('h90000000)
 ) plic (
     .clk        (clk),
     .rst_n      (periph_rst_n),
@@ -358,7 +387,7 @@ dm_top #(
     // .device_rdata_o(dbg_device_rdata),
     .device_req_i  (mem_req),
     .device_we_i   (mem_we),
-    .device_addr_i (mem_addr & 32'h0FFFFFFF),
+    .device_addr_i (mem_addr),
     .device_be_i   (mem_strb),
     .device_wdata_i(mem_wdata),
     .device_rdata_o(mem_rdata),
