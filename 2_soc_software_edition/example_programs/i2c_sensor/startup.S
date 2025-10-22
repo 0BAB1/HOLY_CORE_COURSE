@@ -11,8 +11,3 @@ _start:
     csrrw x0, 0x7C2, x7   # MMIO limit
     call main             // Call main
     j .                   // Infinite loop if main returns
-
-.section .bss
-_stack_bottom:
-    .space 0x200          // 256B stack
-_stack_top:
