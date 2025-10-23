@@ -105,7 +105,7 @@ module holy_test_harness (
     output logic                     m_axi_rready,
 
     //===================================
-    // TOP AXI FULL Interface
+    // TOP AXI LITE Interface
     // (for cocotb simulated components)
     // AXIL CROSSBAR <=> COCOTB RAM
     //===================================
@@ -181,10 +181,19 @@ axi_lite_if axi_lite_clint();
 holy_core #(
     .DCACHE_EN(0)
 ) core(
-    // these are set in sim
-    // by loading the adres in ASM
-    // into t0 (x5) and t1 and by directly
-    // setting it using cocotb
+    // Debug module's adresses
+    // In the Testbench, these addresses are so piece of ASM
+    // we added to emulate debug module ROM with some know labels,
+    // not the actual debug module.
+    //
+    // Because we don't know the emulated debug addresses until program
+    // is compiled, these are set in simulation by loading the adres in ASM
+    // into t0 (x5) and t1 and by directly using a cocotb handle to grab it
+    // and hardwire thes to the correct address before the test.
+    //
+    // In an actual SoC, these input would be hardwired to the known
+    // debug module's ROM adresses.
+    //
     // .DEBUG_HALT_ADDR(0),
     // .DEBUG_EXCEPTION_ADDR(0),
 

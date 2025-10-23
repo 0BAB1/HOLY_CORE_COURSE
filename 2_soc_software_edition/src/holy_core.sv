@@ -6,6 +6,7 @@
 * Description: Holy_core cpu top module.
 *              A simple core to solve simple problems. Thus the holyness ;)
 *              This top module may need wrappers to be implemented in SoCs.
+*
 *              "Yea, though I walk through the valley of the shadow of death
 *              I will fear no evil: for thou art with me;
 *              thy rod and thy staff they comfort me."
