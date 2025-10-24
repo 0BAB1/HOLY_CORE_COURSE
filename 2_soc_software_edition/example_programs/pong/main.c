@@ -1,3 +1,12 @@
+/*  Pong program
+*
+*   Leverages interruts to get UART input
+*   
+*   Example game for the HOLY CORE SoC
+*
+*   BRH 10/25
+*/
+
 #include <stdint.h>
 #include "holycore.h"
 #include "holy_core_soc.h"

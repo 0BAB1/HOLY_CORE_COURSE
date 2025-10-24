@@ -985,14 +985,10 @@ async def cpu_insrt_test(dut):
     # EXTERNAL INTERRUPT TEST
     #################
 
-    # in this scerio, we will imagine a simple peripheral
-    # that latches an interrupt until the CPU enters its hadler
-    # and we'll deassert the said interrupt when the CPU executes
-    # a NOP. The NOP is a placeholder here that replaces a sequance
-    # that interacts with the peripheral (e.g. reading a sensor's
-    # register via I2C to retrieve its data in memeory). We do this
-    # because we do not simulate any *actual* SoC Level / PCB Level
-    # peripheral in this testbench.
+    # In this scerio, we will emulate a simple peripheral
+    # that latches an interrupt until the CPU enters its handler
+    # and we'll de-assert the said interrupt req when the CPU executes
+    # a specific signal : a simple NOP in the trap handler.
 
     # Wait for previous mret to finish (instr cache may be pulling data)
     while binary_to_hex(dut.core.instruction.value) == "30200073":
