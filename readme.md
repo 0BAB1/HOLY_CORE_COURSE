@@ -1,22 +1,108 @@
 # HOLY CORE COURSE PROJECT
 
-![waveform banner](./banner.png)
+![banner](banner.png)
 
 An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailed tutorials as a reference.
 
 RISC-V is open source, but the digital design field is more about giving headaches than real solutions. Engineers **LOVE** making everything overcomplicated. This course aims at showing than anyone can do it, with just some will power, patience and an FPGA.
 
+"For God is not a God of confusion but of peace."
+— 1 Corinthians 14:33
+
+> [!TIP]
+> If you are **NEW** and want to **start learning** now, scroll down to the "**Prerequisites**" and "**The tutorials (WHERE DO I START)**" sections.
+
+## Quickstart
+
+### Simulation
+
+You can run a pre-made simulation of the holy core running using the following open-source stack:
+
+- Cocotb
+- Verilator
+- GtkWave for waveforms
+
+That's it ! there is not container for tesbenches yet, you'll have to install these tools. More details in [the setup guide](./setup.md).
+
+To run the core a a test program of you choice (in assembly) go in `./2_soc_software_edition/fpga` and run `make`. This will run a simulation running the init boot ROM on the *HOLY_CORE*.
+
+To modify the boot ROM, go in `2_soc_software_edition/fpga/ROM/rom.S` and write your program there.
+
+Once your proram is written, run `make` in the `ROM/` folder in order to generate a hardcoded verilog ROM of you prgram. You can the `cd` back to `./2_soc_software_edition/fpga` and run `make` again to simulate it.
+
+> [!NOTE]
+> To run the basic testbenches used during the design process as a quick reference, go in `<edition>/tb` and run `pytest test_runner.py`, this will run all the quick refence tesbenches on each module, including a simple *HOLY CORE* test harness with a simple test program.
+
+> [!NOTE]
+> To verify the core, go in `./2_soc_software_edition/riscof` where more details await. A docker container is available for quick setup.
+
+### FPGA
+
+The only supported way to build a bitstream is Vivado (for now). The *HOLY CORE* examples SoC & Software also rely on the Xilinx block design & IP to function on FPGA.
+
+> The `2_soc_software_edition/fpga/holy_top` module contains all you need for the core to functions, vivado is only used to add some peripherals, e.g. UART. You are welcome to add you own SoCs in `fpga/<your_platform_of_choice>`
+
+Here are the supported boards for now:
+
+| **Board** | **Status**      |
+| --------- | --------------- |
+| Zybo Z720 | ⚠️ Needs update |
+| Basys3    | ⚠️ Needs update |
+| Arty S7   | ✅ All good      |
+
+Go in `2_soc_software_edition/fpga/`, select your board folder and run (for example, with the artyS7-50 board):
+
+```sh
+vivado -source 2_soc_software_edition/fpga/arty_S7/holy_vivado_setup.tcl
+```
+
+It will create the block design start making the bitstream right aways. One it's done, flash the FPGA, press `reset` on the board (peripherals reset) and release CPU reset (which is `SW2` on the arty, refer to the constraints file for different boards).
+
+The core will start at PC = 0x0, where the ROM will start being executed. By default, it simply blinks an LED in an infinite loop.
+
+To load more complex program, either modify the ROM (via the same technique as in the Simulation quickstart above) or open a terminal and run:
+
+```sh
+openocd -f ./2_soc_software_edition/fpga/arty_S7/holy_core_openocd.cfg 
+```
+
+> **Note:** you need a USB-JTAG dongle to do perform this. I use the HS2 rev. A. from Digilent. If you don't have it or a different one, open an issue so we can make a cfg file toghether for your use case.
+
+Then, you'll be able to use **gdb** to debug, allowing you to load a different program (mist link at base adress 0x80000000). You can directly load an example program to ttest it out:
+
+```sh
+riscv64-unknown-elf-gdb ./2_soc_software_edition/example_programs/ping_pong/ping_pong.elf
+
+(gdb)target remote :3333
+
+Remote debugging using :3333
+0x800004a4 in main ()
+
+(gdb) load
+
+Loading section .text, size 0x72c lma 0x80000000
+Loading section .rodata, size 0x10f lma 0x8000072c
+Loading section .rodata.str1.4, size 0x3 lma 0x8000083c
+Start address 0x80000000, load size 2110
+Transfer rate: 294 KB/sec, 703 bytes/write.
+
+(gdb) c
+Continuing.
+```
+
+And voila ! your program running on the *HOLY CORE*. You can also use GDB extensively to debug your program if needed.
+
+![interrupt based sell test program](./images/holy_shell.png)
+
 ## Features
 
 This project is a course you can follow to build the HOLY CORE and everything that comes with it, and the final product of your work will feature :
 
-- A single cycle RV32I (holy) Core
-- A fully customizable cache system
-  - AXI for large transers and "local" computations (memory accesses)
-  - AXI LITE for non cachable MMIO interaction (Sensors, UART, ...)
-  - MMIO address range fully customizable during runtime using CSRs
-- Usable in FPGA SoC for basic emnbedded applications
-- You will also find sofware examples to play with it !
+- A single cycle RV32I Zicsr (holy) Core
+- Privileged specs support (Interrupts & Exceptions)
+- A customizable cache system
+- OpenOCD Debug Support
+- Comes with software exampes
 
 > You will find quickstart guides in the code case to help you out using the core without having to build it from scratch.
 
