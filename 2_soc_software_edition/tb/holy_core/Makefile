@@ -91,12 +91,12 @@ OUT_BIN     := test.bin
 OUT_HEX     := test.hex
 OUT_DIS     := test.D
 
-CFLAGS  := -march=$(ARCH) -mabi=$(ABI) -static -mcmodel=medany \
-           -fvisibility=hidden -nostdlib -nostartfiles -g
+CFLAGS  := -march=$(ARCH) -mabi=$(ABI) -Ttext=0x0 -static -mcmodel=medany \
+           -fvisibility=hidden -nostdlib -nostartfiles -g 
 
 # === HEX generation ===
 $(OUT_ELF): $(SRC)
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) -Ttext=0x0 $(CFLAGS) $< -o $@
 
 $(OUT_BIN): $(OUT_ELF)
 	$(OBJCOPY) -O binary --gap-fill=0x00 $< $@
