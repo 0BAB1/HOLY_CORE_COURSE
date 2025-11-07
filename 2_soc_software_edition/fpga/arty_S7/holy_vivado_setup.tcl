@@ -412,6 +412,31 @@ endgroup
 connect_bd_net [get_bd_pins xlconstant_1/dout] [get_bd_pins top_0/trst_ni]
 regenerate_bd_layout
 
+# Add I2C + set higher baud rate for UART
+
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_iic:2.1 axi_iic_0
+endgroup
+set_property location {7 2372 305} [get_bd_cells axi_iic_0]
+startgroup
+apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {i2c ( I2C on J3 ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_iic_0/IIC]
+endgroup
+delete_bd_objs [get_bd_nets xlconstant_0_dout]
+delete_bd_objs [get_bd_cells xlconstant_0]
+connect_bd_net [get_bd_pins axi_iic_0/iic2intc_irpt] [get_bd_pins xlconcat_0/In0]
+startgroup
+endgroup
+startgroup
+set_property CONFIG.C_BAUDRATE {128000} [get_bd_cells axi_uartlite_0]
+endgroup
+validate_bd_design
+
+validate_bd_design: Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 11454.328 ; gain = 0.000 ; free physical = 16136 ; free virtual = 24026
+set_property offset 0x10020000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_iic_0_Reg}]
+delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
+undo
+delete_bd_objs [get_bd_addr_segs top_0/m_axi_lite/SEG_axi_iic_0_Reg] [get_bd_addr_segs top_0/m_axi/SEG_axi_iic_0_Reg]
+assign_bd_address
+
 assign_bd_address
 # Validate + wrapper
 assign_bd_address

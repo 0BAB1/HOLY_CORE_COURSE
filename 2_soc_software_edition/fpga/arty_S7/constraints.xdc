@@ -4,7 +4,7 @@
 set_property PACKAGE_PIN G18 [get_ports cpu_reset]
 set_property IOSTANDARD LVCMOS33 [get_ports cpu_reset]
 
-# SW2     
+# SW2
 set_property PACKAGE_PIN H18 [get_ports axi_reset]
 set_property IOSTANDARD LVCMOS33 [get_ports axi_reset]
 
@@ -41,11 +41,18 @@ set_property IOSTANDARD LVCMOS33 [get_ports tck_i_0]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0_IBUF]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0]
 
-#set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets \
-#  design_1_i/top_0/inst/wrapped/debug_mem_conv/i_axi_to_mem/i_axi_to_detailed_mem/i_mem_to_banks/gen_resp_regs[0].i_ft_reg/fifo_i/gen_buf.cnt_q_reg[1] ]
+#set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets #  design_1_i/top_0/inst/wrapped/debug_mem_conv/i_axi_to_mem/i_axi_to_detailed_mem/i_mem_to_banks/gen_resp_regs[0].i_ft_reg/fifo_i/gen_buf.cnt_q_reg[1] ]
 
-set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets {design_1_i/top_0/inst/wrapped/core/gen_data_no_cache.data_no_cache/d_cache_stall}]
+set_property ALLOW_COMBINATORIAL_LOOPS true [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_no_cache.data_no_cache/d_cache_stall]
 
 set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_no_cache.data_no_cache/d_cache_stall_INST_0_i_1_n_0]
 
 set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_no_cache.data_no_cache/stall]
+
+set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
+set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
+set_property CONFIG_MODE SPIx4 [current_design]
+set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
+set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
+set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
+connect_debug_port dbg_hub/clk [get_nets clk]
