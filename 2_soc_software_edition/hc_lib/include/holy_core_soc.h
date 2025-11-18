@@ -28,7 +28,6 @@
 #define I2C_TX_FIFO (*(volatile uint32_t *)(I2C_BASE + 0x108))
 #define I2C_RX_FIFO (*(volatile uint32_t *)(I2C_BASE + 0x10C))
 #define I2C_RX_FIFO_PIRQ (*(volatile uint32_t *)(I2C_BASE + 0x120))
-#define I2C_RX_FIFO_OCY (*(volatile uint32_t *)(I2C_BASE + 0x118))
 
 // CLINT
 // TODO ..

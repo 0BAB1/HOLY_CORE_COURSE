@@ -18,31 +18,13 @@ void uart_puts(const char *s) {
 }
 
 void uart_putdec(int val) {
-    // assumes 0 <= val < 10000
-    int thousands = 0, hundreds = 0, tens = 0;
-
-    // extract thousands
-    while (val >= 1000) {
-        val -= 1000;
-        thousands++;
-    }
-    if (thousands) uart_putchar('0' + thousands);
-
-    // extract hundreds
-    while (val >= 100) {
-        val -= 100;
-        hundreds++;
-    }
-    if (thousands || hundreds) uart_putchar('0' + hundreds);
-
-    // extract tens
+    // assumes 0 <= val < 100
+    int tens = 0;
     while (val >= 10) {
         val -= 10;
         tens++;
     }
-    if (thousands || hundreds || tens) uart_putchar('0' + tens);
-
-    // units
+    if (tens) uart_putchar('0' + tens);
     uart_putchar('0' + val);
 }
 

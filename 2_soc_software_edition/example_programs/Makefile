@@ -4,6 +4,7 @@ OBJDUMP = riscv32-unknown-elf-objdump
 
 # Compilation flags
 CFLAGS = -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -I../hc_lib/include
+LDFLAGS = -T ./linker.ld -nostdlib -L ../hc_lib -lholycore
 
 # ===== User specifies app directory =====
 # Usage: make APP=app1

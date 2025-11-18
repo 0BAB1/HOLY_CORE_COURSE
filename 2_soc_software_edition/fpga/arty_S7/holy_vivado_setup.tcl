@@ -412,9 +412,8 @@ endgroup
 connect_bd_net [get_bd_pins xlconstant_1/dout] [get_bd_pins top_0/trst_ni]
 regenerate_bd_layout
 
-# Add I2C
+# Add I2C + set higher baud rate for UART
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_iic:2.1 axi_iic_0
 endgroup
 set_property location {7 2372 305} [get_bd_cells axi_iic_0]
@@ -424,11 +423,14 @@ endgroup
 delete_bd_objs [get_bd_nets xlconstant_0_dout]
 delete_bd_objs [get_bd_cells xlconstant_0]
 connect_bd_net [get_bd_pins axi_iic_0/iic2intc_irpt] [get_bd_pins xlconcat_0/In0]
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_iic_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_iic_0/S_AXI]
 startgroup
+endgroup
+startgroup
+set_property CONFIG.C_BAUDRATE {128000} [get_bd_cells axi_uartlite_0]
 endgroup
 validate_bd_design
 
+validate_bd_design: Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 11454.328 ; gain = 0.000 ; free physical = 16136 ; free virtual = 24026
 set_property offset 0x10020000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_iic_0_Reg}]
 delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
 undo
@@ -436,7 +438,6 @@ delete_bd_objs [get_bd_addr_segs top_0/m_axi_lite/SEG_axi_iic_0_Reg] [get_bd_add
 assign_bd_address
 
 assign_bd_address
-
 # Validate + wrapper
 assign_bd_address
 validate_bd_design
@@ -449,7 +450,3 @@ update_compile_order -fileset sources_1
 
 # generate synth, inmpl & bitstream
 launch_runs impl_1 -to_step write_bitstream -jobs 6
-
-# add possibility to rerun for QSPI programming
-set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true [get_runs impl_1]
-# then : https://digilent.com/reference/learn/programmable-logic/tutorials/arty-programming-guide/start?_gl=1*1mfn70s*_gcl_au*MTQyNTExNTMyMi4xNzU3MzIwNjM3*_ga*MTcwNDc1MzE2Mi4xNzU2ODAyNTU0*_ga_35QL6YVFN1*czE3NjM0NTQzMzckbzgkZzAkdDE3NjM0NTQzMzckajYwJGwwJGgxNTgyOTk1NzE1
