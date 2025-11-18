@@ -15,6 +15,8 @@
  * GNU General Public License for more details.
  */
 
+// BRH modified 11/12 : adapted for HOLY CORE port
+
 #include <stdint.h>
 
 #include "config.h"

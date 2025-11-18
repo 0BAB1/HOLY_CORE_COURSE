@@ -17,6 +17,7 @@
  * GNU General Public License for more details.
  */
 
+// BRH modified 11/12 : adapted for HOLY CORE port
 
 #include <errno.h>
 #include <stdio.h>

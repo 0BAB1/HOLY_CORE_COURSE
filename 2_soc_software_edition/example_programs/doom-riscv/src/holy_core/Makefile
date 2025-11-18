@@ -1,3 +1,5 @@
+# BRH 11/12 : Makefile for HOLY CORE port
+
 CROSS ?= riscv32-unknown-elf-
 
 CC = $(CROSS)gcc
