@@ -61,9 +61,8 @@ module holy_data_cache #(
 
     // CACHE TABLE DECLARATION
     logic [CACHE_SIZE-1:0][31:0]    cache_data;
-    logic [31:9]                    cache_block_tag; // direct mapped cache so only one block, only one tag
-    logic                           cache_valid;  // is the current block valid ?
-    logic                           next_cache_valid;
+    logic [31:9]                    cache_block_tag;    // direct mapped cache so only one block, only one tag
+    logic                           cache_valid, next_cache_valid;        // is the current block valid ?
     logic                           cache_dirty;
     // register to retain info on wether we are writing back because of miss or because of CSR order
     logic                           csr_flushing, next_csr_flushing;
@@ -103,7 +102,7 @@ module holy_data_cache #(
     assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done;
 
     // Instruction valid flagging
-    assign instr_valid = non_cachable ? ~cache_stall : cache_valid;
+    assign instr_valid = non_cachable ? ~cache_stall : (cache_valid && next_cache_valid);
 
     // =======================
     // CACHE LOGIC
@@ -162,7 +161,7 @@ module holy_data_cache #(
     always_comb begin
         // State transition 
         next_state = state; // Default
-        next_cache_valid =  cache_valid;
+        next_cache_valid =  hit ? cache_valid : 0; // cache is valid as long as we hit
         next_axi_lite_tx_done = axi_lite_tx_done;
         next_axi_lite_cached_addr = axi_lite_cached_addr;
 
