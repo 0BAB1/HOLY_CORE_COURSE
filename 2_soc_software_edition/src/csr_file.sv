@@ -55,8 +55,10 @@ module csr_file (
     // OUT CSR SIGNALS
     // Custom cache control
     output logic flush_cache_flag,
-    output logic [31:0]  non_cachable_base_addr,
-    output logic [31:0]  non_cachable_limit_addr,
+    output logic [31:0]  data_non_cachable_base_o,
+    output logic [31:0]  data_non_cachable_limit_o,
+    output logic [31:0]  instr_non_cachable_base_o,
+    output logic [31:0]  instr_non_cachable_limit_o,
 
     // Trap handling
     output logic trap,
@@ -104,9 +106,11 @@ logic [31:0] dscratch0, next_dscratch0;         // 0x7b2
 logic [31:0] dscratch1, next_dscratch1;         // 0x7b2
 
 // Custom CSRs to controle cache behavior (if cache is enabled)
-logic [31:0] flush_cache, next_flush_cache;                 // 0x7C0
-logic [31:0] non_cachable_base, next_non_cachable_base;     // 0x7C1
-logic [31:0] non_cachable_limit, next_non_cachable_limit;   // 0x7C2
+logic [31:0] flush_cache, next_flush_cache;                           // 0x7C0
+logic [31:0] data_non_cachable_base, next_data_non_cachable_base;     // 0x7C1
+logic [31:0] data_non_cachable_limit, next_data_non_cachable_limit;   // 0x7C2
+logic [31:0] instr_non_cachable_base, next_instr_non_cachable_base;     // 0x7C3
+logic [31:0] instr_non_cachable_limit, next_instr_non_cachable_limit;   // 0x7C4
 
 // trap_taken state register
 logic trap_taken; // 1 if currently handling a trap
@@ -118,8 +122,12 @@ always_ff @(posedge clk) begin
     if(~rst_n) begin
         // Customs
         flush_cache         <= 32'd0;
-        non_cachable_base   <= 32'd0;
-        non_cachable_limit  <= 32'd0;
+        // nothing is cacheble by default
+        data_non_cachable_base      <= 32'd0;
+        data_non_cachable_limit     <= 32'hFFFFFFFF;
+        instr_non_cachable_base     <= 32'd0;
+        instr_non_cachable_limit    <= 32'hFFFFFFFF;
+
         // Trap handling
         mstatus             <= 32'h00001800;
         mie                 <= 32'd0;
@@ -133,17 +141,19 @@ always_ff @(posedge clk) begin
         // Debug
         dcsr                <= 32'd0;
         dpc                 <= 32'd0;
-        dscratch0         <= 32'd0;
-        dscratch1         <= 32'd0;
+        dscratch0           <= 32'd0;
+        dscratch1           <= 32'd0;
         debug_mode          <= 1'b0;
         // Indicators
         trap_taken          <= 1'b0;
     end
     else begin
         // Customs
-        flush_cache         <= next_flush_cache;
-        non_cachable_base   <= next_non_cachable_base;
-        non_cachable_limit  <= next_non_cachable_limit;
+        flush_cache                 <= next_flush_cache;
+        data_non_cachable_base      <= next_data_non_cachable_base;
+        data_non_cachable_limit     <= next_data_non_cachable_limit;
+        instr_non_cachable_base     <= next_instr_non_cachable_base;
+        instr_non_cachable_limit    <= next_instr_non_cachable_limit;
         // Trap handling
         mstatus             <= next_mstatus;
         mie                 <= next_mie;
@@ -368,14 +378,24 @@ always_comb begin : next_csr_value_logic
     // ----------------------------
     // cachable base and limit CSR
 
-    next_non_cachable_base = non_cachable_base;
+    next_data_non_cachable_base = data_non_cachable_base;
     if (~stall && write_enable && (address == 12'h7C1)) begin
-        next_non_cachable_base = write_back_to_csr;
+        next_data_non_cachable_base = write_back_to_csr;
     end
 
-    next_non_cachable_limit = non_cachable_limit;
+    next_data_non_cachable_limit = data_non_cachable_limit;
     if (~stall && write_enable && (address == 12'h7C2)) begin
-        next_non_cachable_limit = write_back_to_csr;
+        next_data_non_cachable_limit = write_back_to_csr;
+    end
+
+    next_instr_non_cachable_base = instr_non_cachable_base;
+    if (~stall && write_enable && (address == 12'h7C3)) begin
+        next_instr_non_cachable_base = write_back_to_csr;
+    end
+
+    next_instr_non_cachable_limit = instr_non_cachable_limit;
+    if (~stall && write_enable && (address == 12'h7C4)) begin
+        next_instr_non_cachable_limit = write_back_to_csr;
     end
 end
 
@@ -395,8 +415,10 @@ always_comb begin : csr_read_logic
 
         // Custom CSRs read out
         12'h7C0: read_data = flush_cache;
-        12'h7C1: read_data = non_cachable_base;
-        12'h7C2: read_data = non_cachable_limit;
+        12'h7C1: read_data = data_non_cachable_base;
+        12'h7C2: read_data = data_non_cachable_limit;
+        12'h7C3: read_data = instr_non_cachable_base;
+        12'h7C4: read_data = instr_non_cachable_limit;
 
         // Debug CSRs readout
         12'h7B0: read_data = dcsr;
@@ -441,8 +463,12 @@ logic breakpoint_detected;
 always_comb begin : control_assignments
     // Cache control logic
     flush_cache_flag        = flush_cache[0];
-    non_cachable_base_addr  = non_cachable_base;
-    non_cachable_limit_addr = non_cachable_limit;
+    // data caching ranges
+    data_non_cachable_base_o = data_non_cachable_base;
+    data_non_cachable_limit_o = data_non_cachable_limit;
+    // instr caching ranges
+    instr_non_cachable_base_o = instr_non_cachable_base;
+    instr_non_cachable_limit_o = instr_non_cachable_limit;
 
     // Debug logic
     // If a trap is being handled, we shall not enter debug mode yet.
@@ -453,7 +479,7 @@ always_comb begin : control_assignments
     // Note : i know the logic below is a mess but I had to tinker around, feel free to simplify but youll have to TEST debug features MANUALLY
     // and back it up for the chages to ba accepted. 
     debug_exception_detected = exception & debug_mode & ~stall;
-    breakpoint_detected = exception && dcsr[15:12] && (exception_cause == 31'd3) && ~debug_mode;
+    breakpoint_detected = exception && |(dcsr[15:12]) && (exception_cause == 31'd3) && ~debug_mode;
 
     jump_to_debug = (~trap_taken & debug_req & ~debug_mode & ~stall) | (debug_exception_detected & (exception_cause == 31'd3)) | (single_step && ~debug_mode && ~stall) | breakpoint_detected;
     jump_to_debug_exception = debug_exception_detected & (exception_cause != 31'd3);

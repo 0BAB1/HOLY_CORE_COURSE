@@ -41,9 +41,11 @@ char console_getchar(void) {
 }
 
 int console_getchar_nowait(void) {
-  int32_t rx = RX_FIFO;
-  int32_t c = TX_REG;
-  return (rx & 0x100) ? (c & 0xff) : -1;
+  int32_t c = RX_FIFO;
+  // holy core : we get uart RX status as well
+  // to check if he char is valid
+  int32_t status = UART_STATUS;
+  return (status & (1 << 0)) ? (c & 0xff) : -1;
 }
 
 void console_puts(const char *p) {

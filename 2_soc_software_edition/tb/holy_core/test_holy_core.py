@@ -1082,12 +1082,12 @@ async def cpu_insrt_test(dut):
         assert dut.core.holy_csr_file.debug_mode.value == 1
         await RisingEdge(dut.clk)
 
+    assert dut.core.holy_csr_file.dscratch0.value == 1
+
     await RisingEdge(dut.clk)
     assert dut.core.holy_csr_file.dpc.value == pc_save
     assert dut.core.holy_csr_file.debug_mode.value == 0
     dut.core.debug_req.value = 0
-
-    await Timer(500, units="ns")
 
     #################
     # SINGLE STEP DEBUG REQUEST TEST
@@ -1125,11 +1125,11 @@ async def cpu_insrt_test(dut):
     assert (dut.core.holy_csr_file.dcsr.value >> 2 & 0b1) != 1
 
     while dut.core.holy_csr_file.dcsr.value >> 2 & 0b1 != 1:
-        # we wait for step to be set
+        # we wait for step flag in dcsr to be set
         await RisingEdge(dut.clk)
-        
+    
+
     await NextInstr(dut) # execute dret from the "set step" section
-    await Timer(1, units="ns")
 
     # check if we exited debug mode
     assert dut.core.holy_csr_file.debug_mode == 0

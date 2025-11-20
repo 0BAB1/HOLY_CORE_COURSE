@@ -125,7 +125,7 @@ axi_if m_axi();
 axi_lite_if m_axi_lite();
 AXI_LITE #(32,32) m_axi_lite_xbar_in [MST_NB-1:0] ();
 AXI_LITE #(32,32) m_axi_lite_xbar_out [SLV_NB-1:0] ();
-// AXIL CROSSBAR <=> BOOT ROM
+// AXIL CROSSBAR <=> BOOT ROM @ PC = 0x00000000
 axi_lite_if axi_lite_boot_rom();
 // AXIL CROSSBAR <=> PLIC
 axi_lite_if axi_lite_plic();
@@ -249,7 +249,6 @@ assign addr_map[4].end_addr = 32'h8FFFFFFF;
 assign addr_map[2].idx = 2;
 assign addr_map[2].start_addr = 32'h90000000;
 assign addr_map[2].end_addr = 32'hFFFFFFFF;
-
 
 axi_lite_xbar_intf #(
     .Cfg(Cfg),
@@ -448,13 +447,16 @@ hc_axil_pulp_axil_passthrough dm_top_sba_axil_conv(
 );
 
 //===================================
-// AXI FULL HOLY CORE <=> COCOTB RAM
+// AXI FULL HOLY CORE <=> EXTERNALS
 //===================================
 
 // Note : the AXI interface
 // is only used to retrieve instructions
-// in this tb. so it is a striahgt passthrough
-// to the top IF.
+// but the PC can be *anything* ! i.e. we may wanna fetch
+// instruction from RAM (most common) or from ROM (on boot)
+// or from other peripherals !
+// So we have a SECOND internal xbar for AXI
+// By default (0x8000_0000 and higher), the request will go to externals (i.e RAM)
 
 // Connect the discrete AXI signals to the m_axi
 

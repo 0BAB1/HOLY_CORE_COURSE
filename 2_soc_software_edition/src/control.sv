@@ -112,11 +112,14 @@ always_comb begin
                         // as rd will change to some unaligned stuff and because we
                         // stall, jump instr stays fetched making the alu result
                         // unaligned and raising exception.
-                        exception = ~alu_aligned_addr.word_aligned && ~stall;
+                        // TODO note : I now introduced a more robust instr_cache_valid signal.
+                        // I don't waana test it right now, but theorically, I could get rid of this ~stall
+                        // dumbass signal.
+                        exception = instr_cache_valid && ~alu_aligned_addr.word_aligned && ~stall;
                         exception_cause = exception ? 31'd4 : exception_cause;
                     end
                     F3_HALFWORD, F3_HALFWORD_U: begin
-                        exception = ~alu_aligned_addr.halfword_aligned && ~stall;
+                        exception = instr_cache_valid && ~alu_aligned_addr.halfword_aligned && ~stall;
                         exception_cause = exception ? 31'd4 : exception_cause;
                     end
                     F3_BYTE, F3_BYTE_U: begin
@@ -163,11 +166,11 @@ always_comb begin
                 // if not, an exeption is thrown.
                 case (func3)
                     F3_WORD: begin
-                        exception = ~alu_aligned_addr.word_aligned;
+                        exception = instr_cache_valid && ~alu_aligned_addr.word_aligned;
                         exception_cause = exception ? 31'd6 : exception_cause;
                     end
                     F3_HALFWORD: begin
-                        exception = ~alu_aligned_addr.halfword_aligned;
+                        exception = instr_cache_valid && ~alu_aligned_addr.halfword_aligned;
                         exception_cause = exception ? 31'd6 : exception_cause;
                     end
                     F3_BYTE: begin
@@ -212,7 +215,7 @@ always_comb begin
                 if(~second_add_aligned_addr.word_aligned)begin
                     // if alignement is not respected,
                     // we throw an exception
-                    exception = 1;
+                    exception = instr_cache_valid;
                     exception_cause = 31'd0; // Instruction address misaligned
                 end else begin
                     // if alignement is respected, we can
@@ -246,7 +249,7 @@ always_comb begin
             if(~second_add_aligned_addr.word_aligned)begin
                 // if alignement is not respected,
                 // we throw an exception
-                exception = 1;
+                exception = instr_cache_valid;
                 exception_cause = 31'd0; // Instruction address misaligned
             end else begin
                 // if alignement is respected, we can
@@ -281,12 +284,12 @@ always_comb begin
                     // Check immediate field to know if ECALL or EBREAK
                     if (instr[31:20] == 12'b0000_0000_0000) begin
                         // ECALL
-                        exception = 1'b1;
+                        exception = instr_cache_valid;
                         exception_cause = 31'd11;
                     end
                     else if (instr[31:20] == 12'b0000_0000_0001) begin
                         // EBREAK
-                        exception = 1'b1;
+                        exception = instr_cache_valid;
                         exception_cause = 31'd3;
                     end
                     else if (instr[31:20] == 12'b0011_0000_0010) begin

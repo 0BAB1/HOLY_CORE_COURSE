@@ -58,14 +58,21 @@ I_ZoneBase(int *size)
     return (byte *) malloc (*size);
 }
 
-
+// holy core :  get lower 32 bits of mtime
+// ticks run at 35Hz
 int
 I_GetTime(void)
 {
-  uint32_t time = (*mtime / 1000) * 32 / 1000;
+  uint32_t time = (*mtime / 1000) / 32 / 1000;
   return time;
 }
 
+int
+I_GetMTime(void)
+{
+  uint32_t time = *mtime;
+  return time;
+}
 
 static void
 I_GetRemoteEvent(void)
@@ -81,7 +88,9 @@ I_GetRemoteEvent(void)
         ascii_map['s'] = KEY_DOWNARROW;
         ascii_map['q'] = KEY_LEFTARROW;
         ascii_map['d'] = KEY_RIGHTARROW;
-        ascii_map[' '] = KEY_RCTRL;
+        ascii_map[' '] = KEY_RCTRL;   // fire
+        ascii_map['e'] = KEY_ENTER;   // menu select
+        ascii_map['a'] = KEY_ESCAPE;  // menu back
         init_map_done = 1;
     }
 
@@ -96,12 +105,9 @@ I_GetRemoteEvent(void)
         if (ch == -1)
             break;
 
-        boolean msb = ch & 0x80;
-        ch &= 0x7f;
-
         byte doomkey = ascii_map[ch];
         if (doomkey) {
-            event.type = msb ? ev_keydown : ev_keyup;
+            event.type = ev_keydown;
             event.data1 = doomkey;
             D_PostEvent(&event);
         }

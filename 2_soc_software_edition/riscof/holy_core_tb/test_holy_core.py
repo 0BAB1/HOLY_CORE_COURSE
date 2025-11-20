@@ -14,7 +14,9 @@ import os
 AXI_PERIOD = 10
 CPU_PERIOD = 10
 
-THRESHOLD = 50_000
+# increased threshold as high branching frequency
+# makes cache tests go ever that limit
+THRESHOLD = 200_000
 
 CSR_MAP = {
     0x300: "mstatus",

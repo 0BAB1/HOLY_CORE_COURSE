@@ -9,6 +9,8 @@
 # SIMULATION CONFIG (cocotb)
 ##################################
 
+# disable all logs for heavy simulations
+export COCOTB_LOG_LEVEL=CRITICAL
 SIM ?= verilator
 TOPLEVEL_LANG ?= verilog
 EXTRA_ARGS += --trace --trace-structs --sv -Wno-fatal

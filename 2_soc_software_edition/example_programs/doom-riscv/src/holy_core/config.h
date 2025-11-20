@@ -24,4 +24,5 @@
 #pragma once
 #include "holy_core_soc.h"
 
-#define CLINT_MTIME 0x4000BFF8
+#define CLINT_MTIME         0x4000BFF8
+#define CLINT_MTIME_UPPER   0x4000BFFC

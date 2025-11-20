@@ -223,7 +223,8 @@ wire [31:0] instruction;
 wire instr_cache_valid;
 cache_state_t i_cache_state;
 
-
+// Simple 1 way block cache
+// 512kB (128 words)
 holy_data_cache instr_cache (
     .clk(clk),
     .rst_n(rst_n),
@@ -238,10 +239,9 @@ holy_data_cache instr_cache (
     .read_data(instruction),
     .cache_stall(i_cache_stall),
 
-    // cachable control (hardcoded fro I$ for now, TODO: add csrs for that)
-    // supposed debug memory range is set to non cachable by default
-    .non_cachable_base(32'h0),
-    .non_cachable_limit(32'hFFFFFFFF),
+    // We make the debug module non cachable, the rest is cacheble.
+    .non_cachable_base(instr_non_cachable_base),
+    .non_cachable_limit(instr_non_cachable_limit),
 
 
     // M_AXI EXERNAL REQ IF
@@ -444,8 +444,10 @@ logic [31:0] csr_dpc;
 
 // csr orders
 logic csr_flush_order;
-logic [31:0] csr_non_cachable_base;
-logic [31:0] csr_non_cachable_limit;
+logic [31:0] data_non_cachable_base;
+logic [31:0] data_non_cachable_limit;
+logic [31:0] instr_non_cachable_base;
+logic [31:0] instr_non_cachable_limit;
 
 csr_file holy_csr_file(
     //in
@@ -479,8 +481,10 @@ csr_file holy_csr_file(
     // out
     .read_data(csr_read_data),
     .flush_cache_flag(csr_flush_order),
-    .non_cachable_base_addr(csr_non_cachable_base),
-    .non_cachable_limit_addr(csr_non_cachable_limit),
+    .data_non_cachable_base_o(data_non_cachable_base),
+    .data_non_cachable_limit_o(data_non_cachable_limit),
+    .instr_non_cachable_base_o(instr_non_cachable_base),
+    .instr_non_cachable_limit_o(instr_non_cachable_limit),
 
     // trap request signal
     // This trap flag is high for 1 cycle and until
@@ -590,8 +594,8 @@ generate
 
             // CSR
             .csr_flush_order(csr_flush_order),
-            .non_cachable_base(csr_non_cachable_base),
-            .non_cachable_limit(csr_non_cachable_limit),
+            .non_cachable_base(data_non_cachable_base),
+            .non_cachable_limit(data_non_cachable_limit),
 
             // AXI
             .axi(axi_data),

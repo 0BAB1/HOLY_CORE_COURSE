@@ -109,7 +109,7 @@ $(OUT_DIS): $(OUT_ELF)
 	$(OBJDUMP) -d $< > $@
 
 # === Default target ===
-all: $(OUT_ELF) $(OUT_BIN) $(OUT_HEX) $(OUT_DIS)
+all: $(OUT_ELF) $(OUT_BIN) $(OUT_HEX) $(OUT_DIS) dump
 
 ##################################
 # MAIN TARGET: build HEX + run sim
@@ -117,6 +117,10 @@ all: $(OUT_ELF) $(OUT_BIN) $(OUT_HEX) $(OUT_DIS)
 
 sim: $(OUT_HEX) $(OUT_DIS)
 	$(MAKE) SIM=$(SIM) TOPLEVEL=$(TOPLEVEL) MODULE=$(MODULE) VERILOG_SOURCES="$(VERILOG_SOURCES)" EXTRA_ARGS="$(EXTRA_ARGS)" WAVES=$(WAVES) -f $(shell cocotb-config --makefiles)/Makefile.sim
+
+dump: $(OUT_ELF)
+	riscv32-unknown-elf-objdump -d $(OUT_ELF) > $(OUT_DIS)
+	@echo "Disassembly written to $(OUT_DIS)"
 
 ##################################
 # CLEAN

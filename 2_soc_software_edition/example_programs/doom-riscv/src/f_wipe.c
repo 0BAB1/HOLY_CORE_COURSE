@@ -174,53 +174,55 @@ wipe_doMelt
   int   height,
   int   ticks )
 {
-    int         i;
-    int         j;
-    int         dy;
-    int         idx;
+    // int         i;
+    // int         j;
+    // int         dy;
+    // int         idx;
 
-    short*      s;
-    short*      d;
+    // short*      s;
+    // short*      d;
+    // boolean     done = true;
+
+    // width/=2;
+
+    // while (ticks--)
+    // {
+    //     for (i=0;i<width;i++)
+    //     {
+    //         if (y[i]<0)
+    //         {
+    //             y[i]++; done = false;
+    //         }
+    //         else if (y[i] < height)
+    //         {
+    //             dy = (y[i] < 16) ? y[i]+1 : 8;
+    //             if (y[i]+dy >= height) dy = height - y[i];
+    //             s = &((short *)wipe_scr_end)[i*height+y[i]];
+    //             d = &((short *)wipe_scr)[y[i]*width+i];
+    //             idx = 0;
+    //             for (j=dy;j;j--)
+    //             {
+    //                 d[idx] = *(s++);
+    //                 idx += width;
+    //             }
+    //             y[i] += dy;
+    //             s = &((short *)wipe_scr_start)[i*height];
+    //             d = &((short *)wipe_scr)[y[i]*width+i];
+    //             idx = 0;
+    //             for (j=height-y[i];j;j--)
+    //             {
+    //                 d[idx] = *(s++);
+    //                 idx += width;
+    //             }
+    //             done = false;
+    //         }
+    //     }
+    // }
+    int i;
+    for (i = 0; i < width/2; i++)
+        y[i] = height;
     boolean     done = true;
-
-    width/=2;
-
-    while (ticks--)
-    {
-        for (i=0;i<width;i++)
-        {
-            if (y[i]<0)
-            {
-                y[i]++; done = false;
-            }
-            else if (y[i] < height)
-            {
-                dy = (y[i] < 16) ? y[i]+1 : 8;
-                if (y[i]+dy >= height) dy = height - y[i];
-                s = &((short *)wipe_scr_end)[i*height+y[i]];
-                d = &((short *)wipe_scr)[y[i]*width+i];
-                idx = 0;
-                for (j=dy;j;j--)
-                {
-                    d[idx] = *(s++);
-                    idx += width;
-                }
-                y[i] += dy;
-                s = &((short *)wipe_scr_start)[i*height];
-                d = &((short *)wipe_scr)[y[i]*width+i];
-                idx = 0;
-                for (j=height-y[i];j;j--)
-                {
-                    d[idx] = *(s++);
-                    idx += width;
-                }
-                done = false;
-            }
-        }
-    }
-
     return done;
-
 }
 
 int
@@ -240,8 +242,8 @@ wipe_StartScreen
   int   width,
   int   height )
 {
-    wipe_scr_start = screens[2];
-    I_ReadScreen(wipe_scr_start);
+    // wipe_scr_start = screens[2];
+    // I_ReadScreen(wipe_scr_start);
     return 0;
 }
 
@@ -252,9 +254,9 @@ wipe_EndScreen
   int   width,
   int   height )
 {
-    wipe_scr_end = screens[3];
-    I_ReadScreen(wipe_scr_end);
-    V_DrawBlock(x, y, 0, width, height, wipe_scr_start); // restore start scr.
+    // wipe_scr_end = screens[3];
+    // I_ReadScreen(wipe_scr_end);
+    // V_DrawBlock(x, y, 0, width, height, wipe_scr_start); // restore start scr.
     return 0;
 }
 

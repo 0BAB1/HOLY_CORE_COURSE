@@ -13,33 +13,37 @@ from copy import deepcopy
 # For basic R/W randomized testing
 RW_REGS = [0x7C0, 0x7C1, 0x7C2, 0x300, 0x304, 0x305, 0x341]
 
+# Map each address to a register
+def get_csr_value(dut, addr):
+    if addr == 0x7C0:
+        return dut.flush_cache.value
+    elif addr == 0x7C1:
+        return dut.data_non_cachable_base.value
+    elif addr == 0x7C2:
+        return dut.data_non_cachable_limit.value
+    elif addr == 0x7C3:
+        return dut.instr_non_cachable_base.value
+    elif addr == 0x7C4:
+        return dut.instr_non_cachable_limit.value
+    elif addr == 0x300:
+        return dut.mstatus.value
+    elif addr == 0x304:
+        return dut.mie.value
+    elif addr == 0x344:
+        return dut.mip.value
+    elif addr == 0x305:
+        return dut.mtvec.value
+    elif addr == 0x341:
+        return dut.mepc.value
+    elif addr == 0x342:
+        return dut.mcause.value
+    else:
+        return 0
+
 @cocotb.test()
 async def test_csr_file(dut):
     # Start a 10 ns clock
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
-
-    # Map each address to a register
-    def get_csr_value(addr):
-        if addr == 0x7C0:
-            return dut.flush_cache.value
-        elif addr == 0x7C1:
-            return dut.non_cachable_base.value
-        elif addr == 0x7C2:
-            return dut.non_cachable_limit.value
-        elif addr == 0x300:
-            return dut.mstatus.value
-        elif addr == 0x304:
-            return dut.mie.value
-        elif addr == 0x344:
-            return dut.mip.value
-        elif addr == 0x305:
-            return dut.mtvec.value
-        elif addr == 0x341:
-            return dut.mepc.value
-        elif addr == 0x342:
-            return dut.mcause.value
-        else:
-            return 0
 
     for addr in RW_REGS:
         # ==================
@@ -57,7 +61,7 @@ async def test_csr_file(dut):
         dut.f3.value = 0b001
         await RisingEdge(dut.clk)
         await Timer(2, units="ns")
-        assert get_csr_value(addr) == 0xDEADBEEF
+        assert get_csr_value(dut, addr) == 0xDEADBEEF
         assert dut.read_data.value == 0xDEADBEEF
 
         # ----------------------------------
@@ -65,7 +69,7 @@ async def test_csr_file(dut):
         dut.write_enable.value = 0b0
         dut.write_data.value = 0x12345678
         await RisingEdge(dut.clk)
-        assert get_csr_value(addr) == 0xDEADBEEF
+        assert get_csr_value(dut, addr) == 0xDEADBEEF
 
         # ----------------------------------
         # randomized test
@@ -74,7 +78,7 @@ async def test_csr_file(dut):
             await RisingEdge(dut.clk) #await antoher cycle to let flush cache reset if high
             await Timer(1, units="ns")
 
-            init_csr_value = deepcopy(get_csr_value(addr))
+            init_csr_value = deepcopy(get_csr_value(dut, addr))
             wd = random.randint(0, 0xFFFFFFFF)
             f3 = random.randint(0b000, 0b111)
             dut.write_data.value = wd
@@ -281,7 +285,7 @@ async def test_cache_control_behavior(dut):
     # There is no check for values, they can be anything, it's up to the user to set thme correctly, so not test for value
 
     # ------------------------------
-    # CACHE BASE
+    # DATA CACHE BASE
 
     await RisingEdge(dut.clk)
     # write stuff to the cache base
@@ -292,10 +296,10 @@ async def test_cache_control_behavior(dut):
     await RisingEdge(dut.clk)
     await Timer(2, units="ns")
     # check the output towards cache indicates good value
-    assert dut.non_cachable_base_addr.value == 0xAEAEAEAE
+    assert get_csr_value(dut, 0x7C1) == 0xAEAEAEAE
 
     # ------------------------------
-    # CACHE LIMIT
+    # DATA CACHE LIMIT
 
     await RisingEdge(dut.clk)
     # write stuff to the cache base
@@ -306,7 +310,35 @@ async def test_cache_control_behavior(dut):
     await RisingEdge(dut.clk)
     await Timer(2, units="ns")
     # check the output towards cache indicates good value
-    assert dut.non_cachable_limit_addr.value == 0xAEAEAEAE
+    assert get_csr_value(dut, 0x7C2) == 0xAEAEAEAE
+
+    # ------------------------------
+    # INSTR CACHE BASE
+
+    await RisingEdge(dut.clk)
+    # write stuff to the cache base
+    dut.write_enable.value = 1
+    dut.address.value = 0x7C3
+    dut.write_data.value = 0xAEAEAEAE
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    # check the output towards cache indicates good value
+    assert get_csr_value(dut, 0x7C3) == 0xAEAEAEAE
+
+    # ------------------------------
+    # INSTR CACHE LIMIT
+
+    await RisingEdge(dut.clk)
+    # write stuff to the cache base
+    dut.write_enable.value = 1
+    dut.address.value = 0x7C4
+    dut.write_data.value = 0xAEAEAEAE
+    dut.f3.value = 0b001
+    await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
+    # check the output towards cache indicates good value
+    assert get_csr_value(dut, 0x7C4) == 0xAEAEAEAE
 
 @cocotb.test()
 async def test_debug_behavior(dut):

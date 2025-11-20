@@ -3,11 +3,3 @@ reset:
 
 nmi:
   label: nmi_vector
-  
-mtime:
-  implemented: True
-  address: 0x12FF8
-
-mtimecmp:
-  implemented: True
-  address: 0x458

@@ -44,6 +44,8 @@ byte*   I_ZoneBase (int *size);
 // Called by D_DoomLoop,
 // returns current time in tics.
 int I_GetTime (void);
+// holy core : get mtime directly
+int I_GetMTime (void);
 
 
 //

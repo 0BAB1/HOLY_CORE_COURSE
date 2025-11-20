@@ -3,7 +3,6 @@
     .section .text.start
     .global _start
 _start:
-
     // Set stack pointer
     la sp, __stacktop
 
@@ -14,6 +13,13 @@ _start:
     // zero out the .bss section in the start code
     // because GDB won't load .bss (which is all zeroes)
     call init_bss
+
+    // holy core port :
+    // Setup instruction cache : make the RAM cachable
+    li t0, 0x00000000
+    li t1, 0x7FFFFFFF
+    csrrw x0, 0x7C3, t0   # All but RAM base
+    csrrw x0, 0x7C4, t1   # All but RAM limit
 
     // call main
     call main

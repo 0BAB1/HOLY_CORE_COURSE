@@ -38,8 +38,22 @@ $ docker run -it riscof-runner bash
 And, once in the container, run the tests using:
 
 ```bash
-(test container) $ riscof run --config=config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
+(test container) $ riscof riscof validateyaml 
 ```
+
+to generate validated yamls of the isa and platform, then :
+
+```bash
+(test container) $ riscof gendb --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
+```
+
+to gen atest db, then:
+
+```bash
+(test container) $ riscof gendb --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
+```
+
+to run the tests using a selection of tests.
 
 ### Debugging tips
 
@@ -50,6 +64,8 @@ docker cp <contianer_name_or_id>:/compliance_test/riscof/riscof_work ./output
 ```
 
 ## User guide: Detailed compliance tests setup
+
+> **WARNING :** deprecated, see container procedure above and mix it toghether...
 
 ### Prerequisites
 

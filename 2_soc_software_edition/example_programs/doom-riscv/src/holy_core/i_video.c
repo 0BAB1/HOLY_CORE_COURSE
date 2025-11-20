@@ -55,34 +55,30 @@ void I_SetPalette(byte *palette) {
 
 void I_UpdateNoBlit(void) {}
 
+uint32_t frameGenStart = 0;
+uint32_t frameGenEnd = 0;
+
 void I_FinishUpdate(void) {
+  frameGenEnd = I_GetMTime();
+
+  
   /* Simple UART send */
-    for (int y = 0; y < SCREENHEIGHT; y++) {
-      for (int x = 0; x < SCREENWIDTH; x++) {
-        uint8_t pixel = screens[0][y * SCREENWIDTH + x];
-        if(pixel > 128){
-          // white
-          uart_putchar('#');
-        }else{
-          // black
-          uart_putchar(' ');
-        }
+  for (int y = 0; y < SCREENHEIGHT; y++) {
+    for (int x = 0; x < SCREENWIDTH; x++) {
+      uint8_t pixel = screens[0][y * SCREENWIDTH + x];
+      if(pixel > 128){
+        // white
+        uart_putchar('#');
+      }else{
+        // black
+        uart_putchar(' ');
       }
-      uart_puts("\n\r");  // New line after each row
+    }
+    uart_puts("\n\r");  // New line after each row
   }
 
-#if 0
-  /* Very crude FPS measure (time to render 100 frames */
-  static int frame_cnt = 0;
-  static int tick_prev = 0;
-
-  if (++frame_cnt == 100) {
-    int tick_now = I_GetTime();
-    printf("FPS: %d\n", tick_now - tick_prev);
-    tick_prev = tick_now;
-    frame_cnt = 0;
-  }
-#endif
+  printf("Num cycles to render this frame: %d\n\r", frameGenEnd - frameGenStart);
+  frameGenStart = I_GetMTime();
 }
 
 void I_WaitVBL(int count) {

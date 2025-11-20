@@ -42,7 +42,7 @@ SOURCES_doom_arch := \
 	$(NULL)
 
 
-all: wad.o doom-riscv.elf $(DUMP)
+all: wad.o doom-riscv.elf $(DUMP) doom-riscv.hex
 
 wad.o: doom1.wad
 	riscv32-unknown-elf-objcopy -I binary -O elf32-littleriscv doom1.wad wad.o
@@ -56,6 +56,10 @@ clean:
 
 $(DUMP): doom-riscv.elf
 	$(CROSS)objdump -D -M no-aliases doom-riscv.elf > $@
+
+doom-riscv.hex: doom-riscv.elf
+	$(OBJCOPY) -O binary doom-riscv.elf doom-riscv.bin
+	hexdump -v -e '1/4 "%08X\n"' doom-riscv.bin > doom-riscv.hex
 
 .PHONY: all clean prog prog_wad
 .PRECIOUS: *.elf
