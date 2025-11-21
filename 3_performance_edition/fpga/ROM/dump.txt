@@ -1,0 +1,31 @@
+
+boot.elf:     format de fichier elf32-littleriscv
+
+
+Déassemblage de la section .text :
+
+00010074 <_start>:
+   10074:	00000293          	addi	t0,zero,0
+   10078:	800002b7          	lui	t0,0x80000
+   1007c:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7ffee76f>
+   10080:	7c129073          	csrrw	zero,0x7c1,t0
+   10084:	7c231073          	csrrw	zero,0x7c2,t1
+   10088:	800002b7          	lui	t0,0x80000
+   1008c:	00028067          	jalr	zero,0(t0) # 80000000 <__global_pointer$+0x7ffee770>
+
+Déassemblage de la section .riscv.attributes :
+
+00000000 <.riscv.attributes>:
+   0:	1d41                	.2byte	0x1d41
+   2:	0000                	.2byte	0x0
+   4:	7200                	.2byte	0x7200
+   6:	7369                	.2byte	0x7369
+   8:	01007663          	bgeu	zero,a6,14 <_start-0x10060>
+   c:	00000013          	addi	zero,zero,0
+  10:	7205                	.2byte	0x7205
+  12:	3376                	.2byte	0x3376
+  14:	6932                	.2byte	0x6932
+  16:	7032                	.2byte	0x7032
+  18:	0030                	.2byte	0x30
+  1a:	0108                	.2byte	0x108
+  1c:	0b0a                	.2byte	0xb0a

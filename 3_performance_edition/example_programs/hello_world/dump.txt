@@ -1,0 +1,196 @@
+
+hello_world/hello_world.elf:     format de fichier elf32-littleriscv
+
+
+Déassemblage de la section .text :
+
+80000000 <_start>:
+80000000:	00000297          	auipc	t0,0x0
+80000004:	01028293          	addi	t0,t0,16 # 80000010 <startup_code>
+80000008:	34129073          	csrrw	zero,mepc,t0
+8000000c:	30200073          	mret
+
+80000010 <startup_code>:
+80000010:	10000117          	auipc	sp,0x10000
+80000014:	ff010113          	addi	sp,sp,-16 # 90000000 <_stack_top>
+80000018:	00000293          	addi	t0,zero,0
+8000001c:	80000337          	lui	t1,0x80000
+80000020:	fff30313          	addi	t1,t1,-1 # 7fffffff <_stack_top+0xefffffff>
+80000024:	7c129073          	csrrw	zero,0x7c1,t0
+80000028:	7c231073          	csrrw	zero,0x7c2,t1
+8000002c:	7c329073          	csrrw	zero,0x7c3,t0
+80000030:	7c431073          	csrrw	zero,0x7c4,t1
+80000034:	008000ef          	jal	ra,8000003c <main>
+80000038:	0000006f          	jal	zero,80000038 <startup_code+0x28>
+
+8000003c <main>:
+8000003c:	ff010113          	addi	sp,sp,-16
+80000040:	00112623          	sw	ra,12(sp)
+80000044:	00812423          	sw	s0,8(sp)
+80000048:	01010413          	addi	s0,sp,16
+8000004c:	800007b7          	lui	a5,0x80000
+80000050:	1fc78513          	addi	a0,a5,508 # 800001fc <_stack_top+0xf00001fc>
+80000054:	024000ef          	jal	ra,80000078 <uart_puts>
+80000058:	00000013          	addi	zero,zero,0
+8000005c:	ffdff06f          	jal	zero,80000058 <main+0x1c>
+
+80000060 <uart_putchar>:
+80000060:	10000737          	lui	a4,0x10000
+80000064:	00872783          	lw	a5,8(a4) # 10000008 <_start-0x6ffffff8>
+80000068:	0087f793          	andi	a5,a5,8
+8000006c:	fe079ce3          	bne	a5,zero,80000064 <uart_putchar+0x4>
+80000070:	00a70223          	sb	a0,4(a4)
+80000074:	00008067          	jalr	zero,0(ra)
+
+80000078 <uart_puts>:
+80000078:	00054683          	lbu	a3,0(a0)
+8000007c:	02068263          	beq	a3,zero,800000a0 <uart_puts+0x28>
+80000080:	10000737          	lui	a4,0x10000
+80000084:	00150513          	addi	a0,a0,1
+80000088:	00872783          	lw	a5,8(a4) # 10000008 <_start-0x6ffffff8>
+8000008c:	0087f793          	andi	a5,a5,8
+80000090:	fe079ce3          	bne	a5,zero,80000088 <uart_puts+0x10>
+80000094:	00d70223          	sb	a3,4(a4)
+80000098:	00054683          	lbu	a3,0(a0)
+8000009c:	fe0694e3          	bne	a3,zero,80000084 <uart_puts+0xc>
+800000a0:	00008067          	jalr	zero,0(ra)
+
+800000a4 <uart_putdec>:
+800000a4:	3e700793          	addi	a5,zero,999
+800000a8:	0ca7da63          	bge	a5,a0,8000017c <uart_putdec+0xd8>
+800000ac:	00000793          	addi	a5,zero,0
+800000b0:	3e700713          	addi	a4,zero,999
+800000b4:	c1850513          	addi	a0,a0,-1000
+800000b8:	00178793          	addi	a5,a5,1
+800000bc:	fea74ce3          	blt	a4,a0,800000b4 <uart_putdec+0x10>
+800000c0:	100006b7          	lui	a3,0x10000
+800000c4:	0086a703          	lw	a4,8(a3) # 10000008 <_start-0x6ffffff8>
+800000c8:	00877713          	andi	a4,a4,8
+800000cc:	fe071ce3          	bne	a4,zero,800000c4 <uart_putdec+0x20>
+800000d0:	03078793          	addi	a5,a5,48
+800000d4:	0ff7f793          	andi	a5,a5,255
+800000d8:	00f68223          	sb	a5,4(a3)
+800000dc:	06300793          	addi	a5,zero,99
+800000e0:	08a7da63          	bge	a5,a0,80000174 <uart_putdec+0xd0>
+800000e4:	00000793          	addi	a5,zero,0
+800000e8:	06300713          	addi	a4,zero,99
+800000ec:	f9c50513          	addi	a0,a0,-100
+800000f0:	00178793          	addi	a5,a5,1
+800000f4:	fea74ce3          	blt	a4,a0,800000ec <uart_putdec+0x48>
+800000f8:	03078793          	addi	a5,a5,48
+800000fc:	0ff7f793          	andi	a5,a5,255
+80000100:	100006b7          	lui	a3,0x10000
+80000104:	0086a703          	lw	a4,8(a3) # 10000008 <_start-0x6ffffff8>
+80000108:	00877713          	andi	a4,a4,8
+8000010c:	fe071ce3          	bne	a4,zero,80000104 <uart_putdec+0x60>
+80000110:	00f68223          	sb	a5,4(a3)
+80000114:	00900793          	addi	a5,zero,9
+80000118:	04a7da63          	bge	a5,a0,8000016c <uart_putdec+0xc8>
+8000011c:	00000793          	addi	a5,zero,0
+80000120:	00900713          	addi	a4,zero,9
+80000124:	ff650513          	addi	a0,a0,-10
+80000128:	00178793          	addi	a5,a5,1
+8000012c:	fea74ce3          	blt	a4,a0,80000124 <uart_putdec+0x80>
+80000130:	03078793          	addi	a5,a5,48
+80000134:	0ff7f793          	andi	a5,a5,255
+80000138:	100006b7          	lui	a3,0x10000
+8000013c:	0086a703          	lw	a4,8(a3) # 10000008 <_start-0x6ffffff8>
+80000140:	00877713          	andi	a4,a4,8
+80000144:	fe071ce3          	bne	a4,zero,8000013c <uart_putdec+0x98>
+80000148:	00f68223          	sb	a5,4(a3)
+8000014c:	03050513          	addi	a0,a0,48
+80000150:	0ff57513          	andi	a0,a0,255
+80000154:	10000737          	lui	a4,0x10000
+80000158:	00872783          	lw	a5,8(a4) # 10000008 <_start-0x6ffffff8>
+8000015c:	0087f793          	andi	a5,a5,8
+80000160:	fe079ce3          	bne	a5,zero,80000158 <uart_putdec+0xb4>
+80000164:	00a70223          	sb	a0,4(a4)
+80000168:	00008067          	jalr	zero,0(ra)
+8000016c:	03000793          	addi	a5,zero,48
+80000170:	fc9ff06f          	jal	zero,80000138 <uart_putdec+0x94>
+80000174:	03000793          	addi	a5,zero,48
+80000178:	f89ff06f          	jal	zero,80000100 <uart_putdec+0x5c>
+8000017c:	06300793          	addi	a5,zero,99
+80000180:	f6a7c2e3          	blt	a5,a0,800000e4 <uart_putdec+0x40>
+80000184:	00900793          	addi	a5,zero,9
+80000188:	f8a7cae3          	blt	a5,a0,8000011c <uart_putdec+0x78>
+8000018c:	fc1ff06f          	jal	zero,8000014c <uart_putdec+0xa8>
+
+80000190 <uart_puthex>:
+80000190:	800006b7          	lui	a3,0x80000
+80000194:	03000613          	addi	a2,zero,48
+80000198:	20c68693          	addi	a3,a3,524 # 8000020c <_stack_top+0xf000020c>
+8000019c:	10000737          	lui	a4,0x10000
+800001a0:	00168693          	addi	a3,a3,1
+800001a4:	00872783          	lw	a5,8(a4) # 10000008 <_start-0x6ffffff8>
+800001a8:	0087f793          	andi	a5,a5,8
+800001ac:	fe079ce3          	bne	a5,zero,800001a4 <uart_puthex+0x14>
+800001b0:	00c70223          	sb	a2,4(a4)
+800001b4:	0006c603          	lbu	a2,0(a3)
+800001b8:	fe0614e3          	bne	a2,zero,800001a0 <uart_puthex+0x10>
+800001bc:	01c00693          	addi	a3,zero,28
+800001c0:	00900813          	addi	a6,zero,9
+800001c4:	10000737          	lui	a4,0x10000
+800001c8:	ffc00593          	addi	a1,zero,-4
+800001cc:	00d557b3          	srl	a5,a0,a3
+800001d0:	00f7f793          	andi	a5,a5,15
+800001d4:	03778613          	addi	a2,a5,55
+800001d8:	00f86463          	bltu	a6,a5,800001e0 <uart_puthex+0x50>
+800001dc:	03078613          	addi	a2,a5,48
+800001e0:	00872783          	lw	a5,8(a4) # 10000008 <_start-0x6ffffff8>
+800001e4:	0087f793          	andi	a5,a5,8
+800001e8:	fe079ce3          	bne	a5,zero,800001e0 <uart_puthex+0x50>
+800001ec:	00c70223          	sb	a2,4(a4)
+800001f0:	ffc68693          	addi	a3,a3,-4
+800001f4:	fcb69ce3          	bne	a3,a1,800001cc <uart_puthex+0x3c>
+800001f8:	00008067          	jalr	zero,0(ra)
+
+Déassemblage de la section .rodata :
+
+800001fc <.rodata>:
+800001fc:	6548                	.2byte	0x6548
+800001fe:	6c6c                	.2byte	0x6c6c
+80000200:	77202c6f          	jal	s8,80002972 <_bss_start+0x2763>
+80000204:	646c726f          	jal	tp,800c784a <_bss_start+0xc763b>
+80000208:	0a21                	.2byte	0xa21
+8000020a:	000d                	.2byte	0xd
+
+Déassemblage de la section .rodata.str1.4 :
+
+8000020c <_bss_start-0x3>:
+8000020c:	7830                	.2byte	0x7830
+	...
+
+Déassemblage de la section .riscv.attributes :
+
+00000000 <.riscv.attributes>:
+   0:	1f41                	.2byte	0x1f41
+   2:	0000                	.2byte	0x0
+   4:	7200                	.2byte	0x7200
+   6:	7369                	.2byte	0x7369
+   8:	01007663          	bgeu	zero,a6,14 <_start-0x7fffffec>
+   c:	0015                	.2byte	0x15
+   e:	0000                	.2byte	0x0
+  10:	1004                	.2byte	0x1004
+  12:	7205                	.2byte	0x7205
+  14:	3376                	.2byte	0x3376
+  16:	6932                	.2byte	0x6932
+  18:	7032                	.2byte	0x7032
+  1a:	0030                	.2byte	0x30
+  1c:	0108                	.2byte	0x108
+  1e:	0b0a                	.2byte	0xb0a
+
+Déassemblage de la section .comment :
+
+00000000 <.comment>:
+   0:	3a434347          	.4byte	0x3a434347
+   4:	2820                	.2byte	0x2820
+   6:	61653167          	.4byte	0x61653167
+   a:	3739                	.2byte	0x3739
+   c:	6538                	.2byte	0x6538
+   e:	36363033          	.4byte	0x36363033
+  12:	2029                	.2byte	0x2029
+  14:	3231                	.2byte	0x3231
+  16:	312e                	.2byte	0x312e
+  18:	302e                	.2byte	0x302e
+	...

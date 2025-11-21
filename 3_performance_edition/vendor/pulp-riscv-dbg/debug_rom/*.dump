@@ -1,0 +1,61 @@
+
+*.elf:     format de fichier elf64-littleriscv
+
+
+Déassemblage de la section .text :
+
+0000000000000800 <entry>:
+ 800:	0180006f          	j	818 <_entry>
+ 804:	00000013          	nop
+
+0000000000000808 <resume>:
+ 808:	0840006f          	j	88c <_resume>
+ 80c:	00000013          	nop
+
+0000000000000810 <exception>:
+ 810:	0500006f          	j	860 <_exception>
+ 814:	00000013          	nop
+
+0000000000000818 <_entry>:
+ 818:	0ff0000f          	fence
+ 81c:	7b241073          	csrw	dscratch0,s0
+ 820:	7b351073          	csrw	dscratch1,a0
+ 824:	00000517          	auipc	a0,0x0
+ 828:	00c55513          	srl	a0,a0,0xc
+ 82c:	00c51513          	sll	a0,a0,0xc
+
+0000000000000830 <entry_loop>:
+ 830:	f1402473          	csrr	s0,mhartid
+ 834:	10852023          	sw	s0,256(a0) # 924 <_end+0x84>
+ 838:	00a40433          	add	s0,s0,a0
+ 83c:	40044403          	lbu	s0,1024(s0)
+ 840:	00147413          	and	s0,s0,1
+ 844:	02041c63          	bnez	s0,87c <going>
+ 848:	f1402473          	csrr	s0,mhartid
+ 84c:	00a40433          	add	s0,s0,a0
+ 850:	40044403          	lbu	s0,1024(s0)
+ 854:	00247413          	and	s0,s0,2
+ 858:	fa0418e3          	bnez	s0,808 <resume>
+ 85c:	fd5ff06f          	j	830 <entry_loop>
+
+0000000000000860 <_exception>:
+ 860:	00000517          	auipc	a0,0x0
+ 864:	00c55513          	srl	a0,a0,0xc
+ 868:	00c51513          	sll	a0,a0,0xc
+ 86c:	10052c23          	sw	zero,280(a0) # 978 <_end+0xd8>
+ 870:	7b302573          	csrr	a0,dscratch1
+ 874:	7b202473          	csrr	s0,dscratch0
+ 878:	00100073          	ebreak
+
+000000000000087c <going>:
+ 87c:	10052423          	sw	zero,264(a0)
+ 880:	7b302573          	csrr	a0,dscratch1
+ 884:	7b202473          	csrr	s0,dscratch0
+ 888:	a79ff06f          	j	300 <whereto>
+
+000000000000088c <_resume>:
+ 88c:	f1402473          	csrr	s0,mhartid
+ 890:	10852823          	sw	s0,272(a0)
+ 894:	7b302573          	csrr	a0,dscratch1
+ 898:	7b202473          	csrr	s0,dscratch0
+ 89c:	7b200073          	dret
