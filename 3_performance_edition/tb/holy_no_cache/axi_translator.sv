@@ -98,7 +98,7 @@ module axi_translator (
 
     // Instantiate the cache module
     /* verilator lint_off PINMISSING */
-    holy_data_no_cache #(
+    holy_no_cache #(
     ) cache_system (
         .clk(clk), 
         .rst_n(rst_n),

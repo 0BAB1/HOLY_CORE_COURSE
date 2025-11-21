@@ -1,3 +1,5 @@
+import holy_core_pkg::*;
+
 module axi_lite_to_dm_top #(
     parameter AXI_ADDR_WIDTH = 32,
     parameter AXI_DATA_WIDTH = 32

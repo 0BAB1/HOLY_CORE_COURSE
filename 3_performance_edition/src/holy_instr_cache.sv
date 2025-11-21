@@ -1,10 +1,10 @@
 /** CACHE MODULE
 *
 *   Author : BRH
-*   Project : Holy Core V2
+*   Project : Holy Core
 *   Description : A 1 way direct mapped cache.
 *                 Implementing AXI to request data from outside main memory.
-*                 With a CPU interface for basic core request with stall signal.
+*                 With a CPU interface for basic core request with busy signal.
 *                 The goal is to allow the user to connect its own memory on FPGA.
 *                 It also supports non cachable ranges, which the use can set
 *                 using CSRs.
@@ -12,11 +12,12 @@
 *   Created 11/24
 *   Modifications: 05/25 Add manual flush support (BRH)
 *                  06/25 Add non cachable range support (BRH)
+*                  11/25 This is now the instruction cache. Data cache will live in a different file. (BRH)
 */
 
 import holy_core_pkg::*;
 
-module holy_data_cache #(
+module holy_instr_cache #(
     parameter CACHE_SIZE = 128
 )(
     // CPU LOGIC CLOCK & RESET
@@ -30,7 +31,7 @@ module holy_data_cache #(
     input logic         write_enable,
     input logic [3:0]   byte_enable,
     output logic [31:0] read_data,
-    output logic        cache_stall,
+    output logic        cache_busy,
     output logic        instr_valid,
 
     // incomming CSR Orders
@@ -50,8 +51,8 @@ module holy_data_cache #(
     // debug signals
     output logic [6:0] set_ptr_out,
     output logic [6:0] next_set_ptr_out,
-    output logic       debug_seq_stall,
-    output logic       debug_comb_stall,
+    output logic       debug_seq_busy,
+    output logic       debug_comb_busy,
     output logic [3:0] debug_next_cache_state
 );
 
@@ -94,15 +95,15 @@ module holy_data_cache #(
     logic hit;
     assign hit = ((req_block_tag == cache_block_tag) && cache_valid) | non_cachable;
 
-    // STALL LOGIC
+    // busy LOGIC
     logic actual_write_enable;
     assign actual_write_enable = write_enable & |byte_enable;
-    logic comb_stall, seq_stall;
-    assign comb_stall = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
-    assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done;
+    logic comb_busy, seq_busy;
+    assign comb_busy = (next_state != IDLE) | (~hit & (read_enable | actual_write_enable));
+    assign cache_busy = (comb_busy | seq_busy) && ~axi_lite_tx_done;
 
     // Instruction valid flagging
-    assign instr_valid = non_cachable ? ~cache_stall : (cache_valid && next_cache_valid);
+    assign instr_valid = non_cachable ? ~cache_busy : (cache_valid && next_cache_valid);
 
     // =======================
     // CACHE LOGIC
@@ -114,14 +115,14 @@ module holy_data_cache #(
         if (~rst_n) begin
             cache_valid <= 1'b0;
             cache_dirty <= 1'b0;
-            seq_stall <= 1'b0;
+            seq_busy <= 1'b0;
             csr_flushing <= 1'b0;
             axi_lite_tx_done <= 1'b0;
             // 1 is never valid on startup
             axi_lite_cached_addr <= 32'h00000001;
         end else begin
             cache_valid <= next_cache_valid;
-            seq_stall <= comb_stall;
+            seq_busy <= comb_busy;
 
             if(hit && write_enable & state == IDLE) begin
                 cache_data[req_index] <= (cache_data[req_index] & ~byte_enable_mask) | (write_data & byte_enable_mask);
@@ -492,7 +493,7 @@ module holy_data_cache #(
     // misc debug assignements
     assign set_ptr_out = set_ptr;
     assign next_set_ptr_out = next_set_ptr;
-    assign debug_seq_stall = seq_stall;
-    assign debug_comb_stall = comb_stall;
+    assign debug_seq_busy = seq_busy;
+    assign debug_comb_busy = comb_busy;
     assign debug_next_cache_state = next_state;
 endmodule

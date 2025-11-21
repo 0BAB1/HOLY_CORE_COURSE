@@ -96,8 +96,9 @@ module axi_translator (
     input logic                      cpu_read_enable,
     input logic                      cpu_write_enable,
     input logic [3:0]                cpu_byte_enable,
+    output logic                     cpu_cache_busy,
     output logic [31:0]              cpu_read_data,
-    output logic                     cpu_cache_stall
+    output logic                     cpu_instr_valid
 );
 
     import holy_core_pkg::*;
@@ -187,9 +188,9 @@ module axi_translator (
     // dummy wireto shut verilator down
     cache_state_t cache_state;
 
-    // Instantiate the cache module
     /* verilator lint_off PINMISSING */
-    holy_data_cache #(
+    // Instantiate the cache module
+    holy_instr_cache #(
     ) cache_system (
         .clk(clk), 
         .rst_n(rst_n),
@@ -207,8 +208,9 @@ module axi_translator (
         .write_enable(cpu_write_enable),
         .byte_enable(cpu_byte_enable),
         .read_data(cpu_read_data),
-        .cache_stall(cpu_cache_stall),
+        .cache_busy(cpu_cache_busy),
         .cache_state(cache_state),
+        .instr_valid(cpu_instr_valid),
 
         // debug interface
         .set_ptr_out(set_ptr_out)

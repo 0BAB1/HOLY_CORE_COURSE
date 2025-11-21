@@ -11,7 +11,7 @@ import numpy as np
 from copy import deepcopy
 
 # For basic R/W randomized testing
-RW_REGS = [0x7C0, 0x7C1, 0x7C2, 0x300, 0x304, 0x305, 0x341]
+RW_REGS = [0x7C0, 0x7C1, 0x7C2, 0x7C3, 0X7C4, 0x300, 0x304, 0x305, 0x341]
 
 # Map each address to a register
 def get_csr_value(dut, addr):

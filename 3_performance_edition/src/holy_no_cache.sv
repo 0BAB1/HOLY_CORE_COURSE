@@ -12,7 +12,7 @@
 
 import holy_core_pkg::*;
 
-module holy_data_no_cache (
+module holy_no_cache (
     // CPU LOGIC CLOCK & RESET
     input logic clk,
     input logic rst_n,
