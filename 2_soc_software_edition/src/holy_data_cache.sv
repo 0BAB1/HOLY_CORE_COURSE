@@ -164,6 +164,7 @@ module holy_data_cache #(
         next_cache_valid =  hit ? cache_valid : 0; // cache is valid as long as we hit
         next_axi_lite_tx_done = axi_lite_tx_done;
         next_axi_lite_cached_addr = axi_lite_cached_addr;
+        if(!read_enable && !write_enable) next_axi_lite_cached_addr = 32'd1; // unvalidate the axi result after request is fulfilled
 
         // AXI LITE DEFAULT
         axi_lite.wstrb = 4'b1111; // we write all by default.
@@ -213,7 +214,9 @@ module holy_data_cache #(
                 end
                 
                 else if ( read_enable & non_cachable & ~axi_lite_tx_done ) begin
-                    next_state = LITE_SENDING_READ_REQ;
+                    if(axi_lite_cached_addr != address)begin
+                        next_state = LITE_SENDING_READ_REQ;
+                    end
                 end
 
                 else if ( write_enable & non_cachable & ~axi_lite_tx_done ) begin
