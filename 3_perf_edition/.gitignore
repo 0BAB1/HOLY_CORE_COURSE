@@ -1,0 +1,11 @@
+verilator
+sim_build
+__pycache__
+results.xml
+*.None
+*.odg#
+new.hex
+temp.py
+*.vcd
+blink.hex
+dump.txt

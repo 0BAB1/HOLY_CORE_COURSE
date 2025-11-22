@@ -1,0 +1,5 @@
+reset:
+  label: reset_vector
+
+nmi:
+  label: nmi_vector
