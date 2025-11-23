@@ -38,22 +38,8 @@ $ docker run -it riscof-runner bash
 And, once in the container, run the tests using:
 
 ```bash
-(test container) $ riscof riscof validateyaml 
+(test container) $ riscof run --config=config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
 ```
-
-to generate validated yamls of the isa and platform, then :
-
-```bash
-(test container) $ riscof gendb --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
-```
-
-to gen atest db, then:
-
-```bash
-(test container) $ riscof gendb --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
-```
-
-to run the tests using a selection of tests.
 
 ### Debugging tips
 
@@ -64,8 +50,6 @@ docker cp <contianer_name_or_id>:/compliance_test/riscof/riscof_work ./output
 ```
 
 ## User guide: Detailed compliance tests setup
-
-> **WARNING :** deprecated, see container procedure above and mix it toghether...
 
 ### Prerequisites
 
@@ -83,7 +67,7 @@ Finally, you will need to install `riscof` here : [Link to riscof guide](https:/
 > to use riscof, you'll need to pyenv in the python's 3.6.15 version. Yes this is bad but that's how it is.
 
 1. cd into the `./2_soc_software_edition/riscof/` folder.
-2. run `riscof --verbose info arch-test --clone` to download the assembly test programs
+2. run `riscof --verbose info arch-test --clone --get-version 3.9.1` to download the assembly test programs
 3. run `riscof run --config=config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env`
 
 This final command will check what tests are needed (using the *yaml* config file) and compile / run these tests (using our `riscof_holy_core.py` plugin).

@@ -63,4 +63,4 @@ WORKDIR /compliance_test/riscof
 
 # uncomment to clone tests during build
 # if not done on host machine before
-RUN riscof --verbose info arch-test --clone
+RUN riscof --verbose info arch-test --clone --get-version 3.9.1
