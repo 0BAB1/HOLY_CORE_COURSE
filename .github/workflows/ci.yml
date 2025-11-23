@@ -35,8 +35,7 @@ jobs:
       - name: Install Verilator and Dependencies
         run: |
           sudo apt-get update
-          pip install cocotb pytest cocotb-test numpy
-          pip install cocotbext-axi
+          pip install -r requirements.txt
           git clone --recursive https://github.com/verilator/verilator
           unset VERILATOR_ROOT
           cd verilator

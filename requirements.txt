@@ -1,3 +1,5 @@
-cocotb
+cocotb>=1.7.0
+cocotb-test>=0.2.4
 cocotbext-axi
 numpy
+pytest
