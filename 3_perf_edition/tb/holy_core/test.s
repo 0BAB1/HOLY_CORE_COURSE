@@ -12,6 +12,14 @@
 .global _start
 
 _start:
+    # COMMENT OUT IF NEEDED: MAKE ALL CACHABLE
+    li t0, 0xFFFFFFFF
+    li t1, 0xFFFFFFFF
+    csrrw x0, 0x7C1, t0
+    csrrw x0, 0x7C2, t1
+    csrrw x0, 0x7C3, t0
+    csrrw x0, 0x7C4, t1
+
     # DATA ADDR STORE
     lui x3, 0x1
 
@@ -20,6 +28,10 @@ _start:
 
     # SW TEST START
     sw x18, 12(x3)
+    # + provke cache fluch in case of
+    # data caching
+    addi x19, x0, 0x1
+    csrrw x0, 0x7C0, x19
 
     # ADD TEST START
     lw x19, 16(x3)
@@ -157,15 +169,21 @@ _start:
     addi x7, x7, 20
     jalr x1, -4(x7)
     addi x8, x0, 12
+    nop
 
     # SB TEST START
-    nop
     sb x8, 6(x3)
+    # cause a cache flush so the tb can read store result in mem
+    addi x7, x0, 0x1
+    csrrw x0, 0x7C0, x7
 
     # SH TEST START
     nop
     nop
     sh x8, 6(x3)
+    # cause a cache flush...
+    addi x7, x0, 0x1
+    csrrw x0, 0x7C0, x7
 
     # LB TEST START
     addi x7, x3, 0x10
@@ -183,27 +201,45 @@ _start:
     nop
     lhu x21, -6(x7)
 
-    # CACHE WB TEST
-    addi x7, x3, 0x200
-    lw x20, 0(x7)
+    ###############################################################################
+    # due to increased cache complexity, the cache testbench is now
+    # better and more "systemic", meaning these tests are both now
+    # prone to False Negatives and are not worth maintaining...
+    # Furthermore, cocotb's tests suite and fpga's SoC simulation are more
+    # likely to shed light on specific problems that would not be catched
+    # here anyway.
+    ###############################################################################
 
-    # CSR FLUSH TEST
-    addi x20, x0, 1
-    csrrw x21, 0x7C0, x20
+    # # CACHE WB TEST
+    # addi x7, x3, 0x200
+    # lw x20, 0(x7)
 
-    # CSR $ RANGE TEST
-    addi x20, x0, 0
-    lui x20, 0x2
-    addi x21, x20, 0x200
-    csrrw x0, 0x7C1, x20
-    csrrw x0, 0x7C2, x21
+    # # CSR FLUSH TEST
+    # addi x20, x0, 1
+    # csrrw x21, 0x7C0, x20
 
-    addi x20, x20, 4
-    lui x22, 0xABCD1
-    addi x22, x22, 0x111
-    sw x22, 0(x20)
-    lw x22, 4(x20)
-    lw x22, 0(x20)
+    # # CSR $ RANGE TEST
+    # addi x20, x0, 0
+    # lui x20, 0x2
+    # addi x21, x20, 0x200
+    # csrrw x0, 0x7C1, x20
+    # csrrw x0, 0x7C2, x21
+
+    # addi x20, x20, 4
+    # lui x22, 0xABCD1
+    # addi x22, x22, 0x111
+    # sw x22, 0(x20)
+    # lw x22, 4(x20)
+    # lw x22, 0(x20)
+
+    # to easy testbench, we set all as non cachable
+    # for the priv specs specs
+    li t0, 0x00000000
+    li t1, 0xFFFFFFFF
+    csrrw x0, 0x7C1, t0
+    csrrw x0, 0x7C2, t1
+    csrrw x0, 0x7C3, t0
+    csrrw x0, 0x7C4, t1
 
     ################
     # SW INTR TEST

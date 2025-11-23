@@ -293,15 +293,22 @@ module holy_data_cache #(
 
         case (state)
             IDLE: begin
-                if (read_enable && write_enable) begin
-                    $display("ERROR: Simultaneous read and write request");
-                end
+                if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
                 
                 else if (csr_flush_order && ~csr_flushing_done) begin
                     next_csr_flushing = 1'b1;
                     next_flush_set = 0;
                     next_flush_way = 0;
-                    next_state = SENDING_WRITE_REQ;
+
+                    if(cache_valid[0][0]) begin
+                        // if the first set is valid, we flush it
+                        // and start the flushing state loop
+                        next_state = SENDING_WRITE_REQ;
+                    end else begin
+                        // if not, we go to FLUSH NEXT STATE which
+                        // will skip the WRITE requests until it finds a valid set.
+                        next_state = FLUSH_NEXT;
+                    end
                 end
                 
                 else if (~hit && (read_enable ^ actual_write_enable) && ~csr_flush_order && ~non_cachable) begin
@@ -385,6 +392,7 @@ module holy_data_cache #(
             WAITING_WRITE_RES: begin
                 if (axi.bvalid && (axi.bresp == 2'b00)) begin
                     if (csr_flushing) begin
+                        
                         // Flushing implies flusshing all sets
                         // from all ways. so we increment flush set / way pointers
                         // and start writing again untils finished.
@@ -398,14 +406,30 @@ module holy_data_cache #(
                                 next_flush_way = flush_way + 1'b1;
                                 next_flush_set = '0;
                                 next_current_way = flush_way + 1'b1;
-                                next_state = SENDING_WRITE_REQ;
+
+                                // Depending on the next set's validity, we either
+                                // actually flush it OR, if invalid, we just come back here, effectively
+                                // skipping it
+                                if (cache_valid[next_flush_way][next_flush_set]) begin
+                                    next_state = SENDING_WRITE_REQ;
+                                end else begin
+                                    next_state = FLUSH_NEXT;  // Skip cette ligne
+                                end
                             end
                         end else begin
                             // set suivant dans la mm way
                             next_flush_set = flush_set + 1'b1;
-                            next_state = SENDING_WRITE_REQ;
+                            // same as above
+                            if (cache_valid[next_flush_way][next_flush_set]) begin
+                                next_state = SENDING_WRITE_REQ;
+                            end else begin
+                                next_state = FLUSH_NEXT;  // Skip cette ligne
+                            end
                         end
+
                     end else begin
+                        // And, of course, if it was a simple write back, which is what happens 99.99999% of the
+                        // time, we go and fetch dat data by transitionning to read request state !
                         next_state = SENDING_READ_REQ;
                     end
                 end else if (axi.bvalid && (axi.bresp!= 2'b00)) begin
@@ -414,6 +438,32 @@ module holy_data_cache #(
                 end
 
                 axi.bready = 1'b1;
+            end
+
+            FLUSH_NEXT: begin
+                // advance to next set / way OR end the procedure
+                if (flush_set == LAST_SET[SET_INDEX_BITS-1:0]) begin
+                    if (flush_way == 1'b1) begin
+                        // Flush over
+                        next_state = IDLE;
+                        next_csr_flushing = '0;
+                        next_csr_flushing_done = 1'b1;
+                    end else begin
+                        next_flush_way = flush_way + 1'b1;
+                        next_flush_set = '0;
+                    end
+                end else begin
+                    next_flush_set = flush_set + 1'b1;
+                end
+                
+                // Depending on the next set's validity, we either
+                // actually flush it OR, if invalid, we just come back here, effectively
+                // skipping it
+                if (cache_valid[next_flush_way][next_flush_set]) begin
+                    next_state = SENDING_WRITE_REQ;
+                end else if ((flush_way != 1'b1) && (flush_set) != 3'b111) begin
+                    next_state = FLUSH_NEXT;  // Skip cette ligne
+                end
             end
 
             SENDING_READ_REQ: begin

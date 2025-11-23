@@ -573,7 +573,31 @@ cache_state_t d_cache_state;
 // Which is lighter, less complex and more suited to simple FPGA SoCs.
 generate
     if (DCACHE_EN) begin : gen_data_cache
-        $error("todo");
+        holy_data_cache #(
+            .WORDS_PER_LINE(16),
+            .NUM_SETS(8)
+        ) data_cache (
+            .clk(clk),
+            .rst_n(rst_n),
+
+            .address(alu_result),
+            .write_data(mem_write_data),
+            // We set a I cache priority policy.
+            // TODO : add non-blocking capacities
+            .read_enable(mem_read_enable && ~i_cache_stall),
+            .write_enable(mem_write_enable && ~i_cache_stall),
+            .byte_enable(mem_byte_enable),
+            .read_data(mem_read),
+            .cache_busy(d_cache_stall),
+            // incomming CSR Orders
+            .csr_flush_order(csr_flush_order),
+            .non_cachable_base(data_non_cachable_base),
+            .non_cachable_limit(data_non_cachable_limit),
+            // memory interfaces
+            .axi(axi_data),
+            .axi_lite(axi_lite_data),
+            .cache_state(d_cache_state)
+        );
     end else begin : gen_data_no_cache
         holy_no_cache data_no_cache (
             .clk(clk),
@@ -583,11 +607,7 @@ generate
             .address(alu_result),
             .write_data(mem_write_data),
             // We set a I cache priority policy.
-            // when this stage is stalled, we should NOT
-            // Allow the cache to emmit external requests.
-            // (bugs in rare timing edge cases). To make sure 
-            // this is enforced, we condition RE and WE flags
-            // to other stall sources not being asserted.
+            // TODO : add non-blocking capacities
             .read_enable(mem_read_enable && ~i_cache_stall),
             .write_enable(mem_write_enable && ~i_cache_stall),
             .byte_enable(mem_byte_enable),

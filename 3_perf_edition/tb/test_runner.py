@@ -131,17 +131,17 @@ def test_load_store_decoder():
 def test_reader():
     generic_tb_runner("reader")
 
-def test_holy_cache():
+def test_holy_instr_cache():
     proj_path = Path(__name__).resolve().parent.parent
-    generic_tb_runner("holy_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_cache/axi_translator.sv"])
+    generic_tb_runner("holy_instr_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_instr_cache/axi_translator.sv"])
 
 def test_holy_data_cache():
     proj_path = Path(__name__).resolve().parent.parent
     generic_tb_runner("holy_data_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_data_cache/axi_translator.sv"])
 
-def test_holy_data_no_cache():
+def test_holy_no_cache():
     proj_path = Path(__name__).resolve().parent.parent
-    generic_tb_runner("holy_data_no_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_data_no_cache/axi_translator.sv"])
+    generic_tb_runner("holy_no_cache", specific_top_level="axi_translator", additional_sources=[f"{proj_path}/tb/holy_no_cache/axi_translator.sv"])
 
 def test_external_req_arbitrer():
     proj_path = Path(__name__).resolve().parent.parent
@@ -149,17 +149,3 @@ def test_external_req_arbitrer():
 
 def test_csr_file():
     generic_tb_runner("csr_file")
-
-if __name__ == "__main__":
-    test_alu()
-    test_control()
-    test_holy_core()
-    """test_memory()"""
-    test_regfile()
-    test_signext()
-    test_load_store_decoder()
-    test_reader()
-    test_holy_cache()
-    test_holy_data_cache()
-    test_holy_data_no_cache()
-    test_external_req_arbitrer()

@@ -179,7 +179,7 @@ axi_lite_if axi_lite_clint();
 
 /* verilator lint_off PINMISSING */
 holy_core #(
-    .DCACHE_EN(0)
+    .DCACHE_EN(1)
 ) core(
     // Debug module's adresses
     // In the Testbench, these addresses are so piece of ASM

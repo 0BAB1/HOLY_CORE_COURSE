@@ -33,7 +33,7 @@ from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 
 # WARNING : Passing test on async clocks does not mean CDC timing sync is met !
 CPU_PERIOD = 10
-NUM_CYCLES = 10_000
+NUM_CYCLES = 1_000_000
 
 @cocotb.coroutine
 async def cpu_reset(dut):
@@ -74,8 +74,8 @@ async def cpu_insrt_test(dut):
 
     # Init the memories with the program data. Both are sceptible to be queried so we init both.
     # On a real SoC, a single memory will be able to answer bot axi and axi lite interfaces
-    # hex_path = "./doom.hex"
-    hex_path = "./hello_world.hex"
+    hex_path = "./doom.hex"
+    #hex_path = "./hello_world.hex"
     await init_memory(axi_ram_slave, hex_path, 0x80000000)
     await init_memory(axi_lite_ram_slave, hex_path, 0x80000000)
 
@@ -100,7 +100,7 @@ async def cpu_insrt_test(dut):
             dut._log.critical("Unexpected exception !")
             for _2 in range(500):
                 await RisingEdge(dut.clk)
-            return 
+            return
 
         if num_cycles % 5000 == 0:
             print("===============")
