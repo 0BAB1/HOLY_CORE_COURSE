@@ -130,7 +130,9 @@ axi_lite_if axi_lite_clint();
 //=======================
 
 /* verilator lint_off PINMISSING */
-holy_core core(
+holy_core #(
+    .DCACHE_EN(1)
+) core(
     .clk(clk), 
     .rst_n(rst_n),
 

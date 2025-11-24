@@ -1,5 +1,16 @@
+# riscof tb's Makefile
+#
+# This Makefile is here to run the test, but this is not possible manually and happens
+# automatically when running the runcof tests procedure.
+#
+# If you are looking to modify the test startup code, look into start.Makefile
+# (make -f start.Makefile)
+#
+# BRH 11/25
+
+
 ##################################
-# SIMULATION CONFIG (cocotb)
+# SIMULATION CONFIG (cocotb x riscof)
 ##################################
 
 SIM ?= verilator
@@ -39,7 +50,9 @@ TOPLEVEL = holy_test_harness
 MODULE = test_holy_core
 
 # HEX FILE ABSOLUTE PATH TO PROGRAM AND LABELS
-IHEX_PATH ?= $(PWD)/test_imemory.hex
+# set to fool if not set before as this makefile is supposed
+# to be called during the ricof test procdure !
+IHEX_PATH ?= fool
 export IHEX_PATH
 begin_signature ?= fool
 export begin_signature

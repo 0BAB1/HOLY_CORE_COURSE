@@ -29,8 +29,10 @@ CSR_MAP = {
     0x343: "mtval",
     0x340: "mscratch",
     0x7C0: "flush_cache",
-    0x7C1: "non_cachable_base",
-    0x7C2: "non_cachable_limit"
+    0x7C1: "data_non_cachable_base",
+    0x7C2: "data_non_cachable_limit",
+    0x7C3: "instr_non_cachable_base",
+    0x7C4: "instr_non_cachable_limit"
 }
 
 def binary_to_hex(bin_str):
@@ -110,22 +112,12 @@ async def cpu_insrt_test(dut):
     axi_lite_ram_slave = AxiLiteRam(AxiLiteBus.from_prefix(dut, "m_axi_lite"), dut.clk, dut.rst_n, size=SIZE, reset_active_level=False)
     await cpu_reset(dut)
 
-    program_hex = os.environ["IHEX_PATH"]
-    # This unlogged sequence set ups the cache to output via AXI LITE only
-    # to avoid caching side effects. (custom csrs config)
-    axi_ram_slave.write(0x0, int("FFFFF3B7", 16).to_bytes(4,'little')) # li
-    axi_ram_slave.write(0x4, int("7C101073", 16).to_bytes(4,'little')) # cssrw
-    axi_ram_slave.write(0x8, int("7C239073", 16).to_bytes(4,'little')) # cssrw
-    # same for lite
-    axi_lite_ram_slave.write(0x0, int("FFFFF3B7", 16).to_bytes(4,'little')) # li
-    axi_lite_ram_slave.write(0x4, int("7C101073", 16).to_bytes(4,'little')) # cssrw
-    axi_lite_ram_slave.write(0x8, int("7C239073", 16).to_bytes(4,'little')) # cssrw
-    # jump to 0x8000_0000 to comply with spike logs format
-    axi_ram_slave.write(0xC, int("800000B7", 16).to_bytes(4,'little')) # lui   x1, 0x80000
-    axi_ram_slave.write(0x10, int("00008067", 16).to_bytes(4,'little')) # jalr  x0, 0(x1)
-    # same for lite
-    axi_lite_ram_slave.write(0xC, int("800000B7", 16).to_bytes(4,'little')) # lui   x1, 0x80000
-    axi_lite_ram_slave.write(0x10, int("00008067", 16).to_bytes(4,'little')) # jalr  x0, 0(x1)
+    startup_hex = "./test_startup.hex"
+    program_hex = os.environ["IHEX_PATH"]    
+    # add custom startup code (SHOULD CNTAIN A JUMP TO 0x80000000)
+    await init_memory(axi_ram_slave, startup_hex, 0x0)
+    await init_memory(axi_lite_ram_slave, startup_hex, 0x0)
+    # add test code
     await init_memory(axi_ram_slave, program_hex, 0x80000000)
     await init_memory(axi_lite_ram_slave, program_hex, 0x80000000)
 
@@ -137,24 +129,8 @@ async def cpu_insrt_test(dut):
     # TEST BENCH
     ############################################
 
-    while dut.core.stall.value == 1:
-        await RisingEdge(dut.clk)
-
-    # Verify that we execute our non-cachable setup, this will not get logged
-    assert dut.core.instruction.value == 0xFFFFF3B7
-
-    """
-        await RisingEdge(dut.clk)
-        assert dut.core.instruction.value == 0x7C101073
-        await RisingEdge(dut.clk)
-        assert dut.core.instruction.value == 0x7C239073
-        await RisingEdge(dut.clk)
-        assert dut.core.instruction.value == 0x800000B7
-        await RisingEdge(dut.clk)
-        assert dut.core.instruction.value == 0x00008067
-    """
-
     # wait until we are about to jump to 0x8000_0000
+    # to start counting...
     while not dut.core.pc_next.value == 0x8000_0000:
         await RisingEdge(dut.clk)
 

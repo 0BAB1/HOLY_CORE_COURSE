@@ -154,7 +154,7 @@ module holy_data_cache #(
                         (state != IDLE) || (read_enable && ~hit && ~non_cachable) || 
                         (actual_write_enable && ~hit) || (csr_flush_order && ~csr_flushing_done) ||
                         // non cachable stalls
-                        ((read_enable || write_enable) && non_cachable && ~axi_lite_tx_done);
+                        ((read_enable || write_enable) && non_cachable && (~axi_lite_tx_done || (read_enable && (address != axi_lite_cached_addr))));
     assign cache_busy = comb_stall;
     
     // MAIN CLOCK DRIVEN SEQ LOGIC
@@ -265,7 +265,7 @@ module holy_data_cache #(
         next_axi_lite_cached_addr = axi_lite_cached_addr;
 
         // AXI LITE DEFAULT
-        axi_lite.wstrb = 4'b1111;
+        axi_lite.wstrb = byte_enable;
         axi_lite.wdata = write_data;
         axi_lite.arvalid = 0;
         axi_lite.awvalid = 0;

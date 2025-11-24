@@ -167,7 +167,7 @@ module holy_data_cache #(
         if(!read_enable && !write_enable) next_axi_lite_cached_addr = 32'd1; // unvalidate the axi result after request is fulfilled
 
         // AXI LITE DEFAULT
-        axi_lite.wstrb = 4'b1111; // we write all by default.
+        axi_lite.wstrb = byte_enable
         axi_lite.wdata   = write_data;
         axi_lite.arvalid = 0;
         axi_lite.awvalid = 0;
