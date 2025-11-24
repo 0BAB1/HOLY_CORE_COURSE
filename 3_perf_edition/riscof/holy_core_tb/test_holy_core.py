@@ -132,7 +132,12 @@ async def cpu_insrt_test(dut):
     # wait until we are about to jump to 0x8000_0000
     # to start counting...
     while not dut.core.pc_next.value == 0x8000_0000:
-        await RisingEdge(dut.clk)
+        await Timer(1,"ns")
+
+    # we are about to jump to 0x8000_0000, we save pc to jump back
+    # to _test_end (from test_startup.S) once the test is over to
+    # execute final code
+    _test_end_pc = dut.core.pc.value  + 4
 
     i = 0
 
@@ -213,6 +218,15 @@ async def cpu_insrt_test(dut):
         await RisingEdge(dut.clk)
 
     ############################################
+    # FORCE JUMP TO _test_end_pc
+    ############################################
+    dut._log.info(f"Jump too far for JAL, forcing PC directly to 0x{_test_end_pc:08X}")
+
+    dut.core.pc.value = _test_end_pc
+    for _ in range(1000):
+        await RisingEdge(dut.clk)
+    
+    ############################################
     # SIGNATURE DUMP
     ############################################
 
@@ -224,7 +238,12 @@ async def cpu_insrt_test(dut):
 
         for addr in range(begin_signature, end_signature, 4):
             print(f'dumping addr {hex(addr)} in sig file')
-            word_bytes = axi_lite_ram_slave.read(addr, 4)
+            # WARNING : THINK ABOUT CHANGING THIS
+            # DEPENDING ON THE CACHE SETUP !
+
+            #word_bytes = axi_lite_ram_slave.read(addr, 4)
+            word_bytes = axi_ram_slave.read(addr, 4)
+
             word = int.from_bytes(word_bytes, byteorder='little')
             hex_str = "{:08x}".format(word)  # always lowercase
             
