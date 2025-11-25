@@ -563,67 +563,77 @@ load_store_decoder ls_decode(
 
 
 /**
-* DATA CACHE
+* DATA CACHE GENERATION
 */
 
-wire [31:0] mem_read;
-cache_state_t d_cache_state;
+wire    [31:0]  mem_read;
+wire    [31:0]  cachable_mem_read, non_cachable_mem_read;
+cache_state_t   d_cache_state;
+cache_state_t   d_cachable_state, d_non_cachable_state;
+logic non_cachable, cachable_stall, non_cachable_stall;
 
-// IF DCACHE_EN is 0, we only enerate the non cache version.
-// Which is lighter, less complex and more suited to simple FPGA SoCs.
 generate
-    if (DCACHE_EN) begin : gen_data_cache
-        holy_data_cache #(
-            .WORDS_PER_LINE(16),
-            .NUM_SETS(8)
-        ) data_cache (
-            .clk(clk),
-            .rst_n(rst_n),
-
-            .address(alu_result),
-            .write_data(mem_write_data),
-            // We set a I cache priority policy.
-            // TODO : add non-blocking capacities
-            .read_enable(mem_read_enable && ~i_cache_stall),
-            .write_enable(mem_write_enable && ~i_cache_stall),
-            .byte_enable(mem_byte_enable),
-            .read_data(mem_read),
-            .cache_busy(d_cache_stall),
-            // incomming CSR Orders
-            .csr_flush_order(csr_flush_order),
-            .non_cachable_base(data_non_cachable_base),
-            .non_cachable_limit(data_non_cachable_limit),
-            // memory interfaces
-            .axi(axi_data),
-            .axi_lite(axi_lite_data),
-            .cache_state(d_cache_state)
-        );
-    end else begin : gen_data_no_cache
-        holy_no_cache data_no_cache (
-            .clk(clk),
-            .rst_n(rst_n),
-
-            // CPU IF
-            .address(alu_result),
-            .write_data(mem_write_data),
-            // We set a I cache priority policy.
-            // TODO : add non-blocking capacities
-            .read_enable(mem_read_enable && ~i_cache_stall),
-            .write_enable(mem_write_enable && ~i_cache_stall),
-            .byte_enable(mem_byte_enable),
-            .read_data(mem_read),
-            .cache_stall(d_cache_stall),
-
-            // AXI LITE only
-            .axi_lite(axi_lite_data),
-            .cache_state(d_cache_state),
-
-            // Debug
-            .debug_seq_stall(debug_d_cache_seq_stall),
-            .debug_comb_stall(debug_d_cache_comb_stall),
-            .debug_next_cache_state(debug_d_cache_next_state)
-        );
-    end
+if (DCACHE_EN) begin : gen_data_cache
+    // We generate a dcache + a nocache for non cachable transactions.
+    assign non_cachable = (alu_result >= data_non_cachable_base) && 
+                          (alu_result < data_non_cachable_limit);
+    
+    holy_data_cache #(
+        .WORDS_PER_LINE(16),
+        .NUM_SETS(8)
+    ) data_cache (
+        .clk(clk),
+        .rst_n(rst_n),
+        .address(alu_result),
+        .write_data(mem_write_data),
+        .read_enable(~non_cachable && mem_read_enable && ~i_cache_stall),
+        .write_enable(~non_cachable && mem_write_enable && ~i_cache_stall),
+        .byte_enable(mem_byte_enable),
+        .read_data(cachable_mem_read),
+        .cache_busy(cachable_stall),
+        .csr_flush_order(csr_flush_order),
+        .axi(axi_data),
+        .cache_state(d_cachable_state)
+    );
+    
+    holy_no_cache data_no_cache (
+        .clk(clk),
+        .rst_n(rst_n),
+        .address(alu_result),
+        .write_data(mem_write_data),
+        .read_enable(non_cachable && mem_read_enable && ~i_cache_stall),
+        .write_enable(non_cachable && mem_write_enable && ~i_cache_stall),
+        .byte_enable(mem_byte_enable),
+        .read_data(non_cachable_mem_read),
+        .cache_stall(non_cachable_stall),
+        .axi_lite(axi_lite_data),
+        .cache_state(d_non_cachable_state)
+    );
+    
+    // Mux outputs based on address range
+    assign mem_read = non_cachable ? non_cachable_mem_read : cachable_mem_read;
+    assign d_cache_state = non_cachable ? d_non_cachable_state : d_cachable_state;
+    assign d_cache_stall = cachable_stall || non_cachable_stall;
+    
+end else begin : gen_data_no_cache
+    
+    assign non_cachable = 1'b0;
+    assign cachable_stall = 1'b0;
+    
+    holy_no_cache data_no_cache (
+        .clk(clk),
+        .rst_n(rst_n),
+        .address(alu_result),
+        .write_data(mem_write_data),
+        .read_enable(mem_read_enable && ~i_cache_stall),
+        .write_enable(mem_write_enable && ~i_cache_stall),
+        .byte_enable(mem_byte_enable),
+        .read_data(mem_read),
+        .cache_stall(d_cache_stall),
+        .axi_lite(axi_lite_data),
+        .cache_state(d_cache_state)
+    );
+end
 endgenerate
 
 /**

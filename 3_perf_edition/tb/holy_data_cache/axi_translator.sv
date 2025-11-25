@@ -58,37 +58,6 @@ module axi_translator (
     output logic                     axi_rready,
 
     // ==========
-    // AXI LITE
-    // ==========
-
-    // AXI-Lite Write Address Channel
-    output logic [31:0]              axi_lite_awaddr,
-    output logic                     axi_lite_awvalid,
-    input  logic                     axi_lite_awready,
-
-    // AXI-Lite Write Data Channel
-    output logic [31:0]              axi_lite_wdata,
-    output logic [3:0]               axi_lite_wstrb,
-    output logic                     axi_lite_wvalid,
-    input  logic                     axi_lite_wready,
-
-    // AXI-Lite Write Response Channel
-    input  logic [1:0]               axi_lite_bresp,
-    input  logic                     axi_lite_bvalid,
-    output logic                     axi_lite_bready,
-
-    // AXI-Lite Read Address Channel
-    output logic [31:0]              axi_lite_araddr,
-    output logic                     axi_lite_arvalid,
-    input  logic                     axi_lite_arready,
-
-    // AXI-Lite Read Data Channel
-    input  logic [31:0]              axi_lite_rdata,
-    input  logic [1:0]               axi_lite_rresp,
-    input  logic                     axi_lite_rvalid,
-    output logic                     axi_lite_rready,
-
-    // ==========
     // CPU Interface
     // ==========
     input logic [31:0]               cpu_address,
@@ -149,40 +118,6 @@ module axi_translator (
     assign axi_master_intf.rvalid = axi_rvalid;
     assign axi_rready             = axi_master_intf.rready;
 
-    // ==========
-    // AXI LITE
-    // ==========
-
-    // Declare AXI Lite interface
-    axi_lite_if axi_lite_master_intf();
-
-    // Write Address Channel
-    assign axi_lite_awaddr  = axi_lite_master_intf.awaddr;
-    assign axi_lite_awvalid = axi_lite_master_intf.awvalid;
-    assign axi_lite_master_intf.awready = axi_lite_awready;
-
-    // Write Data Channel
-    assign axi_lite_wdata  = axi_lite_master_intf.wdata;
-    assign axi_lite_wstrb  = axi_lite_master_intf.wstrb;
-    assign axi_lite_wvalid = axi_lite_master_intf.wvalid;
-    assign axi_lite_master_intf.wready = axi_lite_wready;
-
-    // Write Response Channel
-    assign axi_lite_master_intf.bresp  = axi_lite_bresp;
-    assign axi_lite_master_intf.bvalid = axi_lite_bvalid;
-    assign axi_lite_bready             = axi_lite_master_intf.bready;
-
-    // Read Address Channel
-    assign axi_lite_araddr  = axi_lite_master_intf.araddr;
-    assign axi_lite_arvalid = axi_lite_master_intf.arvalid;
-    assign axi_lite_master_intf.arready = axi_lite_arready;
-
-    // Read Data Channel
-    assign axi_lite_master_intf.rdata  = axi_lite_rdata;
-    assign axi_lite_master_intf.rresp  = axi_lite_rresp;
-    assign axi_lite_master_intf.rvalid = axi_lite_rvalid;
-    assign axi_lite_rready             = axi_lite_master_intf.rready;
-
     // dummy wireto shut verilator down
     cache_state_t cache_state;
 
@@ -195,9 +130,6 @@ module axi_translator (
 
         // AXI Master Interface
         .axi(axi_master_intf),
-
-        // AXI LITE Master Interface
-        .axi_lite(axi_lite_master_intf),
 
         // CPU Interface
         .address(cpu_address),

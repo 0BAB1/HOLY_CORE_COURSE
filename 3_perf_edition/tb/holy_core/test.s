@@ -12,7 +12,9 @@
 .global _start
 
 _start:
-    # COMMENT OUT IF NEEDED: MAKE ALL CACHABLE
+    # By default, tests are done with cache, both on I$ and D$
+    # COMMENT OUT the following and modify  synth params in test
+    # harness if you wanna test with no cache.
     li t0, 0xFFFFFFFF
     li t1, 0xFFFFFFFF
     csrrw x0, 0x7C1, t0

@@ -107,14 +107,6 @@ async def main_test(dut):
         reset_active_level=False
     )
     
-    axi_lite_ram = AxiLiteRam(
-        AxiLiteBus.from_prefix(dut, "axi_lite"), 
-        dut.clk, 
-        dut.rst_n, 
-        size=MEMORY_SIZE, 
-        reset_active_level=False
-    )
-    
     await RisingEdge(dut.clk)
     await reset(dut)
     
@@ -339,235 +331,6 @@ async def main_test(dut):
     assert memory_errors == 0, f"Memory verification failed with {memory_errors} mismatches"
     dut._log.info("✓ ALL TESTS PASSED")
 
-@cocotb.test()
-async def non_cachable_test(dut):
-    """Test with 3/4 of memory range set as non-cachable"""
-    dut._log.info("=" * 60)
-    dut._log.info("NON-CACHABLE REGION TEST")
-    dut._log.info("Setting 3/4 of memory as non-cachable")
-    dut._log.info("=" * 60)
-    
-    # ==================================
-    # CLOCKS & RAM DECLARATION
-    # ==================================
-    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
-    
-    axi_ram = AxiRam(
-        AxiBus.from_prefix(dut, "axi"), 
-        dut.clk, 
-        dut.rst_n, 
-        size=MEMORY_SIZE, 
-        reset_active_level=False
-    )
-    
-    axi_lite_ram = AxiLiteRam(
-        AxiLiteBus.from_prefix(dut, "axi_lite"), 
-        dut.clk, 
-        dut.rst_n, 
-        size=MEMORY_SIZE, 
-        reset_active_level=False
-    )
-    
-    await RisingEdge(dut.clk)
-    await reset(dut)
-    
-    # ==================================
-    # SET NON-CACHABLE RANGE
-    # ==================================
-    # Set 3/4 of memory as non-cachable (upper 3/4)
-    cachable_limit = MEMORY_SIZE // 4
-    non_cachable_base = cachable_limit
-    non_cachable_limit = MEMORY_SIZE
-    
-    dut.cache_system.non_cachable_base.value = non_cachable_base
-    dut.cache_system.non_cachable_limit.value = non_cachable_limit
-    
-    dut._log.info(f"Cachable region:     0x{0:08X} - 0x{cachable_limit:08X}")
-    dut._log.info(f"Non-cachable region: 0x{non_cachable_base:08X} - 0x{non_cachable_limit:08X}")
-    
-    # ==================================
-    # MEMORY INIT WITH RANDOM VALUES
-    # ==================================
-    dut._log.info("Initializing memory with random data...")
-    
-    mem_golden_ref = []
-    
-    # Fill AXI RAM (cachable region)
-    for address in range(0, MEMORY_SIZE, 4):
-        word_bytes = generate_random_bytes(4)
-        axi_ram.write(address, word_bytes)
-        mem_golden_ref.append(bytes_to_int(word_bytes))
-    
-    # Fill AXI LITE RAM (non-cachable region) with same data
-    for address in range(0, MEMORY_SIZE, 4):
-        word_bytes = int_to_bytes(mem_golden_ref[int(address / 4)])
-        axi_lite_ram.write(address, word_bytes)
-    
-    dut._log.info(f"Memory initialized: {len(mem_golden_ref)} words")
-    
-    # ==================================
-    # RANDOM READ STRESS TEST (MIXED)
-    # ==================================
-    dut._log.info("=" * 60)
-    dut._log.info(f"Starting {NUM_READS} random reads (cachable + non-cachable)...")
-    dut._log.info("=" * 60)
-    
-    errors = 0
-    cachable_reads = 0
-    non_cachable_reads = 0
-    
-    for i in range(NUM_READS):
-        # Generate random word-aligned address (can be anywhere)
-        word_index = random.randint(0, len(mem_golden_ref) - 1)
-        address = word_index * 4
-        
-        # Track if cachable or not
-        is_cachable = address < cachable_limit
-        if is_cachable:
-            cachable_reads += 1
-        else:
-            non_cachable_reads += 1
-        
-        # Expected data from golden reference
-        expected_data = mem_golden_ref[word_index]
-        
-        # Perform read
-        read_data = await cpu_read(dut, address)
-        
-        # Compare
-        if read_data != expected_data:
-            region = "CACHABLE" if is_cachable else "NON-CACHABLE"
-            dut._log.error(f"[{i}] {region} MISMATCH at 0x{address:08X}: " +
-                          f"expected 0x{expected_data:08X}, got 0x{read_data:08X}")
-            errors += 1
-        else:
-            # Log progress every 1000 reads
-            if (i + 1) % 1000 == 0:
-                dut._log.info(f"Progress: {i + 1}/{NUM_READS} reads completed ✓")
-    
-    dut._log.info(f"Read test: {cachable_reads} cachable, {non_cachable_reads} non-cachable")
-    
-    # ==================================
-    # RANDOM R/W STRESS TEST (MIXED)
-    # ==================================
-    dut._log.info("=" * 60)
-    dut._log.info(f"Starting {NUM_WRITES} random R/W tests (mixed regions)...")
-    dut._log.info("=" * 60)
-    
-    read_write_errors = 0
-    CLOSE_TESTS = 10
-    
-    for i in range(NUM_WRITES):
-        # Generate random word-aligned base address
-        base_word_index = random.randint(0, len(mem_golden_ref) - CLOSE_TESTS - 1)
-        base_address = base_word_index * 4
-        
-        for _ in range(CLOSE_TESTS):
-            # Generate a slightly offset address for this nested test
-            offset_words = random.randint(0, 4)
-            address = base_address + (offset_words * 4)
-            word_index = int(address / 4)
-            
-            # Randomly choose read or write
-            op_type = random.choice(["r", "w"])
-            
-            if op_type == "r":
-                # Read and verify
-                expected_data = mem_golden_ref[word_index]
-                read_data = await cpu_read(dut, address)
-                
-                if expected_data != read_data:
-                    is_cachable = address < cachable_limit
-                    region = "CACHABLE" if is_cachable else "NON-CACHABLE"
-                    dut._log.error(f"R/W test [{i}] {region} READ MISMATCH at 0x{address:08X}: " +
-                                  f"expected 0x{expected_data:08X}, got 0x{read_data:08X}")
-                    read_write_errors += 1
-            else:
-                # Write random data
-                write_data = random.randint(0, 0xFFFFFFFF)
-                await cpu_write(dut, address, write_data)
-                
-                # Update golden reference
-                mem_golden_ref[word_index] = write_data
-                
-                # Update the appropriate RAM
-                if address < cachable_limit:
-                    axi_ram.write(address, int_to_bytes(write_data))
-                else:
-                    axi_lite_ram.write(address, int_to_bytes(write_data))
-        
-        # Log progress every 100 iterations
-        if (i + 1) % 100 == 0:
-            dut._log.info(f"Progress: {i + 1}/{NUM_WRITES} R/W blocks completed ✓")
-    
-    dut._log.info(f"R/W stress test completed: {NUM_WRITES} blocks, {read_write_errors} errors")
-    
-    # ==================================
-    # FLUSH CACHE
-    # ==================================
-    dut._log.info("=" * 60)
-    dut._log.info("Flushing cache to write back all dirty lines...")
-    dut._log.info("=" * 60)
-    
-    # Set flush order high
-    dut.cache_system.csr_flush_order.value = 1
-    await RisingEdge(dut.clk)
-    
-    # Wait for flush to complete (cache should go back to IDLE)
-    await wait_cache_ready(dut, timeout=10000)
-    
-    # Clear flush order
-    dut.cache_system.csr_flush_order.value = 0
-    await RisingEdge(dut.clk)
-    
-    dut._log.info("Cache flush completed ✓")
-    
-    # ==================================
-    # VERIFY MEMORY CONSISTENCY
-    # ==================================
-    dut._log.info("=" * 60)
-    dut._log.info("Verifying golden reference vs RAMs...")
-    dut._log.info("=" * 60)
-    
-    memory_errors = 0
-    
-    for address in range(0, MEMORY_SIZE, 4):
-        word_index = int(address / 4)
-        expected_data = mem_golden_ref[word_index]
-        
-        # Read from appropriate RAM
-        if address < cachable_limit:
-            mem_data = axi_ram.read(address, 4)
-        else:
-            mem_data = axi_lite_ram.read(address, 4)
-        
-        actual_data = bytes_to_int(mem_data)
-        
-        if actual_data != expected_data:
-            is_cachable = address < cachable_limit
-            region = "CACHABLE" if is_cachable else "NON-CACHABLE"
-            dut._log.error(f"{region} MEMORY MISMATCH at 0x{address:08X}: " +
-                          f"expected 0x{expected_data:08X}, got 0x{actual_data:08X}")
-            memory_errors += 1
-    
-    # ==================================
-    # FINAL REPORT
-    # ==================================
-    dut._log.info("=" * 60)
-    dut._log.info(f"NON-CACHABLE TEST COMPLETE")
-    dut._log.info(f"Read test: {NUM_READS} reads, {errors} errors")
-    dut._log.info(f"  - Cachable reads: {cachable_reads}")
-    dut._log.info(f"  - Non-cachable reads: {non_cachable_reads}")
-    dut._log.info(f"R/W test: {NUM_WRITES} blocks, {read_write_errors} errors")
-    dut._log.info(f"Memory verification: {memory_errors} mismatches")
-    dut._log.info(f"Overall success: {errors == 0 and memory_errors == 0 and read_write_errors == 0}")
-    dut._log.info("=" * 60)
-    
-    # Assert test passed
-    assert errors == 0, f"Read test failed with {errors} errors"
-    assert read_write_errors == 0, f"R/W test failed with {read_write_errors} errors"
-    assert memory_errors == 0, f"Memory verification failed with {memory_errors} mismatches"
-    dut._log.info("✓ ALL NON-CACHABLE TESTS PASSED")
 
 # =======================================================================
 # =======================================================================
@@ -584,8 +347,6 @@ async def test_cache_thrashing(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n, 
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -648,8 +409,6 @@ async def test_dirty_line_eviction(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -710,8 +469,6 @@ async def test_burst_boundaries(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -740,69 +497,6 @@ async def test_burst_boundaries(dut):
     
     dut._log.info("✓ Burst boundaries test passed")
 
-
-# =======================================================================
-# =======================================================================
-# =======================================================================
-
-@cocotb.test()
-async def test_cachable_non_cachable_boundary(dut):
-    """Test boundary between cachable and non-cachable regions"""
-    dut._log.info("=" * 60)
-    dut._log.info("TEST: Cachable/Non-Cachable Boundary")
-    dut._log.info("=" * 60)
-    
-    # Setup
-    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
-    axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
-                     size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
-    
-    await reset(dut)
-    
-    # Set boundary at 0x1000
-    boundary = 0x1000
-    dut.cache_system.non_cachable_base.value = boundary
-    dut.cache_system.non_cachable_limit.value = 0x2000
-    
-    addr_cachable = boundary - 4      # Just before boundary
-    addr_non_cachable = boundary      # At boundary
-    
-    data_cachable = 0xCACA0000
-    data_non_cachable = 0xBABA0000
-    
-    # Initialize both RAMs
-    axi_ram.write(addr_cachable, int_to_bytes(data_cachable))
-    axi_lite_ram.write(addr_non_cachable, int_to_bytes(data_non_cachable))
-    
-    # Read cachable
-    dut._log.info(f"Reading cachable at 0x{addr_cachable:08X}")
-    result = await cpu_read(dut, addr_cachable)
-    assert result == data_cachable
-    
-    # Read non-cachable
-    dut._log.info(f"Reading non-cachable at 0x{addr_non_cachable:08X}")
-    result = await cpu_read(dut, addr_non_cachable)
-    assert result == data_non_cachable
-    
-    # Read cachable again (should still work)
-    result = await cpu_read(dut, addr_cachable)
-    assert result == data_cachable
-
-    # Write set of data between boundaries
-    await cpu_write(dut, boundary - 4, 0xAAAAAAAA)
-    await cpu_write(dut, boundary, 0XBBBBBBBB)
-    await cpu_write(dut, boundary + 4, 0xCCCCCCCC)
-
-    # Verify to 2 uncached ranges writes are in the actual RAM
-    result = axi_lite_ram.read(boundary, 4)
-    assert result == int_to_bytes(0xBBBBBBBB)
-    result = axi_lite_ram.read(boundary + 4, 4)
-    assert result == int_to_bytes(0xCCCCCCCC)
-    
-    dut._log.info("✓ Cachable/non-cachable boundary test passed")
-
 # =======================================================================
 # =======================================================================
 # =======================================================================
@@ -818,8 +512,6 @@ async def test_write_after_read_same_line(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -865,8 +557,6 @@ async def test_cache_saturation(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -929,8 +619,6 @@ async def test_read_modify_write_sequence(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -969,8 +657,6 @@ async def test_all_sets_access(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -1004,8 +690,6 @@ async def test_rapid_read_write_toggle(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
                      size=2**13, reset_active_level=False)
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
     
     await reset(dut)
     
@@ -1026,120 +710,3 @@ async def test_rapid_read_write_toggle(dut):
         assert val == i + 1
     
     dut._log.info("✓ Rapid read/write toggle test passed")
-
-# =======================================================================
-# =======================================================================
-# =======================================================================
-
-@cocotb.test()
-async def test_cachable_non_cachable_double_read(dut):
-    """
-    When two reads happen in a row on non cachable, but on a DIFFERENT ADDRESS
-    We should refetch, oviously...
-    """
-    dut._log.info("=" * 60)
-    dut._log.info("TEST: Non-Cachable double read")
-    dut._log.info("=" * 60)
-    
-    # Setup
-    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
-    
-    await reset(dut)
-    
-    # Set boundary at 0x1000
-    dut.cache_system.non_cachable_base.value = 0x0
-    dut.cache_system.non_cachable_limit.value = 0xFFFFFFFF
-    
-    test_addr = 0x1000
-    data1 = 0xDEADBEEF
-    data2 = 0xABCD1234
-    
-    # Initialize RAM
-    axi_lite_ram.write(test_addr, int_to_bytes(data1))
-    axi_lite_ram.write(test_addr + 4, int_to_bytes(data2))
-    axi_lite_ram.read(test_addr, 4)
-    # Read 2 datas in a row
-    dut.cpu_address.value = test_addr
-    dut.cpu_read_enable.value = 1
-    dut.cpu_write_enable.value = 0
-    await Timer(1, units="ns")
-    while dut.cpu_cache_busy.value == 1:
-        await Timer(1, units="ns")
-    result1 = int(dut.cpu_read_data.value)
-
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-
-    dut.cpu_address.value = test_addr + 4
-    await Timer(1, units="ns")
-    while dut.cpu_cache_busy.value == 1:
-        await Timer(1, units="ns")
-    result2 = await cpu_read(dut, test_addr + 4)
-
-    assert result1 == data1
-    assert result2 == data2
-    
-    dut._log.info("✓ Cachable/non-cachable boundary test passed")
-
-# =======================================================================
-# =======================================================================
-# =======================================================================
-
-@cocotb.test()
-async def test_cachable_non_cachable_double_write(dut):
-    """
-    same as double read but for write
-    """
-    dut._log.info("=" * 60)
-    dut._log.info("TEST: Non-Cachable double read")
-    dut._log.info("=" * 60)
-    
-    # Setup
-    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
-    axi_lite_ram = AxiLiteRam(AxiLiteBus.from_prefix(dut, "axi_lite"), dut.clk, dut.rst_n,
-                              size=2**13, reset_active_level=False)
-    
-    await reset(dut)
-    
-    # Set boundary at 0x1000
-    dut.cpu_byte_enable.value = 0xF
-    dut.cache_system.non_cachable_base.value = 0x0
-    dut.cache_system.non_cachable_base.value = 0x0
-    dut.cache_system.non_cachable_limit.value = 0xFFFFFFFF
-    
-    test_addr = 0x1000
-    data1 = 0xDEADBEEF
-    data2 = 0xABCD1234
-    
-    # Write 2 datas in a row
-    dut.cpu_address.value = test_addr
-    dut.cpu_write_data.value = data1
-    dut.cpu_read_enable.value = 0
-    dut.cpu_write_enable.value = 1
-    await Timer(1, units="ns")
-    while dut.cpu_cache_busy.value == 1:
-        await Timer(1, units="ns")
-
-    # change instruction
-    await RisingEdge(dut.clk)
-
-    dut.cpu_address.value = test_addr + 4
-    dut.cpu_write_data.value = data2
-    await Timer(1, units="ns")
-    while dut.cpu_cache_busy.value == 1:
-        await Timer(1, units="ns")
-
-    result1 = bytes_to_int(axi_lite_ram.read(test_addr, 4))
-    result2 = bytes_to_int(axi_lite_ram.read(test_addr + 4, 4))
-
-    await Timer(20, units="ns")
-
-    assert result1 == data1
-    assert result2 == data2
-    
-    dut._log.info("✓ Cachable/non-cachable boundary test passed")

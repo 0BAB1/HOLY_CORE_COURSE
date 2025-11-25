@@ -8,15 +8,16 @@ _start:
     # instr cache setup
     li t0, 0x0
     li t0, 0x7FFFFFFF
-    csrrw x0, 0x7C1, t0  # MMIO base
-    csrrw x0, 0x7C2, t1  # MMIO limit
+    csrrw x0, 0x7C1, t0
+    csrrw x0, 0x7C2, t1
 
     # data cache setup
     li t0, 0x0
     li t1, 0x7FFFFFFF
-    csrrw x0, 0x7C3, t0  # MMIO base
-    csrrw x0, 0x7C4, t1  # MMIO limit
+    csrrw x0, 0x7C3, t0
+    csrrw x0, 0x7C4, t1
 
+    # jump to program in cocotb's ram
     la t0, 0x80000000
     jalr x0, t0, 0                
 

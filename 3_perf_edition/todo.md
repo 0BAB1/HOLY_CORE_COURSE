@@ -1,5 +1,6 @@
 # TODO
 
+remove / cleanup debug probe (datapath and fpga top wapper)
 Improve instr cache system
   - remove write
   - reduced drastically burst size to 16 (I$ will always be FFs)
@@ -20,3 +21,4 @@ Improve data cache system
   - Implement 1 cycle hand shake to make it in BRAM
 
 # DONE
+

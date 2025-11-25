@@ -37,14 +37,9 @@ module holy_data_cache #(
 
     // incomming CSR Orders
     input logic         csr_flush_order,
-    input logic [31:0]  non_cachable_base,
-    input logic [31:0]  non_cachable_limit,
 
     // AXI Interface for external requests
     axi_if.master axi,
-
-    // AXI LITE Interface for external requests
-    axi_lite_if.master axi_lite,
 
     // State informations for arbitrer
     output cache_state_t cache_state
@@ -102,21 +97,6 @@ module holy_data_cache #(
     logic csr_flushing_done, next_csr_flushing_done;
     logic comb_stall;
 
-    // AXI Lite transaction tracking
-    logic axi_lite_tx_done;
-    logic next_axi_lite_tx_done;
-    logic [31:0] axi_lite_cached_addr;
-    logic [31:0] next_axi_lite_cached_addr;
-    logic [31:0] axi_lite_read_result;
-
-    // Non-cachable range check
-    logic non_cachable;
-    assign non_cachable = (address >= non_cachable_base) && (address < non_cachable_limit);
-    
-    // Actual write enable (not during non-cachable operations)
-    logic actual_write_enable;
-    assign actual_write_enable = write_enable && ~non_cachable;
-
     // =======================
     // HIT DETECTION
     // =======================
@@ -147,18 +127,11 @@ module holy_data_cache #(
     logic next_cache_valid  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_cache_dirty  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_lru_bits     [NUM_SETS-1:0];
-
-    // Stall and busy signals
-    logic axi_lite_needs_access;
-    assign axi_lite_needs_access =
-        (read_enable || write_enable) && non_cachable;
     
     assign comb_stall = 
-        (state != IDLE) || 
-        (read_enable && ~hit && ~non_cachable) ||
-        (actual_write_enable && ~hit) || 
-        (csr_flush_order && ~csr_flushing_done) ||
-        (axi_lite_needs_access && ~axi_lite_tx_done);
+        (state != IDLE) ||
+        ((write_enable || read_enable) && ~hit) || 
+        (csr_flush_order && ~csr_flushing_done);
 
     assign cache_busy = comb_stall;
     
@@ -167,8 +140,6 @@ module holy_data_cache #(
         if (~rst_n) begin
             csr_flushing <= 1'b0;
             csr_flushing_done <= 1'b0;
-            axi_lite_tx_done <= 1'b0;
-            axi_lite_cached_addr <= 32'h00000001;
             // flush reg
             flush_way <= 0;
             flush_set <= 0;
@@ -189,7 +160,7 @@ module holy_data_cache #(
             
         end else begin
             // Handle writes on cache hit
-            if (hit && write_enable && state == IDLE && ~non_cachable) begin
+            if (hit && write_enable && state == IDLE) begin
                 if (hit_way0) begin
                     cache_data[0][req_set][req_word_offset] <= 
                         (cache_data[0][req_set][req_word_offset] & ~byte_enable_mask) | 
@@ -216,20 +187,13 @@ module holy_data_cache #(
                 end
             end
             
-            // Handle AXI Lite reads
-            else if (axi_lite.rvalid && state == LITE_RECEIVING_READ_DATA && axi_lite.rready) begin
-                axi_lite_read_result <= axi_lite.rdata;
-            end
-            
             // Update LRU on read hit
-            if (hit && read_enable && state == IDLE && ~non_cachable) begin
+            if (hit && read_enable && state == IDLE) begin
                 lru_bits[req_set] <= ~hit_way_select;
             end
             
             csr_flushing <= next_csr_flushing;
             csr_flushing_done <= next_csr_flushing_done;
-            axi_lite_tx_done <= next_axi_lite_tx_done;
-            axi_lite_cached_addr <= next_axi_lite_cached_addr;
             // flush reg
             flush_way <= next_flush_way;
             flush_set <= next_flush_set;
@@ -237,7 +201,7 @@ module holy_data_cache #(
     end
 
     // =======================
-    // AXI & AXI LITE FSM
+    // AXI FSM
     // =======================
 
     // SEQ LOGIC
@@ -257,7 +221,6 @@ module holy_data_cache #(
     always_comb begin
         // State transition defaults
         next_state = state;
-        next_axi_lite_tx_done = axi_lite_tx_done;
         next_current_way = current_way;
         next_word_ptr = word_ptr;
         // inconditional flushing
@@ -266,19 +229,6 @@ module holy_data_cache #(
         next_csr_flushing_done = csr_flushing_done ? csr_flush_order : csr_flushing_done;
         next_flush_set = flush_set;
         next_flush_way = flush_way;
-
-        next_axi_lite_cached_addr = axi_lite_cached_addr;
-
-        // AXI LITE DEFAULT
-        axi_lite.wstrb = byte_enable;
-        axi_lite.wdata = write_data;
-        axi_lite.arvalid = 0;
-        axi_lite.awvalid = 0;
-        axi_lite.wvalid = 0;
-        axi_lite.bready = 0;
-        axi_lite.rready = 0;
-        axi_lite.araddr = 32'h0;
-        axi_lite.awaddr = 32'h0;
 
         // AXI DEFAULT
         axi.wlast = 0;
@@ -316,7 +266,7 @@ module holy_data_cache #(
                     end
                 end
                 
-                else if (~hit && (read_enable ^ actual_write_enable) && ~csr_flush_order && ~non_cachable) begin
+                else if (~hit && (read_enable ^ write_enable) && ~csr_flush_order) begin
                     // Cache miss - determine victim way
                     next_current_way = victim_way;
                     
@@ -329,31 +279,15 @@ module holy_data_cache #(
                     next_word_ptr = '0;
                 end
                 
-                else if (read_enable && non_cachable && ~axi_lite_tx_done) begin
-                    next_state = LITE_SENDING_READ_REQ;
-                end
-                else if (write_enable && non_cachable && ~axi_lite_tx_done) begin
-                    next_state = LITE_SENDING_WRITE_REQ;
-                end
-
                 // READ DATA OUTPUT
-                if (hit && read_enable && ~non_cachable) begin
+                if (hit && read_enable) begin
                     if (hit_way0) begin
                         read_data = cache_data[0][req_set][req_word_offset];
                     end else begin
                         read_data = cache_data[1][req_set][req_word_offset];
                     end
-                end else if (non_cachable && read_enable) begin
-                    read_data = axi_lite_read_result;
                 end else begin
                     read_data = '0;
-                end
-
-                // we deassert axi lite tx if the read goes low
-                // or if we the requested address is different than the 
-                // one we read.
-                if (axi_lite_tx_done && (~read_enable || (address != axi_lite_cached_addr))) begin
-                    next_axi_lite_tx_done = 1'b0;
                 end
             end
             
@@ -492,58 +426,6 @@ module holy_data_cache #(
                 end
 
                 axi.rready = 1'b1;
-            end
-
-            LITE_SENDING_WRITE_REQ: begin
-                axi_lite.awaddr = address;
-                
-                if (axi_lite.awready) begin
-                    next_state = LITE_SENDING_WRITE_DATA;
-                end
-
-                axi_lite.awvalid = 1'b1;
-            end
-
-            LITE_SENDING_WRITE_DATA: begin
-                axi_lite.wdata = write_data;
-                
-                if (axi_lite.wready) begin
-                    next_state = LITE_WAITING_WRITE_RES;
-                end
-
-                axi_lite.wvalid = 1'b1;
-            end
-
-            LITE_WAITING_WRITE_RES: begin
-                if (axi_lite.bvalid && (axi_lite.bresp == 2'b00)) begin
-                    next_state = IDLE;
-                    next_axi_lite_tx_done = 1'b1;
-                end else if (axi_lite.bvalid && (axi_lite.bresp != 2'b00)) begin
-                    $display("ERROR: AXI Lite write response error");
-                    next_state = IDLE;
-                end
-
-                axi_lite.bready = 1'b1;
-            end
-
-            LITE_SENDING_READ_REQ: begin
-                axi_lite.araddr = address;
-                
-                if (axi_lite.arready) begin
-                    next_state = LITE_RECEIVING_READ_DATA;
-                end
-
-                axi_lite.arvalid = 1'b1;
-            end
-
-            LITE_RECEIVING_READ_DATA: begin
-                if (axi_lite.rvalid) begin
-                    next_state = IDLE;
-                    next_axi_lite_tx_done = 1'b1;
-                    next_axi_lite_cached_addr = address;
-                end
-
-                axi_lite.rready = 1'b1;
             end
             
             default: begin
