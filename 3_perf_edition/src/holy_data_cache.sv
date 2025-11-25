@@ -149,14 +149,17 @@ module holy_data_cache #(
     logic next_lru_bits     [NUM_SETS-1:0];
 
     // Stall and busy signals
-    assign comb_stall =
-                        // cachable stalls
-                        (state != IDLE) || (read_enable && ~hit && ~non_cachable) || 
-                        (actual_write_enable && ~hit) || (csr_flush_order && ~csr_flushing_done) ||
-                        // non cachable READ stalls
-                        ((read_enable) && non_cachable && (~axi_lite_tx_done || address != axi_lite_cached_addr)) ||
-                        // non cachable WRITE stalls
-                        (write_enable && non_cachable && ~axi_lite_tx_done);
+    logic axi_lite_needs_access;
+    assign axi_lite_needs_access =
+        (read_enable || write_enable) && non_cachable;
+    
+    assign comb_stall = 
+        (state != IDLE) || 
+        (read_enable && ~hit && ~non_cachable) ||
+        (actual_write_enable && ~hit) || 
+        (csr_flush_order && ~csr_flushing_done) ||
+        (axi_lite_needs_access && ~axi_lite_tx_done);
+
     assign cache_busy = comb_stall;
     
     // MAIN CLOCK DRIVEN SEQ LOGIC

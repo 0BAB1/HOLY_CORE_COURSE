@@ -1069,6 +1069,12 @@ async def test_cachable_non_cachable_double_read(dut):
         await Timer(1, units="ns")
     result1 = int(dut.cpu_read_data.value)
 
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+
     dut.cpu_address.value = test_addr + 4
     await Timer(1, units="ns")
     while dut.cpu_cache_busy.value == 1:

@@ -11,42 +11,42 @@ create_project holy_soc_project /tmp/HOLY_SOC -part xc7s50csga324-1 -force
 set_property board_part digilentinc.com:arty-s7-50:part0:1.1 [current_project]
 
 # Add constraint file
-add_files -fileset constrs_1 -norecurse ./2_soc_software_edition/fpga/arty_S7/constraints.xdc
+add_files -fileset constrs_1 -norecurse ./3_perf_edition/fpga/arty_S7/constraints.xdc
 
 # Add source files
 add_files -norecurse {
-    ./2_soc_software_edition/fpga/holy_top.v
-    ./2_soc_software_edition/src/holy_data_cache.sv
-    ./2_soc_software_edition/src/holy_data_no_cache.sv
-    ./2_soc_software_edition/src/holy_cache.sv
-    ./2_soc_software_edition/src/control.sv
-    ./2_soc_software_edition/src/reader.sv
-    ./2_soc_software_edition/packages/axi_if.sv
-    ./2_soc_software_edition/packages/axi_lite_if.sv
-    ./2_soc_software_edition/packages/holy_core_pkg.sv
-    ./2_soc_software_edition/src/regfile.sv
-    ./2_soc_software_edition/src/external_req_arbitrer.sv
-    ./2_soc_software_edition/src/alu.sv
-    ./2_soc_software_edition/fpga/holy_top.sv
-    ./2_soc_software_edition/src/holy_core.sv
-    ./2_soc_software_edition/src/signext.sv
-    ./2_soc_software_edition/src/load_store_decoder.sv
-    ./2_soc_software_edition/src/csr_file.sv
-    ./2_soc_software_edition/tb/holy_core/axi_if_convert.sv
-    ./2_soc_software_edition/fpga/boot_rom.sv
-    ./2_soc_software_edition/fpga/ROM/boot_rom.v
+    ./3_perf_edition/fpga/holy_top.v
+    ./3_perf_edition/src/holy_data_cache.sv
+    ./3_perf_edition/src/holy_no_cache.sv
+    ./3_perf_edition/src/holy_instr_cache.sv
+    ./3_perf_edition/src/control.sv
+    ./3_perf_edition/src/reader.sv
+    ./3_perf_edition/packages/axi_if.sv
+    ./3_perf_edition/packages/axi_lite_if.sv
+    ./3_perf_edition/packages/holy_core_pkg.sv
+    ./3_perf_edition/src/regfile.sv
+    ./3_perf_edition/src/external_req_arbitrer.sv
+    ./3_perf_edition/src/alu.sv
+    ./3_perf_edition/fpga/holy_top.sv
+    ./3_perf_edition/src/holy_core.sv
+    ./3_perf_edition/src/signext.sv
+    ./3_perf_edition/src/load_store_decoder.sv
+    ./3_perf_edition/src/csr_file.sv
+    ./3_perf_edition/tb/holy_core/axi_if_convert.sv
+    ./3_perf_edition/fpga/boot_rom.sv
+    ./3_perf_edition/fpga/ROM/boot_rom.v
 }
 
-add_files [glob ./2_soc_software_edition/vendor/*.sv]
-add_files [glob ./2_soc_software_edition/vendor/pulp-riscv-dbg/debug_rom/*.sv]
-add_files [glob ./2_soc_software_edition/vendor/pulp-riscv-dbg/src/*.sv]
+add_files [glob ./3_perf_edition/vendor/*.sv]
+add_files [glob ./3_perf_edition/vendor/pulp-riscv-dbg/debug_rom/*.sv]
+add_files [glob ./3_perf_edition/vendor/pulp-riscv-dbg/src/*.sv]
 
-add_files [glob ./2_soc_software_edition/vendor/include/*.sv]
-add_files [glob ./2_soc_software_edition/vendor/include/*.svh]
-add_files [glob ./2_soc_software_edition/vendor/include/common_cells/*.svh]
-add_files [glob ./2_soc_software_edition/vendor/include/axi/*.svh]
-add_files [glob ./2_soc_software_edition/fpga/glue/*.sv]
-# set_property include_dirs {./2_soc_software_edition/vendor/axi/include} [current_fileset]
+add_files [glob ./3_perf_edition/vendor/include/*.sv]
+add_files [glob ./3_perf_edition/vendor/include/*.svh]
+add_files [glob ./3_perf_edition/vendor/include/common_cells/*.svh]
+add_files [glob ./3_perf_edition/vendor/include/axi/*.svh]
+add_files [glob ./3_perf_edition/fpga/glue/*.sv]
+# set_property include_dirs {./3_perf_edition/vendor/axi/include} [current_fileset]
 
 
 # Update compile order
@@ -170,12 +170,12 @@ connect_bd_net [get_bd_pins axi_uartlite_0/s_axi_aresetn] [get_bd_pins rst_clk_w
 
 # Add source files
 add_files -norecurse {
-  ./2_soc_software_edition/src/holy_clint/holy_clint.sv
-  ./2_soc_software_edition/src/holy_clint/holy_clint_wrapper.sv
-  ./2_soc_software_edition/src/holy_clint/holy_clint_top.v
-  ./2_soc_software_edition/src/holy_plic/holy_plic.sv
-  ./2_soc_software_edition/src/holy_plic/holy_plic_wrapper.sv
-  ./2_soc_software_edition/src/holy_plic/holy_plic_top.v
+  ./3_perf_edition/src/holy_clint/holy_clint.sv
+  ./3_perf_edition/src/holy_clint/holy_clint_wrapper.sv
+  ./3_perf_edition/src/holy_clint/holy_clint_top.v
+  ./3_perf_edition/src/holy_plic/holy_plic.sv
+  ./3_perf_edition/src/holy_plic/holy_plic_wrapper.sv
+  ./3_perf_edition/src/holy_plic/holy_plic_top.v
 }
 regenerate_bd_layout
 
@@ -298,15 +298,15 @@ connect_bd_net [get_bd_pins system_ila_0/probe6] [get_bd_pins xlconcat_0/dout]
 
 
 # ADD INCLUDES
-set_property file_type "Verilog Header" [get_files ./2_soc_software_edition/vendor/include/prim_assert_dummy_macros.svh]
-set_property is_global_include true [get_files ./2_soc_software_edition/vendor/include/prim_assert_dummy_macros.svh]
+set_property file_type "Verilog Header" [get_files ./3_perf_edition/vendor/include/prim_assert_dummy_macros.svh]
+set_property is_global_include true [get_files ./3_perf_edition/vendor/include/prim_assert_dummy_macros.svh]
 
 
-set_property file_type "Verilog Header" [get_files ./2_soc_software_edition/vendor/include/prim_assert.sv]
-set_property is_global_include true [get_files ./2_soc_software_edition/vendor/include/prim_assert.sv]
+set_property file_type "Verilog Header" [get_files ./3_perf_edition/vendor/include/prim_assert.sv]
+set_property is_global_include true [get_files ./3_perf_edition/vendor/include/prim_assert.sv]
 
-set_property file_type "Verilog Header" [get_files ./2_soc_software_edition/vendor/include/prim_flop_macros.sv]
-set_property is_global_include true [get_files ./2_soc_software_edition/vendor/include/prim_flop_macros.sv]
+set_property file_type "Verilog Header" [get_files ./3_perf_edition/vendor/include/prim_flop_macros.sv]
+set_property is_global_include true [get_files ./3_perf_edition/vendor/include/prim_flop_macros.sv]
 
 # ADD MIG FOR DDR
 startgroup
@@ -342,7 +342,7 @@ connect_bd_net [get_bd_pins mig_7series_0/clk_ref_i] [get_bd_pins clk_wiz/clk_20
 
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {/mig_7series_0/ui_clk (81 MHz)} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/jtag_axi_0/M_AXI} Slave {/mig_7series_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins mig_7series_0/S_AXI]
 
-exec cp ./2_soc_software_edition/fpga/arty_S7/mig_HC.prj /tmp/HOLY_SOC/holy_soc_project.srcs/sources_1/bd/design_1/ip/design_1_mig_7series_0_0/mig_HC.prj
+exec cp ./3_perf_edition/fpga/arty_S7/mig_HC.prj /tmp/HOLY_SOC/holy_soc_project.srcs/sources_1/bd/design_1/ip/design_1_mig_7series_0_0/mig_HC.prj
 set_property CONFIG.XML_INPUT_FILE ./mig_HC.prj [get_bd_cells mig_7series_0]
 set_property CONFIG.RESET_BOARD_INTERFACE {Custom} [get_bd_cells mig_7series_0]
 set_property CONFIG.MIG_DONT_TOUCH_PARAM {Custom} [get_bd_cells mig_7series_0]
@@ -413,7 +413,7 @@ connect_bd_net [get_bd_pins xlconstant_1/dout] [get_bd_pins top_0/trst_ni]
 regenerate_bd_layout
 
 # Add I2C + set higher baud rate for UART
-
+startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_iic:2.1 axi_iic_0
 endgroup
 set_property location {7 2372 305} [get_bd_cells axi_iic_0]
@@ -428,9 +428,10 @@ endgroup
 startgroup
 set_property CONFIG.C_BAUDRATE {128000} [get_bd_cells axi_uartlite_0]
 endgroup
+
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_iic_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_iic_0/S_AXI]
 validate_bd_design
 
-validate_bd_design: Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 11454.328 ; gain = 0.000 ; free physical = 16136 ; free virtual = 24026
 set_property offset 0x10020000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_iic_0_Reg}]
 delete_bd_objs [get_bd_addr_segs] [get_bd_addr_segs -excluded]
 undo
