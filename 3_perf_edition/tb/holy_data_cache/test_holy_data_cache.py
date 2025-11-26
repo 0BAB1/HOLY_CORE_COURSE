@@ -1,8 +1,9 @@
-# CACHE TESTBENCH - Simple Random Read Stress Test
+# CACHE TESTBENCH - Random Read Stress Test
 #
 # BRH 11/25
-# Functional stress testing based tb
 #
+# Functional stress testing based tb with handshake protocol
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles, Timer
@@ -10,10 +11,12 @@ import random
 from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 
 CPU_PERIOD = 10
-MEMORY_SIZE = 2**22
+MEMORY_SIZE = 2**20
 NUM_READS = 1000
 NUM_WRITES = 1000
-NUM_R_W = 100
+NUM_R_W = 1000
+# close test = nuber of near addr R/W tests
+CLOSE_TESTS = 10
 
 def generate_random_bytes(length):
     return bytes([random.randint(0, 255) for _ in range(length)])
@@ -30,8 +33,8 @@ async def reset(dut):
     """Reset the DUT"""
     await RisingEdge(dut.clk)
     dut.rst_n.value = 0
-    dut.cpu_read_enable.value = 0
-    dut.cpu_write_enable.value = 0
+    dut.cpu_req_valid.value = 0
+    dut.cpu_req_write.value = 0
     dut.cpu_address.value = 0
     dut.cpu_write_data.value = 0
     dut.cpu_byte_enable.value = 0
@@ -41,56 +44,68 @@ async def reset(dut):
     await RisingEdge(dut.clk)
     dut._log.info("Reset complete")
 
-async def wait_cache_ready(dut, timeout=1000):
-    """Wait for cache to become ready (not busy)"""
+async def wait_for_ready(dut, timeout=1000):
+    """Wait for cache to become ready"""
     count = 0
-    while dut.cpu_cache_busy.value == 1:
+    while dut.cpu_req_ready.value == 0:
         await RisingEdge(dut.clk)
         count += 1
         if count > timeout:
-            raise Exception(f"Cache busy timeout after {timeout} cycles")
+            raise Exception(f"Cache ready timeout after {timeout} cycles")
 
 async def cpu_read(dut, address):
-    """Perform a CPU read operation"""
-    # Set address and enable read
+    """Perform a CPU read operation with handshake"""
+    # Set up read request
     dut.cpu_address.value = address
-    dut.cpu_read_enable.value = 1
-    dut.cpu_write_enable.value = 0
-    await RisingEdge(dut.clk)
+    dut.cpu_req_valid.value = 1
+    dut.cpu_req_write.value = 0  # 0 = read
+    dut.cpu_byte_enable.value = 0xF
+    dut.cpu_read_ack.value = 1
     
-    # Wait for cache to complete
-    await wait_cache_ready(dut)
+    # Wait for handshake (req_valid && req_ready)
+    await RisingEdge(dut.clk)
+    while dut.cpu_req_ready.value == 0:
+        await RisingEdge(dut.clk)
+    
+    # Request accepted, deassert valid
+    dut.cpu_req_valid.value = 0
+    
+    # Wait for read_valid to get the data
+    while dut.cpu_read_valid.value == 0:
+        await RisingEdge(dut.clk)
     
     # Capture result
     result = int(dut.cpu_read_data.value)
     
-    # Deassert read enable
-    dut.cpu_read_enable.value = 0
     await RisingEdge(dut.clk)
     
     return result
 
 async def cpu_write(dut, address, data, byte_enable=0xF):
-    """Perform a CPU write operation"""
+    """Perform a CPU write operation with handshake"""
+    # Set up write request
     dut.cpu_address.value = address
     dut.cpu_write_data.value = data
-    dut.cpu_write_enable.value = 1
-    dut.cpu_read_enable.value = 0
+    dut.cpu_req_valid.value = 1
+    dut.cpu_req_write.value = 1  # 1 = write
     dut.cpu_byte_enable.value = byte_enable
+    
+    # Wait for handshake (req_valid && req_ready)
     await RisingEdge(dut.clk)
+    while dut.cpu_req_ready.value == 0:
+        await RisingEdge(dut.clk)
     
-    # Wait for cache to be ready
-    await wait_cache_ready(dut)
+    # Request accepted, deassert valid
+    dut.cpu_req_valid.value = 0
+    dut.cpu_req_write.value = 0
     
-    dut.cpu_write_enable.value = 0
-    dut.cpu_byte_enable.value = 0
     await RisingEdge(dut.clk)
 
 @cocotb.test()
-async def main_test(dut):
-    """Random read stress test - 10000 reads with golden reference"""
+async def test_random_reads(dut):
+    """Random read stress test with golden reference"""
     dut._log.info("=" * 60)
-    dut._log.info("MAIN TEST: Random Read Stress Test")
+    dut._log.info("TEST: Random Read Stress Test")
     dut._log.info(f"Will perform {NUM_READS} random reads")
     dut._log.info("=" * 60)
     
@@ -151,25 +166,73 @@ async def main_test(dut):
         
         # Perform read
         read_data = await cpu_read(dut, address)
-        
         # Compare
         if read_data != expected_data:
             dut._log.error(f"[{i}] MISMATCH at 0x{address:08X}: " +
                           f"expected 0x{expected_data:08X}, got 0x{read_data:08X}")
             errors += 1
+            assert read_data == expected_data
         else:
             # Log progress every 1000 reads
             if (i + 1) % 1000 == 0:
                 dut._log.info(f"Progress: {i + 1}/{NUM_READS} reads completed ✓")
     
     # ==================================
-    # RANDOM WRITE STRESS TEST
+    # FINAL REPORT
     # ==================================
     dut._log.info("=" * 60)
-    dut._log.info(f"Starting {NUM_WRITES} random writes...")
+    dut._log.info(f"READ TEST COMPLETE")
+    dut._log.info(f"Total reads: {NUM_READS}, Errors: {errors}")
     dut._log.info("=" * 60)
     
-    write_errors = 0
+    # Assert test passed
+    assert errors == 0, f"Read test failed with {errors} errors"
+    dut._log.info("✓ READ TEST PASSED")
+
+
+@cocotb.test()
+async def test_random_writes(dut):
+    """Random write stress test with verification"""
+    dut._log.info("=" * 60)
+    dut._log.info("TEST: Random Write Stress Test")
+    dut._log.info(f"Will perform {NUM_WRITES} random writes")
+    dut._log.info("=" * 60)
+    
+    # ==================================
+    # CLOCKS & RAM DECLARATION
+    # ==================================
+    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
+    
+    axi_ram = AxiRam(
+        AxiBus.from_prefix(dut, "axi"), 
+        dut.clk, 
+        dut.rst_n, 
+        size=MEMORY_SIZE, 
+        reset_active_level=False
+    )
+    
+    await RisingEdge(dut.clk)
+    await reset(dut)
+    
+    # ==================================
+    # MEMORY INIT WITH RANDOM VALUES
+    # ==================================
+    dut._log.info("Initializing memory with random data...")
+    
+    mem_golden_ref = []
+    
+    # Fill memory with random data (word by word)
+    for address in range(0, MEMORY_SIZE, 4):
+        word_bytes = generate_random_bytes(4)
+        axi_ram.write(address, word_bytes)
+        mem_golden_ref.append(bytes_to_int(word_bytes))
+    
+    dut._log.info(f"Memory initialized: {len(mem_golden_ref)} words")
+    
+    # ==================================
+    # RANDOM WRITE STRESS TEST
+    # ==================================
+    dut._log.info(f"Starting {NUM_WRITES} random writes...")
     
     for i in range(NUM_WRITES):
         # Generate random word-aligned address
@@ -202,14 +265,14 @@ async def main_test(dut):
     dut.cache_system.csr_flush_order.value = 1
     await RisingEdge(dut.clk)
     
-    # Wait for flush to complete (cache should go back to IDLE)
-    await wait_cache_ready(dut, timeout=5000)
+    # Wait for flush to complete (cache should become ready again)
+    await wait_for_ready(dut, timeout=5000)
     
     # Clear flush order
     dut.cache_system.csr_flush_order.value = 0
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
-    assert dut.cpu_cache_busy.value == 0
+    assert dut.cpu_req_ready.value == 1
     
     dut._log.info("Cache flush completed ✓")
 
@@ -236,33 +299,82 @@ async def main_test(dut):
             memory_errors += 1
 
     # ==================================
-    # RANDOM R/W stress test
+    # FINAL REPORT
     # ==================================
-    # this test read and write similar block of memory.
-    # eg the test will, for each test that is random, not only perform multiple random r:w,
-    # but also make them close in space from each other to allow the cache system to actually
-    # be used
     dut._log.info("=" * 60)
-    dut._log.info(f"Starting {NUM_R_W} random R/W tests...")
+    dut._log.info(f"WRITE TEST COMPLETE")
+    dut._log.info(f"Total writes: {NUM_WRITES}")
+    dut._log.info(f"Memory verification: {memory_errors} mismatches")
     dut._log.info("=" * 60)
     
-    read_write_errors = 0
-    CLOSE_TESTS = 10
+    # Assert test passed
+    assert memory_errors == 0, f"Memory verification failed with {memory_errors} mismatches"
+    dut._log.info("✓ WRITE TEST PASSED")
+
+
+@cocotb.test()
+async def test_random_read_write_mixed(dut):
+    """Random read/write mixed stress test with locality"""
+    dut._log.info("=" * 60)
+    dut._log.info("TEST: Random Read/Write Mixed Stress Test")
+    dut._log.info(f"Will perform {NUM_R_W} test blocks with locality")
+    dut._log.info("=" * 60)
+    
+    # ==================================
+    # CLOCKS & RAM DECLARATION
+    # ==================================
+    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
+    
+    axi_ram = AxiRam(
+        AxiBus.from_prefix(dut, "axi"), 
+        dut.clk, 
+        dut.rst_n, 
+        size=MEMORY_SIZE, 
+        reset_active_level=False
+    )
+    
+    await RisingEdge(dut.clk)
+    await reset(dut)
+    
+    # ==================================
+    # MEMORY INIT WITH RANDOM VALUES
+    # ==================================
+    dut._log.info("Initializing memory with random data...")
+    
+    mem_golden_ref = []
+    
+    # Fill memory with random data (word by word)
+    for address in range(0, MEMORY_SIZE, 4):
+        word_bytes = generate_random_bytes(4)
+        axi_ram.write(address, word_bytes)
+        mem_golden_ref.append(bytes_to_int(word_bytes))
+    
+    dut._log.info(f"Memory initialized: {len(mem_golden_ref)} words")
+    
+    # ==================================
+    # RANDOM R/W STRESS TEST
+    # ==================================
+    # This test reads and writes similar blocks of memory.
+    # For each test, it performs multiple random r/w operations
+    # that are close in address space to exercise cache effectively.
+    dut._log.info(f"Starting {NUM_R_W} random R/W test blocks...")
     
     for i in range(NUM_R_W):
-        # Generate random word-aligned address
-        word_index = random.randint(0, len(mem_golden_ref) - 1)
+        # Generate random word-aligned base address
+        word_index = random.randint(0, len(mem_golden_ref) - 5)
         glob_address = word_index * 4
 
         for _ in range(CLOSE_TESTS):
-            # generate a slighly offsetted address fot this nested test
-            address = glob_address + (random.randint(0,4) * 4)
+            # Generate a slightly offset address for this nested test
+            # Stay within same cache line or nearby lines
+            address = glob_address + (random.randint(0, 4) * 4)
             op_type = random.choice(["r", "w"])
             
             if op_type == "r":
                 expected_data = mem_golden_ref[address >> 2]
                 read_data = await cpu_read(dut, address)
-                assert expected_data == read_data
+                assert expected_data == read_data, \
+                    f"Read mismatch at 0x{address:08X}: expected 0x{expected_data:08X}, got 0x{read_data:08X}"
             else:
                 # Write random data
                 write_data = random.randint(0, 0xFFFFFFFF)
@@ -270,8 +382,12 @@ async def main_test(dut):
                 
                 # Update golden reference
                 mem_golden_ref[address >> 2] = write_data
+        
+        # Log progress every 10 test blocks
+        if (i + 1) % 10 == 0:
+            dut._log.info(f"Progress: {i + 1}/{NUM_R_W} test blocks completed ✓")
     
-    dut._log.info(f"R/W stress test completed: {NUM_WRITES} writes performed")
+    dut._log.info(f"R/W stress test completed: {NUM_R_W} test blocks performed")
 
     # ==================================
     # FLUSH CACHE
@@ -284,8 +400,8 @@ async def main_test(dut):
     dut.cache_system.csr_flush_order.value = 1
     await RisingEdge(dut.clk)
     
-    # Wait for flush to complete (cache should go back to IDLE)
-    await wait_cache_ready(dut, timeout=5000)
+    # Wait for flush to complete
+    await wait_for_ready(dut, timeout=5000)
     
     # Clear flush order
     dut.cache_system.csr_flush_order.value = 0
@@ -319,17 +435,14 @@ async def main_test(dut):
     # FINAL REPORT
     # ==================================
     dut._log.info("=" * 60)
-    dut._log.info(f"TEST COMPLETE")
-    dut._log.info(f"Read test: {NUM_READS} reads, {errors} errors")
-    dut._log.info(f"Write test: {NUM_WRITES} writes")
+    dut._log.info(f"READ/WRITE MIXED TEST COMPLETE")
+    dut._log.info(f"Total test blocks: {NUM_R_W}")
     dut._log.info(f"Memory verification: {memory_errors} mismatches")
-    dut._log.info(f"Overall success: {errors == 0 and memory_errors == 0}")
     dut._log.info("=" * 60)
     
     # Assert test passed
-    assert errors == 0, f"Read test failed with {errors} errors"
     assert memory_errors == 0, f"Memory verification failed with {memory_errors} mismatches"
-    dut._log.info("✓ ALL TESTS PASSED")
+    dut._log.info("✓ READ/WRITE MIXED TEST PASSED")
 
 
 # =======================================================================

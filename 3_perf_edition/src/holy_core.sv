@@ -102,6 +102,8 @@ axi_lite_if axi_lite_instr();
 generate
     if (DCACHE_EN) begin : with_dcache
         external_req_arbitrer mr_l_arbitre(
+            .clk(clk),
+            .rst_n(rst_n),
             .m_axi(m_axi),
             .s_axi_instr(axi_instr),
             .i_cache_state(i_cache_state),
@@ -566,17 +568,57 @@ load_store_decoder ls_decode(
 * DATA CACHE GENERATION
 */
 
+// We need to translate control's simple ENABLE signals into a well
+// formulated handshake. Note that while I cache is stalling, we do
+// not request to data IF.
+logic data_req_valid;
+logic data_req_write;
+logic data_req_ready;
+logic data_read_valid;
+logic data_read_ack;
+// request complete marker
+logic req_complete;
+assign req_complete = (data_read_valid && data_read_ack) || (data_req_valid && data_req_write && data_req_ready);
+
+assign data_req_valid = ~i_cache_stall && (mem_write_enable || mem_read_enable);
+assign data_req_write = mem_write_enable;
+assign data_read_ack = 1'b1; // Always ack reads immediately
+
+// Generate the stalling signal based on handshake state
+always_comb begin
+    d_cache_stall = 1;
+
+    // Stall if we have a valid request but cache is not ready
+    if(~data_req_valid) begin
+        d_cache_stall = 1'b0;
+    end else begin
+        d_cache_stall = ~req_complete;
+    end
+
+end
+
 wire    [31:0]  mem_read;
 wire    [31:0]  cachable_mem_read, non_cachable_mem_read;
 cache_state_t   d_cache_state;
 cache_state_t   d_cachable_state, d_non_cachable_state;
-logic non_cachable, cachable_stall, non_cachable_stall;
+logic           non_cachable;
+logic           cachable_req_valid, non_cachable_req_valid;
+logic           cachable_req_ready, non_cachable_req_ready;
+logic           cachable_read_valid, non_cachable_read_valid;
 
 generate
 if (DCACHE_EN) begin : gen_data_cache
     // We generate a dcache + a nocache for non cachable transactions.
     assign non_cachable = (alu_result >= data_non_cachable_base) && 
                           (alu_result < data_non_cachable_limit);
+    
+    // Route requests based on cachability
+    assign cachable_req_valid = data_req_valid && ~non_cachable;
+    assign non_cachable_req_valid = data_req_valid && non_cachable;
+    
+    // Mux ready and read_valid signals from active module
+    assign data_req_ready = non_cachable ? non_cachable_req_ready : cachable_req_ready;
+    assign data_read_valid = non_cachable ? non_cachable_read_valid : cachable_read_valid;
     
     holy_data_cache #(
         .WORDS_PER_LINE(16),
@@ -586,11 +628,15 @@ if (DCACHE_EN) begin : gen_data_cache
         .rst_n(rst_n),
         .address(alu_result),
         .write_data(mem_write_data),
-        .read_enable(~non_cachable && mem_read_enable && ~i_cache_stall),
-        .write_enable(~non_cachable && mem_write_enable && ~i_cache_stall),
         .byte_enable(mem_byte_enable),
+        // Handshake signals
+        .req_valid(cachable_req_valid),
+        .req_ready(cachable_req_ready),
+        .req_write(data_req_write),
+        .read_valid(cachable_read_valid),
+        .read_ack(data_read_ack),
         .read_data(cachable_mem_read),
-        .cache_busy(cachable_stall),
+        // CSR
         .csr_flush_order(csr_flush_order),
         .axi(axi_data),
         .cache_state(d_cachable_state)
@@ -601,11 +647,15 @@ if (DCACHE_EN) begin : gen_data_cache
         .rst_n(rst_n),
         .address(alu_result),
         .write_data(mem_write_data),
-        .read_enable(non_cachable && mem_read_enable && ~i_cache_stall),
-        .write_enable(non_cachable && mem_write_enable && ~i_cache_stall),
         .byte_enable(mem_byte_enable),
+        // Handshake signals
+        .req_valid(non_cachable_req_valid),
+        .req_ready(non_cachable_req_ready),
+        .req_write(data_req_write),
+        .read_valid(non_cachable_read_valid),
+        .read_ack(data_read_ack),
         .read_data(non_cachable_mem_read),
-        .cache_stall(non_cachable_stall),
+        // AXI Lite
         .axi_lite(axi_lite_data),
         .cache_state(d_non_cachable_state)
     );
@@ -613,23 +663,30 @@ if (DCACHE_EN) begin : gen_data_cache
     // Mux outputs based on address range
     assign mem_read = non_cachable ? non_cachable_mem_read : cachable_mem_read;
     assign d_cache_state = non_cachable ? d_non_cachable_state : d_cachable_state;
-    assign d_cache_stall = cachable_stall || non_cachable_stall;
     
 end else begin : gen_data_no_cache
     
     assign non_cachable = 1'b0;
-    assign cachable_stall = 1'b0;
+    
+    // Direct assignment when no dcache
+    assign non_cachable_req_valid = data_req_valid;
+    assign data_req_ready = non_cachable_req_ready;
+    assign data_read_valid = non_cachable_read_valid;
     
     holy_no_cache data_no_cache (
         .clk(clk),
         .rst_n(rst_n),
         .address(alu_result),
         .write_data(mem_write_data),
-        .read_enable(mem_read_enable && ~i_cache_stall),
-        .write_enable(mem_write_enable && ~i_cache_stall),
         .byte_enable(mem_byte_enable),
+        // Handshake signals
+        .req_valid(non_cachable_req_valid),
+        .req_ready(non_cachable_req_ready),
+        .req_write(data_req_write),
+        .read_valid(non_cachable_read_valid),
+        .read_ack(data_read_ack),
         .read_data(mem_read),
-        .cache_stall(d_cache_stall),
+        // AXI Lite
         .axi_lite(axi_lite_data),
         .cache_state(d_cache_state)
     );

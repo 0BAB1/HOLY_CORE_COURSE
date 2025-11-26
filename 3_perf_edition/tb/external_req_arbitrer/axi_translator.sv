@@ -287,13 +287,14 @@ module axi_translator (
     // Instantiate the cache module
     external_req_arbitrer #(
     ) external_req_arbitrer_instance (
+        .clk(clk),
+        .rst_n(rst_n),
         // AXI Master Interface
         .m_axi(m_axi),
         // AXI Slaves Interfaces
         .s_axi_instr(s_axi_instr),
         .s_axi_data(s_axi_data),
-
-        // chaches states stimulus
+        // caches states stimulus
         .i_cache_state(instr_cache_state),
         .d_cache_state(data_cache_state)
     );

@@ -1,6 +1,8 @@
 # HOLY_CORE TESTBECH
 #
 # Uses a pre-made hardcoded HEX program.
+# WARNING : depending on cache state, the memory dumping has to be manually
+# adapted ! see you at the end of the file. (todo: make this better)
 #
 # BRH 10/24
 

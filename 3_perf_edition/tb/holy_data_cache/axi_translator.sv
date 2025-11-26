@@ -58,15 +58,17 @@ module axi_translator (
     output logic                     axi_rready,
 
     // ==========
-    // CPU Interface
+    // CPU Interface (with handshake)
     // ==========
     input logic [31:0]               cpu_address,
     input logic [31:0]               cpu_write_data,
-    input logic                      cpu_read_enable,
-    input logic                      cpu_write_enable,
+    input logic                      cpu_req_valid,      // NEW: request valid
+    output logic                     cpu_req_ready,      // NEW: cache ready
+    input logic                      cpu_req_write,      // NEW: 0=read, 1=write
     input logic [3:0]                cpu_byte_enable,
     output logic [31:0]              cpu_read_data,
-    output logic                     cpu_cache_busy
+    output logic                     cpu_read_valid,      // NEW: read data valid
+    input logic                      cpu_read_ack
 );
 
     import holy_core_pkg::*;
@@ -118,10 +120,10 @@ module axi_translator (
     assign axi_master_intf.rvalid = axi_rvalid;
     assign axi_rready             = axi_master_intf.rready;
 
-    // dummy wireto shut verilator down
+    // dummy wire to shut verilator down
     cache_state_t cache_state;
 
-    // Instantiate the cache module
+    // Instantiate the cache module with new handshake interface
     /* verilator lint_off PINMISSING */
     holy_data_cache #(
     ) cache_system (
@@ -131,15 +133,17 @@ module axi_translator (
         // AXI Master Interface
         .axi(axi_master_intf),
 
-        // CPU Interface
+        // CPU Interface with handshake
         .address(cpu_address),
         .write_data(cpu_write_data),
-        .read_enable(cpu_read_enable),
-        .write_enable(cpu_write_enable),
+        .req_valid(cpu_req_valid),
+        .req_ready(cpu_req_ready),
+        .req_write(cpu_req_write),
         .byte_enable(cpu_byte_enable),
         .read_data(cpu_read_data),
-        .cache_busy(cpu_cache_busy),
-        .cache_state(cache_state)
+        .read_valid(cpu_read_valid),
+        .cache_state(cache_state),
+        .read_ack(cpu_read_ack)
     );
     /* verilator lint_on PINMISSING */
 

@@ -672,6 +672,9 @@ async def cpu_insrt_test(dut):
     await NextInstr(dut) # addi x7, x0, 0x1
     await NextInstr(dut) # csrrw x0, 0x7C0, x7
 
+    # we wait for d_cache to be ready by awayating a dummy lw
+    await NextInstr(dut) # lw x0, 0(x3)
+
     # depending on caching params, we might find our data in either ram
     in_lite = int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little") == 0x00EE_0000
     in_full = int.from_bytes(axi_ram_slave.read(0x1004, 4), byteorder="little") == 0x00EE_0000
@@ -701,6 +704,9 @@ async def cpu_insrt_test(dut):
     await NextInstr(dut) # sh x8 6(x3) 
     await NextInstr(dut) # addi x7, x0, 0x1
     await NextInstr(dut) # csrrw x0, 0x7C0, x7
+
+    # we wait for d_cache to be ready by awayating a dummy lw
+    await NextInstr(dut) # lw x0, 0(x3)
 
     # axi_lite_ram_slave.hexdump(0x1004,4)
     # print(hex(int.from_bytes(axi_lite_ram_slave.read(0x1004, 4), byteorder="little")))
@@ -941,12 +947,14 @@ async def cpu_insrt_test(dut):
     while not binary_to_hex(dut.core.instruction.value) == "00522023":
         await RisingEdge(dut.clk)
     
-    while dut.core.stall.value == 0b1:
-        await RisingEdge(dut.clk) # sw x5 0(x4)
+    await NextInstr(dut) # sw x5 0(x4)
+
+    # we wait for d_cache to be ready by awayating a dummy lw
+    # lw x0, 0(x3)
     
     # a software interrupt should be raised
     assert dut.clint.soft_irq.value == 1
-    assert dut.core.trap.value == 1
+    assert dut.core.trap.value == 1 or dut.core.control_unit.trap_pending.value == 1
 
     # wait until we are about to mret
     while not binary_to_hex(dut.core.instruction.value) == "30200073":

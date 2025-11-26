@@ -17,10 +17,16 @@ package holy_core_pkg;
     SENDING_WRITE_REQ,
     SENDING_WRITE_DATA,
     WAITING_WRITE_RES,
-    FLUSH_NEXT, // flush specific state to skip flushing a line if its not valid !
-    SENDING_READ_REQ, // Data miss ! We have to fetch from memory ! State for as long as the req has not been acknowleged by memory slave
-    RECEIVING_READ_DATA,  // Once REQ is acknowleged, we wait for full response. (tlast)
-    // AXI LITE VERSIONS
+    // WHEN A WRITE REQ MISSES, IT SHOULD BE FULFILLED AFTER
+    FULFILL_PENDING_WRITE,
+    // STATE TO EVALUTE WHETHER A SET IS FLUSHABLE (VALID)
+    // OR SHOULD BE SKIPPED
+    FLUSH_NEXT, 
+    SENDING_READ_REQ,
+    RECEIVING_READ_DATA,
+    // SIGNAL A VALID READ TO THE CPU
+    READ_OK,
+    // AXI LITE TX STATES FOR NO UNCACHED TXs
     LITE_SENDING_WRITE_REQ,
     LITE_SENDING_WRITE_DATA,
     LITE_WAITING_WRITE_RES,

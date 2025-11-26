@@ -178,6 +178,8 @@ _start:
     # cause a cache flush so the tb can read store result in mem
     addi x7, x0, 0x1
     csrrw x0, 0x7C0, x7
+    # dummy lw to await potential cache flush delays
+    lw x0, 0(x3)
 
     # SH TEST START
     nop
@@ -186,6 +188,8 @@ _start:
     # cause a cache flush...
     addi x7, x0, 0x1
     csrrw x0, 0x7C0, x7
+    # dummy lw to await potential cache flush delays
+    lw x0, 0(x3)
 
     # LB TEST START
     addi x7, x3, 0x10
@@ -258,6 +262,8 @@ _start:
 
     addi x5, x0, 1      
     sw x5, 0(x4)            # write 1 to clint's msip
+    # dummy lw to await potential cache flush delays
+    lw x0, 0(x3)
     # return should happen here
 
     ################

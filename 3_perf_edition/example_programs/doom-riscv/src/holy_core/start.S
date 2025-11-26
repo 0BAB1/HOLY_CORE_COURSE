@@ -12,7 +12,7 @@ _start:
 
     // zero out the .bss section in the start code
     // because GDB won't load .bss (which is all zeroes)
-    call init_bss
+    // call init_bss
 
     // holy core port :
     // Setup instruction cache : make only the RAM cachable

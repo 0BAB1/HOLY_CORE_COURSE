@@ -4,10 +4,13 @@
 *   Project : Holy Core Perf Edition
 *   Description : A 2 way N sets, set-associative cache.
 *                 Implementing AXI to request data from outside main memory.
-*                 With a CPU interface for basic core request with stall signal.
+*                 With a CPU handshake interface for OPTIMAL robusteness.
 *                 The goal is to allow the user to connect its own memory on FPGA.
 *                 It also supports non cachable ranges, which the use can set
 *                 using CSRs.
+*
+*                 Goal is to implement cache as BRAM for optimal perfs
+*                 Target : Xilinx FPGAs.
 *
 *   Created 11/25
 */
@@ -20,20 +23,21 @@ module holy_data_cache #(
     // MODIFYING THE FOLLOWING IS NOT SUPPORTED. 
     parameter NUM_WAYS = 2 
 )(
-    // CPU LOGIC CLOCK & RESET
     input logic clk,
     input logic rst_n,
 
     // CPU Interface
     input logic [31:0]  address,
     input logic [31:0]  write_data,
-    input logic         read_enable,
-    input logic         write_enable,
+    // handshake
+    input logic         req_valid,
+    output logic        req_ready,
+    input logic         req_write, // 0->R // 1->W
     input logic [3:0]   byte_enable,
+    // read out
     output logic [31:0] read_data,
-    output logic        cache_busy,
-    // todo : add data vlid to allow data retrieve before end of bursts
-    // to limit blocking times.
+    output logic        read_valid,
+    input logic         read_ack,
 
     // incomming CSR Orders
     input logic         csr_flush_order,
@@ -44,6 +48,28 @@ module holy_data_cache #(
     // State informations for arbitrer
     output cache_state_t cache_state
 );
+    // =======================
+    // CPU FRONTEND : HANDSHAKE CONTROL
+    // =======================
+
+    // Ready when idle (and not flushing)
+    assign req_ready = (state == IDLE) && ~(csr_flush_order && ~csr_flushing_done);
+    
+    // flag accepted request for state transition
+    logic req_accepted;
+    assign req_accepted = req_valid && req_ready;
+
+    // Request latch on miss: in case of a miss, the cache needs to remember 
+    // the original missed request to fulfill it once it has moved data around
+    logic                       pending_write, next_pending_write;
+    logic [31:0]                pending_addr, next_pending_addr;
+    logic [31:0]                pending_data, next_pending_data;
+    logic [31:0]                pending_be_mask, next_pending_be_mask;
+    logic [SET_INDEX_BITS-1:0]  pending_set, next_pending_set;
+    logic [WORD_OFFSET_BITS-1:0] pending_word_offset, next_pending_word_offset;
+    logic [TAG_BITS-1:0]        pending_tag, next_pending_tag;
+
+    assign read_valid = (state == READ_OK);
 
     // =======================
     // ADDRESS BREAKDOWN
@@ -78,7 +104,7 @@ module holy_data_cache #(
     // =======================
 
     // Cache storage: default : 2 ways × 8 sets × 16 words
-    logic [31:0]         cache_data  [NUM_WAYS-1:0][NUM_SETS-1:0][WORDS_PER_LINE-1:0];
+    (* ram_style = "block" *) logic [31:0]         cache_data  [NUM_WAYS-1:0][NUM_SETS-1:0][WORDS_PER_LINE-1:0];
     logic [TAG_BITS-1:0] cache_tags  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic                cache_valid [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic                cache_dirty [NUM_WAYS-1:0][NUM_SETS-1:0];
@@ -95,10 +121,9 @@ module holy_data_cache #(
     // Control signals
     logic csr_flushing, next_csr_flushing;
     logic csr_flushing_done, next_csr_flushing_done;
-    logic comb_stall;
 
     // =======================
-    // HIT DETECTION
+    // HIT DETECTION COMB
     // =======================
 
     assign hit_way0 = cache_valid[0][req_set] && (cache_tags[0][req_set] == req_tag);
@@ -124,16 +149,10 @@ module holy_data_cache #(
     logic [WORD_OFFSET_BITS-1:0] word_ptr, next_word_ptr;
 
     // Cache valid/dirty next state
+    logic [TAG_BITS-1:0] next_cache_tags  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_cache_valid  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_cache_dirty  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_lru_bits     [NUM_SETS-1:0];
-    
-    assign comb_stall = 
-        (state != IDLE) ||
-        ((write_enable || read_enable) && ~hit) || 
-        (csr_flush_order && ~csr_flushing_done);
-
-    assign cache_busy = comb_stall;
     
     // MAIN CLOCK DRIVEN SEQ LOGIC
     always_ff @(posedge clk) begin
@@ -157,10 +176,42 @@ module holy_data_cache #(
             for (int s = 0; s < NUM_SETS; s++) begin
                 lru_bits[s] <= 1'b0;
             end
+
+            // write miss latches
+            pending_write <= 1'b0;
+            pending_addr <= '0;
+            pending_data <= '0;
+            pending_be_mask <= '0;
+            pending_set <= '0;
+            pending_word_offset <= '0;
+            pending_tag <= '0;
             
         end else begin
-            // Handle writes on cache hit
-            if (hit && write_enable && state == IDLE) begin
+            // DEFAULT REG LATCHES
+            // cache metadata
+            cache_tags  <= next_cache_tags;
+            cache_valid <= next_cache_valid;
+            cache_dirty <= next_cache_dirty;
+            lru_bits    <= next_lru_bits;
+            
+            csr_flushing <= next_csr_flushing;
+            csr_flushing_done <= next_csr_flushing_done;
+
+            // flush reg
+            flush_way <= next_flush_way;
+            flush_set <= next_flush_set;
+
+            // pending request latches
+            pending_write <= next_pending_write;
+            pending_addr  <= next_pending_addr;
+            pending_data <= next_pending_data;
+            pending_be_mask <= next_pending_be_mask;
+            pending_set <= next_pending_set;
+            pending_word_offset <= next_pending_word_offset;
+            pending_tag <= next_pending_tag;
+
+            // Handle writes on cache hit (when request is accepted)
+            if (hit && req_write && req_accepted && state == IDLE) begin
                 if (hit_way0) begin
                     cache_data[0][req_set][req_word_offset] <= 
                         (cache_data[0][req_set][req_word_offset] & ~byte_enable_mask) | 
@@ -178,30 +229,25 @@ module holy_data_cache #(
             
             // Handle cache line fills from AXI
             else if (axi.rvalid && state == RECEIVING_READ_DATA && axi.rready) begin
-                cache_data[current_way][req_set][word_ptr] <= axi.rdata;
-                if (axi.rlast) begin
-                    cache_tags[current_way][req_set] <= req_tag;
-                    cache_valid[current_way][req_set] <= 1'b1;
-                    cache_dirty[current_way][req_set] <= 1'b0;
-                    lru_bits[req_set] <= ~current_way; // Update LRU
-                end
+                cache_data[current_way][pending_set][word_ptr] <= axi.rdata;
+            end
+
+            // Fulfill pending write after cache line fill
+            else if (state == FULFILL_PENDING_WRITE) begin
+                cache_data[current_way][pending_set][pending_word_offset] <= 
+                    (cache_data[current_way][pending_set][pending_word_offset] & ~pending_be_mask) | 
+                    (pending_data & pending_be_mask);
             end
             
-            // Update LRU on read hit
-            if (hit && read_enable && state == IDLE) begin
+            // Update LRU on read hit (when request is accepted)
+            if (hit && ~req_write && req_accepted && state == IDLE) begin
                 lru_bits[req_set] <= ~hit_way_select;
             end
-            
-            csr_flushing <= next_csr_flushing;
-            csr_flushing_done <= next_csr_flushing_done;
-            // flush reg
-            flush_way <= next_flush_way;
-            flush_set <= next_flush_set;
         end
     end
 
     // =======================
-    // AXI FSM
+    // AXI FSM STATES
     // =======================
 
     // SEQ LOGIC
@@ -223,12 +269,27 @@ module holy_data_cache #(
         next_state = state;
         next_current_way = current_way;
         next_word_ptr = word_ptr;
-        // inconditional flushing
+        
+        // flush control
         next_csr_flushing = csr_flushing;
-        // we deassert flush done flag when the csr flush is no more.
         next_csr_flushing_done = csr_flushing_done ? csr_flush_order : csr_flushing_done;
         next_flush_set = flush_set;
         next_flush_way = flush_way;
+        
+        // cache metadata
+        next_cache_tags = cache_tags;
+        next_cache_valid = cache_valid;
+        next_cache_dirty = cache_dirty;
+        next_lru_bits = lru_bits;
+        
+        // pending request latches
+        next_pending_write = pending_write;
+        next_pending_addr = pending_addr;
+        next_pending_data = pending_data;
+        next_pending_be_mask = pending_be_mask;
+        next_pending_set = pending_set;
+        next_pending_word_offset = pending_word_offset;
+        next_pending_tag = pending_tag;
 
         // AXI DEFAULT
         axi.wlast = 0;
@@ -244,13 +305,12 @@ module holy_data_cache #(
         // MISC OUTPUT DEFAULTS
         cache_state = state;
         read_data = 32'h0;
-        cache_state = state;
 
         case (state)
             IDLE: begin
-                if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
                 
-                else if (csr_flush_order && ~csr_flushing_done) begin
+                // INIT FLUSHING PROCEDURE
+                if (csr_flush_order && ~csr_flushing_done) begin
                     next_csr_flushing = 1'b1;
                     next_flush_set = 0;
                     next_flush_way = 0;
@@ -266,9 +326,19 @@ module holy_data_cache #(
                     end
                 end
                 
-                else if (~hit && (read_enable ^ write_enable) && ~csr_flush_order) begin
-                    // Cache miss - determine victim way
+                // ACCEPT MISS
+                else if (req_accepted && ~hit) begin
+                    // Cache miss on accepted request - determine victim way
                     next_current_way = victim_way;
+
+                    // Latch the entire request for later fulfillment
+                    next_pending_write = req_write;
+                    next_pending_addr = address;
+                    next_pending_data = write_data;
+                    next_pending_be_mask = byte_enable_mask;
+                    next_pending_set = req_set;
+                    next_pending_word_offset = req_word_offset;
+                    next_pending_tag = req_tag;
                     
                     // Check if victim line is dirty
                     if (cache_valid[victim_way][req_set] && cache_dirty[victim_way][req_set]) begin
@@ -279,15 +349,9 @@ module holy_data_cache #(
                     next_word_ptr = '0;
                 end
                 
-                // READ DATA OUTPUT
-                if (hit && read_enable) begin
-                    if (hit_way0) begin
-                        read_data = cache_data[0][req_set][req_word_offset];
-                    end else begin
-                        read_data = cache_data[1][req_set][req_word_offset];
-                    end
-                end else begin
-                    read_data = '0;
+                // ACCEPT HIT (READ)
+                else if (hit && ~req_write && req_accepted) begin
+                    next_state = READ_OK;
                 end
             end
             
@@ -296,7 +360,7 @@ module holy_data_cache #(
                 if (csr_flushing) begin
                     axi.awaddr = {cache_tags[flush_way][flush_set], flush_set, {WORD_OFFSET_BITS{1'b0}}, 2'b00};
                 end else begin
-                    axi.awaddr = {cache_tags[current_way][req_set], req_set, {WORD_OFFSET_BITS{1'b0}}, 2'b00};
+                    axi.awaddr = {cache_tags[current_way][pending_set], pending_set, {WORD_OFFSET_BITS{1'b0}}, 2'b00};
                 end
                 
                 if (axi.awready) begin
@@ -311,7 +375,7 @@ module holy_data_cache #(
                 if(csr_flushing)begin
                     axi.wdata = cache_data[flush_way][flush_set][word_ptr];
                 end else begin
-                    axi.wdata = cache_data[current_way][req_set][word_ptr];
+                    axi.wdata = cache_data[current_way][pending_set][word_ptr];
                 end
                 
                 if (axi.wready) begin
@@ -332,9 +396,8 @@ module holy_data_cache #(
                 if (axi.bvalid && (axi.bresp == 2'b00)) begin
                     if (csr_flushing) begin
                         
-                        // Flushing implies flusshing all sets
-                        // from all ways. so we increment flush set / way pointers
-                        // and start writing again untils finished.
+                        // Flushing implies flushing all sets from all ways
+                        // so we increment flush set / way pointers
                         if (flush_set == LAST_SET[SET_INDEX_BITS-1:0]) begin
                             // last set of this way
                             if (flush_way == 1'b1) begin
@@ -346,29 +409,24 @@ module holy_data_cache #(
                                 next_flush_set = '0;
                                 next_current_way = flush_way + 1'b1;
 
-                                // Depending on the next set's validity, we either
-                                // actually flush it OR, if invalid, we just come back here, effectively
-                                // skipping it
                                 if (cache_valid[next_flush_way][next_flush_set]) begin
                                     next_state = SENDING_WRITE_REQ;
                                 end else begin
-                                    next_state = FLUSH_NEXT;  // Skip cette ligne
+                                    next_state = FLUSH_NEXT;
                                 end
                             end
                         end else begin
-                            // set suivant dans la mm way
+                            // next set in same way
                             next_flush_set = flush_set + 1'b1;
-                            // same as above
                             if (cache_valid[next_flush_way][next_flush_set]) begin
                                 next_state = SENDING_WRITE_REQ;
                             end else begin
-                                next_state = FLUSH_NEXT;  // Skip cette ligne
+                                next_state = FLUSH_NEXT;
                             end
                         end
 
                     end else begin
-                        // And, of course, if it was a simple write back, which is what happens 99.99999% of the
-                        // time, we go and fetch dat data by transitionning to read request state !
+                        // Normal write-back complete, now fetch the data
                         next_state = SENDING_READ_REQ;
                     end
                 end else if (axi.bvalid && (axi.bresp!= 2'b00)) begin
@@ -395,18 +453,16 @@ module holy_data_cache #(
                     next_flush_set = flush_set + 1'b1;
                 end
                 
-                // Depending on the next set's validity, we either
-                // actually flush it OR, if invalid, we just come back here, effectively
-                // skipping it
+                // Check if next set needs flushing
                 if (cache_valid[next_flush_way][next_flush_set]) begin
                     next_state = SENDING_WRITE_REQ;
                 end else if ((flush_way != 1'b1) && (flush_set) != 3'b111) begin
-                    next_state = FLUSH_NEXT;  // Skip cette ligne
+                    next_state = FLUSH_NEXT;
                 end
             end
 
             SENDING_READ_REQ: begin
-                axi.araddr = {req_tag, req_set, {WORD_OFFSET_BITS{1'b0}}, 2'b00};
+                axi.araddr = {pending_tag, pending_set, {WORD_OFFSET_BITS{1'b0}}, 2'b00};
                 
                 if (axi.arready) begin
                     next_state = RECEIVING_READ_DATA;
@@ -421,11 +477,49 @@ module holy_data_cache #(
                     next_word_ptr = word_ptr + 1;
                     
                     if (axi.rlast) begin
-                        next_state = IDLE;
+                        // Depending on what caused the miss, we react differently
+                        if(pending_write) begin
+                            next_state = FULFILL_PENDING_WRITE;
+                        end else begin
+                            next_state = READ_OK;
+                            next_cache_dirty[current_way][pending_set] = 1'b0;
+                        end
                     end
                 end
 
                 axi.rready = 1'b1;
+            end
+
+            READ_OK: begin
+                // Signal output data as valid
+                if(read_ack) begin
+                    next_state = IDLE;
+                    // Update cache metadata
+                    next_cache_tags[current_way][pending_set] = pending_tag;
+                    next_cache_valid[current_way][pending_set] = 1'b1;
+                    next_lru_bits[pending_set] = ~current_way;
+                end
+                
+                // Set read data
+                if(hit) begin
+                    read_data = cache_data[hit_way_select][req_set][req_word_offset];
+                end else begin
+                    read_data = cache_data[current_way][pending_set][pending_word_offset];
+                end
+                
+            end
+
+            FULFILL_PENDING_WRITE : begin
+                // The miss was caused by a write
+                // SEQ logic will write the data when this state is active
+                next_pending_write = 1'b0;
+                next_state = IDLE;
+                
+                // Update cache metadata for the write
+                next_cache_tags[current_way][pending_set] = pending_tag;
+                next_cache_dirty[current_way][pending_set] = 1'b1;
+                next_cache_valid[current_way][pending_set] = 1'b1;
+                next_lru_bits[pending_set] = ~current_way;
             end
             
             default: begin
@@ -438,7 +532,7 @@ module holy_data_cache #(
     // MISC SIGNALS
     // =======================
 
-    // Byte enable mask generation
+    // Byte enable mask generation (for current request)
     wire [31:0] byte_enable_mask;
     assign byte_enable_mask = {
         {8{byte_enable[3]}},

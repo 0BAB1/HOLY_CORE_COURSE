@@ -1,4 +1,4 @@
-/** UNCACHED DATA MEMORY MODULE
+/** UNCACHED DATA MEMORY MODULE (HANDSHAKE VERSION)
 *
 *   Author : BRH
 *   Project : Holy Core SoC & Software edition
@@ -7,7 +7,7 @@
 *                 simple SoC with lots of MMIO operation and with tighlty coupled
 *                 memory system (e.g. BRAM on an FPGA).
 *
-*   Created 06/25
+*   Updated 11/25 - Added req_valid/req_ready handshake interface
 */
 
 import holy_core_pkg::*;
@@ -20,73 +20,70 @@ module holy_no_cache (
     // CPU Interface
     input logic [31:0]  address,
     input logic [31:0]  write_data,
-    input logic         read_enable,
-    input logic         write_enable,
     input logic [3:0]   byte_enable,
+    // handshake
+    input logic         req_valid,
+    output logic        req_ready,
+    input logic         req_write, // 0->R // 1->W
+    // read out
     output logic [31:0] read_data,
-    output logic        cache_stall,
+    output logic        read_valid,
+    input logic         read_ack,
 
     // AXI LITE Interface for external requests
     axi_lite_if.master axi_lite,
 
     // State informations for arbitrer (also used for debugging)
-    output cache_state_t cache_state,
-
-    // Debug signals
-    output logic       debug_seq_stall,
-    output logic       debug_comb_stall,
-    output logic [3:0] debug_next_cache_state
+    output cache_state_t cache_state
 );
-    // debug assignements
-    assign debug_seq_stall = seq_stall;
-    assign debug_comb_stall = comb_stall;
-    assign debug_next_cache_state = next_state;
 
-    // AXI LITE's result for reads will be stored here
-    logic [31:0]                    axi_lite_read_result; 
-    // IMPORTANT : axi_lite_tx_done is flag used to determine if R or W
-    // tx has been completed it is set to 1 after a successful AXI LITE TX
-    // to avoid going into a NON IDLE state right away and let the core
-    // fetch a new instruction. This also means it stays high for 1 clock cycle
-    // only before going low again, thus allowing the cache to go NON-IDLE again
-    // on the non cachable range.
-    logic                           axi_lite_tx_done, next_axi_lite_tx_done;
+    // Ready when IDLE
+    assign req_ready = (state == IDLE);
+    
+    // Request accepted flag
+    logic req_accepted;
+    assign req_accepted = req_valid && req_ready;
 
-    // INCOMING CACHE REQUEST SIGNALS
+    // Read valid when in READ_OK state
+    assign read_valid = (state == READ_OK);
 
-    // Don't do anything if byte enable is not set.
-    logic actual_write_enable;
-    assign actual_write_enable = write_enable & |byte_enable;
+    // Request latching
+    logic                       pending_write, next_pending_write;
+    logic [31:0]                pending_addr, next_pending_addr;
+    logic [31:0]                pending_data, next_pending_data;
+    logic [3:0]                 pending_byte_enable, next_pending_byte_enable;
 
-    // Stall is asserted async but deasserted in sync !
-    // Thus the comb and seq stall logic.
-    logic comb_stall, seq_stall;
-    assign comb_stall = (next_state != IDLE) && (read_enable | actual_write_enable);
-    assign cache_stall = (comb_stall | seq_stall) && ~axi_lite_tx_done;
+    // AXI LITE's result for reads
+    logic [31:0] axi_lite_read_result;
 
     // =======================
     // FSM LOGIC
     // =======================
     cache_state_t state, next_state;
-    assign cache_state = state;// out for muxes hints
+    assign cache_state = state;
 
     // MAIN CLOCK DRIVEN SEQ LOGIC
     always_ff @(posedge clk) begin
         if (~rst_n) begin
-            seq_stall <= 1'b0;
-            axi_lite_tx_done <= 1'b0;
+            pending_write <= 1'b0;
+            pending_addr <= '0;
+            pending_data <= '0;
+            pending_byte_enable <= '0;
+            axi_lite_read_result <= '0;
+            
         end else begin
-            seq_stall <= comb_stall;
-            axi_lite_tx_done <= next_axi_lite_tx_done;
+            pending_write <= next_pending_write;
+            pending_addr <= next_pending_addr;
+            pending_data <= next_pending_data;
+            pending_byte_enable <= next_pending_byte_enable;
 
             if(axi_lite.rvalid && state == LITE_RECEIVING_READ_DATA && axi_lite.rready) begin
-                // Write incomming axi lite read
                 axi_lite_read_result <= axi_lite.rdata;
             end
         end
     end
 
-    // AXI CLOCK DRIVEN SEQ LOGIC
+    // FSM STATE REGISTER
     always_ff @(posedge clk) begin
         if (~rst_n) begin
             state <= IDLE;
@@ -96,146 +93,107 @@ module holy_no_cache (
     end
 
     // =======================
-    // READ & MAIN FSM LOGIC
+    // FSM TRANSITION LOGIC
     // =======================
     always_comb begin
-        // State transition 
-        next_state = state; // Default
-        next_axi_lite_tx_done = axi_lite_tx_done;
+        // Defaults
+        next_state = state;
+        next_pending_write = pending_write;
+        next_pending_addr = pending_addr;
+        next_pending_data = pending_data;
+        next_pending_byte_enable = pending_byte_enable;
 
-        // AXI LITE DEFAULT
-        axi_lite.wstrb = byte_enable;
-        axi_lite.araddr  = address;
-        axi_lite.wdata   = write_data;
-        axi_lite.awaddr  = {address[31:2],2'b00};
+        // AXI LITE DEFAULTS
+        axi_lite.wstrb = pending_byte_enable;
+        axi_lite.araddr  = pending_addr;
+        axi_lite.wdata   = pending_data;
+        axi_lite.awaddr  = {pending_addr[31:2], 2'b00};
         axi_lite.arvalid = 0;
         axi_lite.awvalid = 0;
         axi_lite.wvalid  = 0;
         axi_lite.bready  = 0;
         axi_lite.rready  = 0;
 
-        // READ DATA ALWAYS OUT
+        // READ DATA OUTPUT
         read_data = axi_lite_read_result;
 
         case (state)
             IDLE: begin
-                if(read_enable && write_enable) $display("ERROR, CAN'T READ AND WRITE AT THE SAME TIME!!!");
-                
-                else if ( read_enable & ~axi_lite_tx_done ) begin
-                    next_state = LITE_SENDING_READ_REQ;
-                end
-
-                else if ( actual_write_enable & ~axi_lite_tx_done ) begin
-                    next_state = LITE_SENDING_WRITE_REQ;
-                end
-
-
-                // -----------------------------------
-                // IDLE AXI LITE SIGNALS : no request
-
-                // no write
-                axi_lite.awvalid = 1'b0;
-                axi_lite.wvalid = 1'b0;
-                axi_lite.bready = 1'b0;
-                // no read
-                axi_lite.arvalid = 1'b0;
-                axi_lite.rready = 1'b0;
-
-                if(axi_lite_tx_done) begin
-                    // axi lite done flag auto reset
-                    next_axi_lite_tx_done = 1'b0;
+                // Accept new request
+                if (req_accepted) begin
+                    // Latch the request
+                    next_pending_write = req_write;
+                    next_pending_addr = address;
+                    next_pending_data = write_data;
+                    next_pending_byte_enable = byte_enable;
+                    
+                    if (req_write) begin
+                        next_state = LITE_SENDING_WRITE_REQ;
+                    end else begin
+                        next_state = LITE_SENDING_READ_REQ;
+                    end
                 end
             end
 
-            LITE_SENDING_WRITE_REQ : begin
-                // NON CACHED DATA, WE WRITE DIRECTLY TO REQ ADDRESS
-                axi_lite.awaddr = address;
-                
-                if(axi_lite.awready) next_state = LITE_SENDING_WRITE_DATA;
-
-                // SENDING_WRITE_REQ AXI SIGNALS : address request
-                // No write
+            LITE_SENDING_WRITE_REQ: begin
+                axi_lite.awaddr = pending_addr;
                 axi_lite.awvalid = 1'b1;
-                axi_lite.wvalid = 1'b0;
-                axi_lite.bready = 1'b0;
-                // No read
-                axi_lite.arvalid = 1'b0;
-                axi_lite.rready = 1'b0;
+                
+                if (axi_lite.awready) begin
+                    next_state = LITE_SENDING_WRITE_DATA;
+                end
             end
 
-            LITE_SENDING_WRITE_DATA : begin
-                // Data to write is the regular write data
-                if(axi_lite.wready) begin
+            LITE_SENDING_WRITE_DATA: begin
+                axi_lite.wdata = pending_data;
+                axi_lite.wstrb = pending_byte_enable;
+                axi_lite.wvalid = 1'b1;
+                
+                if (axi_lite.wready) begin
                     next_state = LITE_WAITING_WRITE_RES;
                 end
-
-                axi_lite.wdata = write_data;
-
-                // SENDING_WRITE_DATA AXI SIGNALS : sending data
-                // Write stuff
-                axi_lite.awvalid = 1'b0;
-                axi_lite.wvalid = 1'b1;
-                axi_lite.bready = 1'b0;
-                // No read
-                axi_lite.arvalid = 1'b0;
-                axi_lite.rready = 1'b0;
-
             end
 
-            LITE_WAITING_WRITE_RES : begin
-                if(axi_lite.bvalid && (axi_lite.bresp == 2'b00)) begin
-                    next_state = IDLE;
-                    // flag tx as done as well
-                    next_axi_lite_tx_done = 1'b1;
-                end else if(axi_lite.bvalid && (axi_lite.bresp != 2'b00)) begin
-                    // TODO : TRAP HERE (?)
-                    $display("ERROR WRITING TO MAIN MEMORY !");
-                    next_state = IDLE;
-                end
-
-                // SENDING_WRITE_DATA AXI SIGNALS : ready for response
-                // No write
-                axi_lite.awvalid = 1'b0;
-                axi_lite.wvalid = 1'b0;
+            LITE_WAITING_WRITE_RES: begin
                 axi_lite.bready = 1'b1;
-                // No read
-                axi_lite.arvalid = 1'b0;
-                axi_lite.rready = 1'b0;
+                
+                if (axi_lite.bvalid) begin
+                    if (axi_lite.bresp == 2'b00) begin
+                        next_state = IDLE;
+                        next_pending_write = 1'b0;
+                    end else begin
+                        $display("ERROR WRITING TO MAIN MEMORY!");
+                        next_state = IDLE;
+                    end
+                end
             end
 
-            LITE_SENDING_READ_REQ : begin
-                if(axi_lite.arready) begin
+            LITE_SENDING_READ_REQ: begin
+                axi_lite.araddr = pending_addr;
+                axi_lite.arvalid = 1'b1;
+                
+                if (axi_lite.arready) begin
                     next_state = LITE_RECEIVING_READ_DATA;
                 end
-
-                // SENDING_READ_REQ axi_lite SIGNALS : address request
-                // No write
-                axi_lite.awvalid = 1'b0;
-                axi_lite.wvalid = 1'b0;
-                axi_lite.bready = 1'b0;
-                // No read but address is okay
-                axi_lite.arvalid = 1'b1;
-                axi_lite.rready = 1'b0;
             end
 
-            LITE_RECEIVING_READ_DATA : begin
-                if (axi_lite.rvalid) begin
-                    next_state = IDLE;
-                    // flag tx as done as well
-                    next_axi_lite_tx_done = 1'b1;
-                end
-            
-                // AXI LITE Signals
-                axi_lite.awvalid = 1'b0;
-                axi_lite.wvalid = 1'b0;
-                axi_lite.bready = 1'b0;
-                axi_lite.arvalid = 1'b0;
+            LITE_RECEIVING_READ_DATA: begin
                 axi_lite.rready = 1'b1;
+                
+                if (axi_lite.rvalid) begin
+                    next_state = READ_OK;
+                end
             end
             
-            default : begin
+            READ_OK: begin
+                // Data is valid, wait for ack
+                if (read_ack) begin
+                    next_state = IDLE;
+                end
+            end
+            
+            default: begin
                 $display("CACHE FSM STATE ERROR");
-                // TODO : TRAP HERE (?)
             end
         endcase
     end
