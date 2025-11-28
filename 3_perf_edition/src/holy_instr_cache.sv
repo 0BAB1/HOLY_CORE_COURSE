@@ -16,6 +16,7 @@
 
 import holy_core_pkg::*;
 
+(* DONT_TOUCH = "TRUE" *)
 module holy_instr_cache #(
     parameter CACHE_SIZE = 128
 )(

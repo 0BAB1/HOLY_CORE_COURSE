@@ -5,8 +5,8 @@ set_property PACKAGE_PIN G18 [get_ports cpu_reset]
 set_property IOSTANDARD LVCMOS33 [get_ports cpu_reset]
 
 # SW2
-set_property PACKAGE_PIN H18 [get_ports axi_reset]
-set_property IOSTANDARD LVCMOS33 [get_ports axi_reset]
+#set_property PACKAGE_PIN H18 [get_ports axi_reset]
+#set_property IOSTANDARD LVCMOS33 [get_ports axi_reset]
 
 # UART Constraints
 
@@ -41,15 +41,22 @@ set_property IOSTANDARD LVCMOS33 [get_ports tck_i_0]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0_IBUF]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0]
 
-#set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets #  design_1_i/top_0/inst/wrapped/debug_mem_conv/i_axi_to_mem/i_axi_to_detailed_mem/i_mem_to_banks/gen_resp_regs[0].i_ft_reg/fifo_i/gen_buf.cnt_q_reg[1] ]
+# we allow this loops (involving stall) as the control signals aare logically mutually exclusive
+# it should go away when pipelining / introducing better handshakes.
+set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/d_cache_stall]
+set_property ALLOW_COMBINATORIAL_LOOPS TRUE \
+    [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/stall]
 
-set_property ALLOW_COMBINATORIAL_LOOPS true [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_no_cache.data_no_cache/d_cache_stall]
 
-set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_no_cache.data_no_cache/d_cache_stall_INST_0_i_1_n_0]
-
-set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_no_cache.data_no_cache/stall]
-
-#set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_cache/axi_lite_tx_done_reg_0]
+# battle against stupid vivado optimsations:
+set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *arbitre*]
+set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *instr_cache*]
+set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *data_cache*]
+set_property DONT_TOUCH TRUE [get_cells -hierarchical *instr_cache*]
+set_property DONT_TOUCH TRUE [get_cells -hierarchical *axi_instr*]
+set_property DONT_TOUCH TRUE [get_cells -hierarchical *arbitre*]
+set_property DONT_TOUCH true [get_nets m_axi_*]
+set_property KEEP_HIERARCHY yes [get_cells wrapped]
 
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]

@@ -10,15 +10,9 @@
 *                 mid-transaction. Once a cache starts a transaction, it owns
 *                 the bus until completion.
 */
-
-typedef enum logic [1:0] {
-    SERVING_NONE,
-    SERVING_INSTR,
-    SERVING_DATA
-} serving_state_t;
-
 import holy_core_pkg::*;
 
+(* DONT_TOUCH = "TRUE" *)
 module external_req_arbitrer (
     input logic clk,
     input logic rst_n,
@@ -30,8 +24,16 @@ module external_req_arbitrer (
     axi_if.slave s_axi_instr,
     input cache_state_t i_cache_state,
     axi_if.slave s_axi_data,
-    input cache_state_t d_cache_state
+    input cache_state_t d_cache_state,
+
+    // TEMP : debug probes
+    output serving_state_t debug_serving,
+    output serving_state_t debug_next_serving
 );
+
+// temp : debug probes assigns
+assign debug_serving = serving;
+assign debug_next_serving = next_serving;
 
 localparam CACHE_SIZE = 128;
 
@@ -46,8 +48,8 @@ serving_state_t serving, next_serving;
 logic i_cache_requesting;
 logic d_cache_requesting;
 
-assign i_cache_requesting = i_cache_state != IDLE;
-assign d_cache_requesting = d_cache_state != IDLE;
+assign i_cache_requesting = |i_cache_state;
+assign d_cache_requesting = |d_cache_state;
 
 // Lock state machine
 always_ff @(posedge clk) begin

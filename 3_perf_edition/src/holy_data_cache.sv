@@ -13,13 +13,14 @@
 *                 Target : Xilinx FPGAs.
 *
 *   Created 11/25
+*   Refactored: Separated ways into distinct 2D BRAMs for proper inference
 */
 
 import holy_core_pkg::*;
 
 module holy_data_cache #(
     parameter WORDS_PER_LINE = 16,
-    parameter NUM_SETS = 8,
+    parameter NUM_SETS = 4,
     // MODIFYING THE FOLLOWING IS NOT SUPPORTED. 
     parameter NUM_WAYS = 2 
 )(
@@ -100,11 +101,15 @@ module holy_data_cache #(
     assign req_word_offset = address[BYTE_OFFSET_BITS +: WORD_OFFSET_BITS];
 
     // =======================
-    // Data slots declaration
+    // Data slots declaration - SEPARATED WAYS FOR BRAM INFERENCE
     // =======================
 
-    // Cache storage: default : 2 ways × 8 sets × 16 words
-    (* ram_style = "block" *) logic [31:0]         cache_data  [NUM_WAYS-1:0][NUM_SETS-1:0][WORDS_PER_LINE-1:0];
+    // Cache storage: 2 separate BRAMs, one per way
+    // Each BRAM: NUM_SETS × WORDS_PER_LINE words
+    (* ram_style = "block" *) logic [31:0] cache_data_way0 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
+    (* ram_style = "block" *) logic [31:0] cache_data_way1 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
+
+    // Metadata remains as before
     logic [TAG_BITS-1:0] cache_tags  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic                cache_valid [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic                cache_dirty [NUM_WAYS-1:0][NUM_SETS-1:0];
@@ -121,6 +126,23 @@ module holy_data_cache #(
     // Control signals
     logic csr_flushing, next_csr_flushing;
     logic csr_flushing_done, next_csr_flushing_done;
+
+    // =======================
+    // BRAM PORT SIGNALS
+    // =======================
+    
+    // Write enable signals for each way
+    logic bram_we_way0, bram_we_way1;
+    
+    // Address signals for BRAM access
+    logic [SET_INDEX_BITS-1:0]   bram_set_addr;
+    logic [WORD_OFFSET_BITS-1:0] bram_word_addr;
+    
+    // Write data for BRAMs
+    logic [31:0] bram_wdata;
+    
+    // Read data from BRAMs (directly from arrays for read path)
+    logic [31:0] bram_rdata_way0, bram_rdata_way1;
 
     // =======================
     // HIT DETECTION COMB
@@ -153,8 +175,97 @@ module holy_data_cache #(
     logic next_cache_valid  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_cache_dirty  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_lru_bits     [NUM_SETS-1:0];
+
+    // =======================
+    // BRAM WRITE LOGIC - ACTIVE HIGH ENABLE, ACTIVE ON POSEDGE CLK
+    // =======================
     
-    // MAIN CLOCK DRIVEN SEQ LOGIC
+    always_ff @(posedge clk) begin
+        // Way 0 BRAM
+        if (bram_we_way0) begin
+            cache_data_way0[bram_set_addr][bram_word_addr] <= bram_wdata;
+        end
+        
+        // Way 1 BRAM
+        if (bram_we_way1) begin
+            cache_data_way1[bram_set_addr][bram_word_addr] <= bram_wdata;
+        end
+    end
+
+    // BRAM read (directly access the arrays - combinational read)
+    assign bram_rdata_way0 = cache_data_way0[bram_set_addr][bram_word_addr];
+    assign bram_rdata_way1 = cache_data_way1[bram_set_addr][bram_word_addr];
+    
+    // =======================
+    // BRAM CONTROL SIGNALS - ACTIVE SOURCE SELECTION
+    // =======================
+    
+    // Determine BRAM write enables based on current operation
+    always_comb begin
+        // Defaults
+        bram_we_way0 = 1'b0;
+        bram_we_way1 = 1'b0;
+        bram_set_addr = req_set;
+        bram_word_addr = req_word_offset;
+        bram_wdata = write_data;
+        
+        // Write hit on IDLE state
+        if (state == IDLE && hit && req_write && req_accepted) begin
+            bram_set_addr = req_set;
+            bram_word_addr = req_word_offset;
+            bram_wdata = (hit_way0 ? cache_data_way0[req_set][req_word_offset] : cache_data_way1[req_set][req_word_offset]) 
+                         & ~byte_enable_mask | (write_data & byte_enable_mask);
+            bram_we_way0 = hit_way0;
+            bram_we_way1 = hit_way1;
+        end
+        
+        // AXI cache line fill
+        else if (state == RECEIVING_READ_DATA && axi.rvalid && axi.rready) begin
+            bram_set_addr = pending_set;
+            bram_word_addr = word_ptr;
+            bram_wdata = axi.rdata;
+            bram_we_way0 = (current_way == 1'b0);
+            bram_we_way1 = (current_way == 1'b1);
+        end
+        
+        // Fulfill pending write after cache line fill
+        else if (state == FULFILL_PENDING_WRITE) begin
+            bram_set_addr = pending_set;
+            bram_word_addr = pending_word_offset;
+            bram_wdata = (current_way == 1'b0 ? cache_data_way0[pending_set][pending_word_offset] : cache_data_way1[pending_set][pending_word_offset])
+                         & ~pending_be_mask | (pending_data & pending_be_mask);
+            bram_we_way0 = (current_way == 1'b0);
+            bram_we_way1 = (current_way == 1'b1);
+        end
+        
+        // Flush read address (for sending write data)
+        else if (state == SENDING_WRITE_DATA && csr_flushing) begin
+            bram_set_addr = flush_set;
+            bram_word_addr = word_ptr;
+        end
+        
+        // Normal writeback read address
+        else if (state == SENDING_WRITE_DATA && !csr_flushing) begin
+            bram_set_addr = pending_set;
+            bram_word_addr = word_ptr;
+        end
+        
+        // Read hit address setup
+        else if (state == IDLE || state == READ_OK) begin
+            if (hit) begin
+                bram_set_addr = req_set;
+                bram_word_addr = req_word_offset;
+            end else begin
+                bram_set_addr = pending_set;
+                bram_word_addr = pending_word_offset;
+            end
+        end
+    end
+
+    // =======================
+    // MAIN CLOCK DRIVEN SEQ LOGIC (METADATA ONLY)
+    // =======================
+    
     always_ff @(posedge clk) begin
         if (~rst_n) begin
             csr_flushing <= 1'b0;
@@ -210,33 +321,15 @@ module holy_data_cache #(
             pending_word_offset <= next_pending_word_offset;
             pending_tag <= next_pending_tag;
 
-            // Handle writes on cache hit (when request is accepted)
+            // Handle dirty flag update on cache hit write
             if (hit && req_write && req_accepted && state == IDLE) begin
                 if (hit_way0) begin
-                    cache_data[0][req_set][req_word_offset] <= 
-                        (cache_data[0][req_set][req_word_offset] & ~byte_enable_mask) | 
-                        (write_data & byte_enable_mask);
                     cache_dirty[0][req_set] <= 1'b1;
                     lru_bits[req_set] <= 1'b1; // Mark way 1 as LRU
                 end else begin
-                    cache_data[1][req_set][req_word_offset] <= 
-                        (cache_data[1][req_set][req_word_offset] & ~byte_enable_mask) | 
-                        (write_data & byte_enable_mask);
                     cache_dirty[1][req_set] <= 1'b1;
                     lru_bits[req_set] <= 1'b0; // Mark way 0 as LRU
                 end
-            end
-            
-            // Handle cache line fills from AXI
-            else if (axi.rvalid && state == RECEIVING_READ_DATA && axi.rready) begin
-                cache_data[current_way][pending_set][word_ptr] <= axi.rdata;
-            end
-
-            // Fulfill pending write after cache line fill
-            else if (state == FULFILL_PENDING_WRITE) begin
-                cache_data[current_way][pending_set][pending_word_offset] <= 
-                    (cache_data[current_way][pending_set][pending_word_offset] & ~pending_be_mask) | 
-                    (pending_data & pending_be_mask);
             end
             
             // Update LRU on read hit (when request is accepted)
@@ -263,7 +356,7 @@ module holy_data_cache #(
         end
     end
 
-    // STATE TRANSITION / AXI MASTER  LOGIC
+    // STATE TRANSITION / AXI MASTER LOGIC
     always_comb begin
         // State transition defaults
         next_state = state;
@@ -308,7 +401,6 @@ module holy_data_cache #(
 
         case (state)
             IDLE: begin
-                
                 // INIT FLUSHING PROCEDURE
                 if (csr_flush_order && ~csr_flushing_done) begin
                     next_csr_flushing = 1'b1;
@@ -372,10 +464,13 @@ module holy_data_cache #(
             end
 
             SENDING_WRITE_DATA: begin
-                if(csr_flushing)begin
-                    axi.wdata = cache_data[flush_way][flush_set][word_ptr];
+                // Select data from appropriate way BRAM
+                if (csr_flushing) begin
+                    axi.wdata = (flush_way == 1'b0) ? cache_data_way0[flush_set][word_ptr] 
+                                                    : cache_data_way1[flush_set][word_ptr];
                 end else begin
-                    axi.wdata = cache_data[current_way][pending_set][word_ptr];
+                    axi.wdata = (current_way == 1'b0) ? cache_data_way0[pending_set][word_ptr] 
+                                                      : cache_data_way1[pending_set][word_ptr];
                 end
                 
                 if (axi.wready) begin
@@ -456,7 +551,7 @@ module holy_data_cache #(
                 // Check if next set needs flushing
                 if (cache_valid[next_flush_way][next_flush_set]) begin
                     next_state = SENDING_WRITE_REQ;
-                end else if ((flush_way != 1'b1) && (flush_set) != 3'b111) begin
+                end else if ((flush_way != 1'b1) && (flush_set) != LAST_SET[SET_INDEX_BITS-1:0]) begin
                     next_state = FLUSH_NEXT;
                 end
             end
@@ -500,18 +595,20 @@ module holy_data_cache #(
                     next_lru_bits[pending_set] = ~current_way;
                 end
                 
-                // Set read data
+                // Set read data from appropriate way
                 if(hit) begin
-                    read_data = cache_data[hit_way_select][req_set][req_word_offset];
+                    read_data = hit_way_select ? cache_data_way1[req_set][req_word_offset] 
+                                               : cache_data_way0[req_set][req_word_offset];
                 end else begin
-                    read_data = cache_data[current_way][pending_set][pending_word_offset];
+                    read_data = current_way ? cache_data_way1[pending_set][pending_word_offset] 
+                                            : cache_data_way0[pending_set][pending_word_offset];
                 end
                 
             end
 
             FULFILL_PENDING_WRITE : begin
                 // The miss was caused by a write
-                // SEQ logic will write the data when this state is active
+                // BRAM control logic will write the data when this state is active
                 next_pending_write = 1'b0;
                 next_state = IDLE;
                 

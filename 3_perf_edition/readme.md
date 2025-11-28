@@ -1,7 +1,7 @@
-# This tutorial is not open sourced at the moment
+# WORK IN PROGRESS
 
-I decided to make this tutorial accessibe as a 1 time purchase.
+Did I ever tell you the definition of insanity?
 
-Early supporters of the project will have access to this document as part of the PDFs they already bought.
+Insanity is doing the exact same fucking thing over and over again, expecting shit to change.
 
-Checkout this link for more infos : [link](https://babinriby.gumroad.com/l/holy_core)
+That is crazy. 

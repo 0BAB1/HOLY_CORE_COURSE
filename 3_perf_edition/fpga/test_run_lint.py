@@ -74,7 +74,7 @@ async def cpu_insrt_test(dut):
 
     # Init the memories with the program data. Both are sceptible to be queried so we init both.
     # On a real SoC, a single memory will be able to answer bot axi and axi lite interfaces
-    hex_path = "./doom2.hex"
+    hex_path = "./doom3.hex"
     #hex_path = "./hello_world.hex"
     await init_memory(axi_ram_slave, hex_path, 0x80000000)
     await init_memory(axi_lite_ram_slave, hex_path, 0x80000000)

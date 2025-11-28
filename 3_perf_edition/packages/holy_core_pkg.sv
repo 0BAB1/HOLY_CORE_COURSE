@@ -197,4 +197,12 @@ package holy_core_pkg;
     logic [31:0] second_adder_addr;
   } target_addr;
 
+  // axi mux "arbitrer" serving states
+  typedef enum logic [1:0] {
+      SERVING_NONE,
+      SERVING_INSTR,
+      SERVING_DATA
+  } serving_state_t;
+
+
 endpackage

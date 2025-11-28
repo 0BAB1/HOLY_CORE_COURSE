@@ -7,8 +7,11 @@
 */
 
 import axi_pkg::*;
+import holy_core_pkg::*;
 
-module holy_top (
+module holy_top #(
+    parameter NUM_IRQS = 2
+)(
     // CPU clock and active low reset
     input logic clk,
     input logic rst_n,
@@ -104,33 +107,29 @@ module holy_top (
     output logic [3:0] i_cache_state,
     output logic [3:0] i_cache_next_state,
     output logic d_cache_stall,
+    output serving_state_t debug_serving,
+    output serving_state_t debug_next_serving,
 
-    // test debug stuff
-    input logic tb_debug_req,
-
-    // TMP : debugging
-    output logic [31:0] debug_bus_add,
-    output logic debug_bus_req
+    // testbench specific debug stuff
+    input logic tb_debug_req
 );
-
-localparam NUM_IRQS = 2;
 
 //=========================
 // INTERFACES DECLARATIONS
 //=========================
 
 // HOLY CORE AXI FULL <=> EXTERNAL RAM
-axi_if m_axi();
+(* DONT_TOUCH = "true" *) axi_if m_axi();
 // HOLYCORE <=> AXIL CROSSBAR
-axi_lite_if m_axi_lite();
-AXI_LITE #(32,32) m_axi_lite_xbar_in [MST_NB-1:0] ();
-AXI_LITE #(32,32) m_axi_lite_xbar_out [SLV_NB-1:0] ();
+(* DONT_TOUCH = "true" *) axi_lite_if m_axi_lite();
+(* DONT_TOUCH = "true" *) AXI_LITE #(32,32) m_axi_lite_xbar_in [MST_NB-1:0] ();
+(* DONT_TOUCH = "true" *) AXI_LITE #(32,32) m_axi_lite_xbar_out [SLV_NB-1:0] ();
 // AXIL CROSSBAR <=> BOOT ROM @ PC = 0x00000000
-axi_lite_if axi_lite_boot_rom();
+(* DONT_TOUCH = "true" *) axi_lite_if axi_lite_boot_rom();
 // AXIL CROSSBAR <=> PLIC
-axi_lite_if axi_lite_plic();
+(* DONT_TOUCH = "true" *) axi_lite_if axi_lite_plic();
 // AXIL CROSSBAR <=> CLINT
-axi_lite_if axi_lite_clint();
+(* DONT_TOUCH = "true" *) axi_lite_if axi_lite_clint();
 
 //=======================
 // HOLY CORE (2x MASTER)
@@ -178,7 +177,9 @@ holy_core #(
     .debug_i_cache_stall(i_cache_stall),
     .debug_d_cache_stall(d_cache_stall),
     .debug_i_cache_state(i_cache_state),
-    .debug_i_next_cache_state(i_cache_next_state)
+    .debug_i_next_cache_state(i_cache_next_state),
+    .debug_serving(debug_serving),
+    .debug_next_serving(debug_next_serving)
 );
 /* verilator lint_on PINMISSING */
 
@@ -410,8 +411,6 @@ dm_top #(
 
 logic           bus_req;
 logic [31:0]    bus_add;
-assign debug_bus_req = bus_req;
-assign debug_bus_add = bus_add;
 logic           bus_we;
 logic [31:0]    bus_wdata;
 logic [3:0]     bus_be;
@@ -438,7 +437,7 @@ dm_top_to_axi_lite dm_top_as_master_conv (
     .out_if_axil_m(axi_lite_dm_hc)
 );
 
-axi_lite_if axi_lite_dm_hc();
+(* DONT_TOUCH = "true" *) axi_lite_if axi_lite_dm_hc();
 
 // convert this to pulp compliant interface
 hc_axil_pulp_axil_passthrough dm_top_sba_axil_conv(
@@ -450,15 +449,7 @@ hc_axil_pulp_axil_passthrough dm_top_sba_axil_conv(
 // AXI FULL HOLY CORE <=> EXTERNALS
 //===================================
 
-// Note : the AXI interface
-// is only used to retrieve instructions
-// but the PC can be *anything* ! i.e. we may wanna fetch
-// instruction from RAM (most common) or from ROM (on boot)
-// or from other peripherals !
-// So we have a SECOND internal xbar for AXI
-// By default (0x8000_0000 and higher), the request will go to externals (i.e RAM)
-
-// Connect the discrete AXI signals to the m_axi
+// Connect the discrete AXI signals to the m_axi_.
 
 // Write Address Channel
 assign m_axi_awid       = m_axi.awid;

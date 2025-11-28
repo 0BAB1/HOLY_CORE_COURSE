@@ -17,7 +17,7 @@
 module holy_core #(
     // IF DCACHE_EN is 0, we only enerate the non cache version.
     // Which is lighter, less complex and more suited to simple FPGA SoCs.
-    parameter DCACHE_EN = 0
+    parameter DCACHE_EN = 1
 )(
     // DEBUG Support implemented via execution based method.
     // Using pulp platform's debug module. When a debug request comes
@@ -64,7 +64,9 @@ module holy_core #(
     output logic [3:0] debug_d_cache_next_state,
     output logic [31:0] debug_mem_read,
     output logic [3:0] debug_mem_byte_en,
-    output logic [31:0] debug_wb_data 
+    output logic [31:0] debug_wb_data,
+    output serving_state_t debug_serving,
+    output serving_state_t debug_next_serving
 );
 
 import holy_core_pkg::*;
@@ -85,76 +87,36 @@ assign debug_pc_source = pc_source;
 assign debug_wb_data = mem_read_write_back_data;
 assign debug_mem_read = mem_read;
 assign debug_mem_byte_en = mem_byte_enable;
-// Note : Cache ILA debug signals are at cache declaration
-
-// others are assign directly to submodules outputs
 
 /**
-* TOP AXIS IFS MUXING
+* TOP AXI INTERFACES MUXING
 */
 
-axi_if axi_data();
-axi_if axi_instr();
-axi_lite_if axi_lite_data();
-axi_lite_if axi_lite_instr();
+(* DONT_TOUCH = "true" *) axi_if axi_data();
+(* DONT_TOUCH = "true" *) axi_if axi_instr();
+(* DONT_TOUCH = "true" *) axi_lite_if axi_lite_data();
+(* DONT_TOUCH = "true" *) axi_lite_if axi_lite_instr();
 
 // AXI FULL MUXER / ARBITRER
-generate
-    if (DCACHE_EN) begin : with_dcache
-        external_req_arbitrer mr_l_arbitre(
-            .clk(clk),
-            .rst_n(rst_n),
-            .m_axi(m_axi),
-            .s_axi_instr(axi_instr),
-            .i_cache_state(i_cache_state),
-            .s_axi_data(axi_data),
-            .d_cache_state(d_cache_state)
-        );
-    end else begin : no_dcache
-        // No dcache => only one axi master will be used
-        assign m_axi.awvalid = axi_instr.awvalid;
-        assign m_axi.awaddr  = axi_instr.awaddr;
-        assign m_axi.awid    = axi_instr.awid;
-        assign m_axi.awlen   = axi_instr.awlen;
-        assign m_axi.awsize  = axi_instr.awsize;
-        assign m_axi.awburst = axi_instr.awburst;
-        assign m_axi.awlock  = axi_instr.awlock;
-        assign m_axi.awqos   = axi_instr.awqos;
-
-        assign m_axi.wvalid  = axi_instr.wvalid;
-        assign m_axi.wdata   = axi_instr.wdata;
-        assign m_axi.wstrb   = axi_instr.wstrb;
-        assign m_axi.wlast   = axi_instr.wlast;
-
-        assign m_axi.bready  = axi_instr.bready;
-
-        assign m_axi.arvalid = axi_instr.arvalid;
-        assign m_axi.araddr  = axi_instr.araddr;
-        assign m_axi.arid    = axi_instr.arid;
-        assign m_axi.arlen   = axi_instr.arlen;
-        assign m_axi.arsize  = axi_instr.arsize;
-        assign m_axi.arburst = axi_instr.arburst;
-        assign m_axi.arlock  = axi_instr.arlock;
-        assign m_axi.arqos   = axi_instr.arqos;
-
-        assign axi_instr.awready = m_axi.awready;
-        assign axi_instr.wready  = m_axi.wready;
-        assign axi_instr.bvalid  = m_axi.bvalid;
-        assign axi_instr.bid     = m_axi.bid;
-        assign axi_instr.bresp   = m_axi.bresp;
-
-        assign axi_instr.arready = m_axi.arready;
-        assign axi_instr.rvalid  = m_axi.rvalid;
-        assign axi_instr.rdata   = m_axi.rdata;
-        assign axi_instr.rresp   = m_axi.rresp;
-        assign axi_instr.rlast   = m_axi.rlast;
-        assign axi_instr.rid     = m_axi.rid;
-        assign m_axi.rready = axi_instr.rready;
-    end
-endgenerate
+// Only really useful if DCACHE is enabled.
+// BUT putting this in a generate block WILL
+// make the AXI interface unusable for some reason.
+external_req_arbitrer mr_l_arbitre(
+    .clk(clk),
+    .rst_n(rst_n),
+    .m_axi(m_axi),
+    .s_axi_instr(axi_instr),
+    .i_cache_state(i_cache_state),
+    .s_axi_data(axi_data),
+    .d_cache_state(d_cache_state),
+    .debug_serving(debug_serving),
+    .debug_next_serving(debug_next_serving)
+);
 
 // AXI LITE MUXER / ARBITRER
 external_req_arbitrer_lite lite_mux(
+    .clk(clk),
+    .rst_n(rst_n),
     // out if (to externals)
     .m_axi_lite(m_axi_lite),
 
@@ -184,27 +146,24 @@ assign stall = d_cache_stall | i_cache_stall;
 always_comb begin : pc_select
     pc_plus_four = pc + 4;
 
-    // STALL has PRIORITY over all PC selection, when it is high, next pc
-    // Will stay the excat same !
-    if(stall)begin
+    // compute the PC we should have in a "normal", flow
+    case (pc_source)
+        SOURCE_PC_PLUS_4 : pc_anticipated = pc_plus_four;
+        SOURCE_PC_SECOND_ADD : pc_anticipated = second_add_result;
+        SOURCE_PC_MTVEC : pc_anticipated = csr_mtvec;
+        SOURCE_PC_MEPC : pc_anticipated = csr_mepc;
+        SOURCE_PC_DPC : pc_anticipated = csr_dpc;
+        default : pc_anticipated = pc_plus_four;
+    endcase
+
+    if(stall) begin
         pc_next = pc;
+    end else if(jump_to_debug) begin
+        pc_next = debug_halt_addr;
+    end else if(jump_to_debug_exception) begin
+        pc_next = debug_exception_addr;
     end else begin
-        // determine normal flow PC
-        case (pc_source)
-            SOURCE_PC_PLUS_4 : pc_anticipated = pc_plus_four;
-            SOURCE_PC_SECOND_ADD : pc_anticipated = second_add_result;
-            SOURCE_PC_MTVEC : pc_anticipated = csr_mtvec;
-            SOURCE_PC_MEPC : pc_anticipated = csr_mepc;
-            SOURCE_PC_DPC : pc_anticipated = csr_dpc;
-        endcase
-
         pc_next = pc_anticipated;
-
-        if(jump_to_debug)begin
-            pc_next = debug_halt_addr;
-        end else if(jump_to_debug_exception) begin
-            pc_next = debug_exception_addr;
-        end
     end
 end
 
@@ -621,8 +580,8 @@ if (DCACHE_EN) begin : gen_data_cache
     assign data_read_valid = non_cachable ? non_cachable_read_valid : cachable_read_valid;
     
     holy_data_cache #(
-        .WORDS_PER_LINE(16),
-        .NUM_SETS(8)
+        .WORDS_PER_LINE(8),
+        .NUM_SETS(4)
     ) data_cache (
         .clk(clk),
         .rst_n(rst_n),

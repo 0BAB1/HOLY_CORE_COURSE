@@ -122,11 +122,11 @@ always_ff @(posedge clk) begin
     if(~rst_n) begin
         // Customs
         flush_cache         <= 32'd0;
-        // nothing is cacheble by default
+        // nothing is cachable by default, except RAM.
         data_non_cachable_base      <= 32'd0;
-        data_non_cachable_limit     <= 32'hFFFFFFFF;
+        data_non_cachable_limit     <= 32'h7FFFFFFF;
         instr_non_cachable_base     <= 32'd0;
-        instr_non_cachable_limit    <= 32'hFFFFFFFF;
+        instr_non_cachable_limit    <= 32'h7FFFFFFF;
 
         // Trap handling
         mstatus             <= 32'h00001800;

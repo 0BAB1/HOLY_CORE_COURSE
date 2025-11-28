@@ -72,6 +72,8 @@ module top #(
     //output wire [3:0]               d_cache_state,
     output wire                     i_cache_stall,
     output wire                     d_cache_stall,
+    output wire [1:0]               debug_serving,
+    output wire [1:0]               debug_next_serving,
     //output wire [6:0]               i_cache_set_ptr,
     //output wire [6:0]               d_cache_set_ptr,
     //output wire [6:0]               i_next_set_ptr,
@@ -93,11 +95,7 @@ module top #(
     input  wire        tms_i,
     input  wire        trst_ni,
     input  wire        td_i,
-    output wire        td_o,
-
-    // TMP : debugging
-    output wire [31:0] bus_add,
-    output wire bus_req
+    output wire        td_o
 );
 
 // Internal wiring
@@ -180,6 +178,8 @@ holy_top wrapped (
     //.wb_data(wb_data),
     .i_cache_state(i_cache_state),
     .i_cache_next_state(i_cache_next_state),
+    .debug_serving(debug_serving),
+    .debug_next_serving(debug_next_serving),
 
     // IRQs
     .irq_in(irq_in),
@@ -189,11 +189,7 @@ holy_top wrapped (
     .tms_i(tms_i),
     .trst_ni(trst_ni),
     .td_i(td_i),
-    .td_o(td_o),
-
-    // TMP
-    .debug_bus_add(bus_add),
-    .debug_bus_req(bus_req)
+    .td_o(td_o)
 );
 
 endmodule
