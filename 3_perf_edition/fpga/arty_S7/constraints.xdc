@@ -43,6 +43,7 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0]
 
 # we allow this loops (involving stall) as the control signals aare logically mutually exclusive
 # it should go away when pipelining / introducing better handshakes.
+set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/holy_csr_file/d_cache_stall]
 set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/d_cache_stall]
 set_property ALLOW_COMBINATORIAL_LOOPS TRUE \
     [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/stall]

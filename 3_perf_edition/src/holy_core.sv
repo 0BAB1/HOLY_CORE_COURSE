@@ -51,7 +51,6 @@ module holy_core #(
     output logic [31:0] debug_instruction,  
     output logic [3:0] debug_i_cache_state,  
     output logic [3:0] debug_i_next_cache_state,  
-    output logic [3:0] debug_d_cache_state,
     output logic [6:0] debug_i_set_ptr,  
     output logic [6:0] debug_i_next_set_ptr,  
     output logic [6:0] debug_d_set_ptr,  
@@ -79,7 +78,6 @@ assign debug_pc = pc;
 assign debug_pc_next = pc_next;  
 assign debug_instruction = instruction;  
 assign debug_i_cache_state = i_cache_state;  
-assign debug_d_cache_state = d_cache_state;  
 assign debug_i_cache_stall = i_cache_stall;  
 assign debug_d_cache_stall  = d_cache_stall; 
 assign debug_csr_flush_order = csr_flush_order;
@@ -108,7 +106,7 @@ external_req_arbitrer mr_l_arbitre(
     .s_axi_instr(axi_instr),
     .i_cache_state(i_cache_state),
     .s_axi_data(axi_data),
-    .d_cache_state(d_cache_state),
+    .d_cache_state(d_cachable_state),
     .debug_serving(debug_serving),
     .debug_next_serving(debug_next_serving)
 );
@@ -124,7 +122,7 @@ external_req_arbitrer_lite lite_mux(
     .s_axi_lite_instr(axi_lite_instr),
     .i_cache_state(i_cache_state),
     .s_axi_lite_data(axi_lite_data),
-    .d_cache_state(d_cache_state)
+    .d_cache_state(d_non_cachable_state)
 );
 
 /**
@@ -558,7 +556,6 @@ end
 
 wire    [31:0]  mem_read;
 wire    [31:0]  cachable_mem_read, non_cachable_mem_read;
-cache_state_t   d_cache_state;
 cache_state_t   d_cachable_state, d_non_cachable_state;
 logic           non_cachable;
 logic           cachable_req_valid, non_cachable_req_valid;
@@ -621,7 +618,6 @@ if (DCACHE_EN) begin : gen_data_cache
     
     // Mux outputs based on address range
     assign mem_read = non_cachable ? non_cachable_mem_read : cachable_mem_read;
-    assign d_cache_state = non_cachable ? d_non_cachable_state : d_cachable_state;
     
 end else begin : gen_data_no_cache
     
@@ -647,7 +643,7 @@ end else begin : gen_data_no_cache
         .read_data(mem_read),
         // AXI Lite
         .axi_lite(axi_lite_data),
-        .cache_state(d_cache_state)
+        .cache_state(d_non_cachable_state)
     );
 end
 endgenerate

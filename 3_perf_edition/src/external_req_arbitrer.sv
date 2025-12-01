@@ -35,8 +35,6 @@ module external_req_arbitrer (
 assign debug_serving = serving;
 assign debug_next_serving = next_serving;
 
-localparam CACHE_SIZE = 128;
-
 // ============================================================================
 // TRANSACTION LOCKING
 // ============================================================================
@@ -48,8 +46,8 @@ serving_state_t serving, next_serving;
 logic i_cache_requesting;
 logic d_cache_requesting;
 
-assign i_cache_requesting = |i_cache_state;
-assign d_cache_requesting = |d_cache_state;
+assign i_cache_requesting = i_cache_state != IDLE;
+assign d_cache_requesting = d_cache_state != IDLE;
 
 // Lock state machine
 always_ff @(posedge clk) begin

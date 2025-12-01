@@ -12,15 +12,17 @@ _start:
 
     // zero out the .bss section in the start code
     // because GDB won't load .bss (which is all zeroes)
+
     call init_bss
 
-    // make nothing cachable at start...
+    // cache setup
     li t0, 0x00000000
-    li t1, 0xFFFFFFFF
-    csrrw x0, 0x7C3, t0   # All but RAM base
-    csrrw x0, 0x7C4, t1   # All but RAM limit
-    csrrw x0, 0x7C1, t0   # All but RAM base
-    csrrw x0, 0x7C2, t1   # All but RAM limit
+    la t1, .data
+    addi t1, t1, -4
+    csrrw x0, 0x7C3, t0
+    csrrw x0, 0x7C4, t1
+    csrrw x0, 0x7C1, t0
+    csrrw x0, 0x7C2, t1
 
     // call main
     call main
