@@ -438,7 +438,49 @@ undo
 delete_bd_objs [get_bd_addr_segs top_0/m_axi_lite/SEG_axi_iic_0_Reg] [get_bd_addr_segs top_0/m_axi/SEG_axi_iic_0_Reg]
 assign_bd_address
 
+# ========================================
+# ADD QSPI
+# ========================================
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_quad_spi:3.2 axi_quad_spi_0
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_quad_spi_0/AXI_LITE} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_quad_spi_0/AXI_LITE]
+apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {spi ( SPI connector J7 ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_quad_spi_0/SPI_0]
+delete_bd_objs [get_bd_addr_segs top_0/m_axi/SEG_axi_quad_spi_0_Reg] [get_bd_addr_segs top_0/m_axi_lite/SEG_axi_quad_spi_0_Reg]
+assign_bd_address -target_address_space /top_0/m_axi [get_bd_addr_segs axi_quad_spi_0/AXI_LITE/Reg] -force
+set_property offset 0x10030000 [get_bd_addr_segs {top_0/m_axi/SEG_axi_quad_spi_0_Reg}]
 assign_bd_address
+
+# add clock for QSPI (and improve old clock speed)
+startgroup
+set_property -dict [list \
+  CONFIG.CLKOUT1_JITTER {729.396} \
+  CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {30} \
+  CONFIG.CLKOUT4_JITTER {888.832} \
+  CONFIG.CLKOUT4_PHASE_ERROR {613.025} \
+  CONFIG.CLKOUT4_REQUESTED_OUT_FREQ {10} \
+  CONFIG.CLKOUT4_USED {true} \
+  CONFIG.CLK_OUT4_PORT {clk_10} \
+  CONFIG.MMCM_CLKOUT0_DIVIDE_F {20.000} \
+  CONFIG.MMCM_CLKOUT3_DIVIDE {60} \
+  CONFIG.NUM_OUT_CLKS {4} \
+] [get_bd_cells clk_wiz]
+endgroup
+apply_bd_automation -rule xilinx.com:bd_rule:clkrst -config { Clk {/clk_wiz/clk_10 (10 MHz)} Freq {10} Ref_Clk0 {None} Ref_Clk1 {None} Ref_Clk2 {None}}  [get_bd_pins axi_quad_spi_0/ext_spi_clk]
+
+# Add GPIO shield pins
+startgroup
+set_property -dict [list \
+  CONFIG.C_INTERRUPT_PRESENT {1} \
+  CONFIG.GPIO2_BOARD_INTERFACE {Custom} \
+] [get_bd_cells axi_gpio_0]
+endgroup
+startgroup
+set_property CONFIG.GPIO2_BOARD_INTERFACE {dip_switches_4bits} [get_bd_cells axi_gpio_0]
+endgroup
+startgroup
+set_property CONFIG.GPIO2_BOARD_INTERFACE {Custom} [get_bd_cells axi_gpio_0]
+endgroup
+apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {shield_dp0_dp9 ( Shield Pins 0 through 9 ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_gpio_0/GPIO2]
+
 # Validate + wrapper
 assign_bd_address
 validate_bd_design
@@ -451,3 +493,4 @@ update_compile_order -fileset sources_1
 
 # generate synth, inmpl & bitstream
 launch_runs impl_1 -to_step write_bitstream -jobs 6
+set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true [get_runs impl_1]
