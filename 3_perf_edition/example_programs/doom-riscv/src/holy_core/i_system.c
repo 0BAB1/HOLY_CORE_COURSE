@@ -42,7 +42,7 @@
 // BRH modified 11/12 : adapted for HOLY CORE port
 
 
-volatile uint64_t* mtime =   (uint64_t*)(CLINT_MTIME);
+volatile uint64_t* mtime = CLINT_MTIME;
 
 void
 I_Init(void)

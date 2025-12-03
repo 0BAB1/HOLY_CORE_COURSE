@@ -24,5 +24,11 @@
 #pragma once
 #include "holy_core_soc.h"
 
+#define NOMONSTERS 1       
+#define NOTRANSLUCENCY 1   
+#define NOSMOOTH 1         
+
+#ifndef CLINT_MTIME
 #define CLINT_MTIME         0x4000BFF8
 #define CLINT_MTIME_UPPER   0x4000BFFC
+#endif

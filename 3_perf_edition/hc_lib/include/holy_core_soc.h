@@ -50,12 +50,12 @@
 #define DEBUG_BASE 0x30000000 // informative placeholder, not really used
 
 // CLINT
-#define CLINT_BASE 0x40000000
-#define CLINT_MSIP (*(volatile uint8_t *)(CLINT_BASE + 0x0))
-#define CLINT_MTIMECMP (*(volatile uint8_t *)(CLINT_BASE + 0x4000))
-#define CLINT_MTIMECMPH (*(volatile uint8_t *)(CLINT_BASE + 0x4004))
-#define CLINT_MTIME (*(volatile uint8_t *)(CLINT_BASE + 0xBFF8))
-#define CLINT_MTIMEH (*(volatile uint8_t *)(CLINT_BASE + 0xBFFC))
+// #define CLINT_BASE 0x40000000
+// #define CLINT_MSIP (*(volatile uint32_t *)(CLINT_BASE + 0x0))
+// #define CLINT_MTIMECMP (*(volatile uint32_t *)(CLINT_BASE + 0x4000))
+// #define CLINT_MTIMECMPH (*(volatile uint32_t *)(CLINT_BASE + 0x4004))
+// #define CLINT_MTIME (*(volatile uint32_t *)(CLINT_BASE + 0xBFF8))
+// #define CLINT_MTIMEH (*(volatile uint32_t *)(CLINT_BASE + 0xBFFC))
 
 // RAM (256M)
 #define RAM_BASE 0x80000000 // informative placeholder, not really used

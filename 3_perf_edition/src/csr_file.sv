@@ -122,11 +122,11 @@ always_ff @(posedge clk) begin
     if(~rst_n) begin
         // Customs
         flush_cache         <= 32'd0;
-        // nothing is cachable by default, except RAM.
+        // nothing is cachable by default.
         data_non_cachable_base      <= 32'd0;
-        data_non_cachable_limit     <= 32'h7FFFFFFF;
+        data_non_cachable_limit     <= 32'hFFFFFFFF;
         instr_non_cachable_base     <= 32'd0;
-        instr_non_cachable_limit    <= 32'h7FFFFFFF;
+        instr_non_cachable_limit    <= 32'hFFFFFFFF;
 
         // Trap handling
         mstatus             <= 32'h00001800;
@@ -341,12 +341,9 @@ always_comb begin : next_csr_value_logic
         end
     end
     if (~stall && write_enable && (address == 12'h7b1) && debug_mode) begin
+        // TODO : the core should trap if this is accessed outside of debug more
+        // (in general I did not implement illegal accesses at all, which are also todo)
         next_dpc = write_back_to_csr;
-        // TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
-        // TODO : the core should trap if this is access outside of debug more
-        // (in general I did not implement illegal accesses at all, or any of 
-        // the privileged bs.. big TODO here !)
-        // TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
     end
     
 

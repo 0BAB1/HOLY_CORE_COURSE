@@ -33,7 +33,7 @@ from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 
 # WARNING : Passing test on async clocks does not mean CDC timing sync is met !
 CPU_PERIOD = 10
-NUM_CYCLES = 1_000_000
+NUM_CYCLES = 10_000
 
 @cocotb.coroutine
 async def cpu_reset(dut):
@@ -74,7 +74,7 @@ async def cpu_insrt_test(dut):
 
     # Init the memories with the program data. Both are sceptible to be queried so we init both.
     # On a real SoC, a single memory will be able to answer bot axi and axi lite interfaces
-    hex_path = "./doom_no_bss_NO_cache.hex"
+    hex_path = "./hello_world_screen.hex"
     #hex_path = "./hello_world.hex"
     await init_memory(axi_ram_slave, hex_path, 0x80000000)
     await init_memory(axi_lite_ram_slave, hex_path, 0x80000000)
@@ -92,7 +92,7 @@ async def cpu_insrt_test(dut):
     num_branches_taken = 0
 
     # DOOM profiling: we let the game run for basic performance metrics review.
-    while True :
+    for _ in range(NUM_CYCLES) :
         await RisingEdge(dut.clk)
         num_cycles += 1
 

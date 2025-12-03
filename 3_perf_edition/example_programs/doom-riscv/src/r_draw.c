@@ -143,8 +143,6 @@ void R_DrawColumn (void)
     } while (count--);
 }
 
-
-
 void R_DrawColumnLow (void)
 {
     int                 count;

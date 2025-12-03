@@ -376,6 +376,7 @@ void D_Display (void)
 //
 void D_DoomLoop (void)
 {
+    uart_puts("Init graphics\n\r");
     I_InitGraphics ();
 
     while (1)
@@ -664,12 +665,6 @@ void D_DoomMain (void)
             D_StartTitle ();                // start up intro loop
         }
     }
-
-    // Make RAM space cachable for better perfs
-    __asm__ volatile ("csrw 0x7C3, %0" :: "r"(0x00000000));
-    __asm__ volatile ("csrw 0x7C4, %0" :: "r"(0x7FFFFFFF));
-    __asm__ volatile ("csrw 0x7C1, %0" :: "r"(0x00000000));
-    __asm__ volatile ("csrw 0x7C2, %0" :: "r"(0x7FFFFFFF));
 
     console_printf ("Go!\n\r");
     D_DoomLoop ();  // never returns

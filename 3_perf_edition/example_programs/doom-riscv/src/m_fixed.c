@@ -46,7 +46,9 @@ FixedMul
 ( fixed_t       a,
   fixed_t       b )
 {
-    return ((long long) a * (long long) b) >> FRACBITS;
+    // ooga booga mul for holy core
+    return (a >> 8) * (b >> 8);
+    //return ((long long) a * (long long) b) >> FRACBITS;
 }
 
 

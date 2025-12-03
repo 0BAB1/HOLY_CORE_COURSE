@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "holycore.h"
+#include "holy_core_soc.h"
 
 /* =============================================================================
  * AXI QSPI Registers
@@ -46,6 +47,18 @@
 #define COLOR_GREEN             0x07E0
 #define COLOR_BLUE              0x001F
 #define COLOR_WHITE             0xFFFF
+
+
+__attribute__((interrupt))
+void trap_handler() {
+    unsigned long mcause;
+    unsigned long mepc;
+    unsigned long mtval;
+
+    uart_puts("Unexpected exception\n\r");
+
+    while(1);
+}
 
 /* =============================================================================
  * Helper Functions
@@ -142,7 +155,9 @@ void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colo
     
     for (uint16_t row = 0; row < h; row++) {
         for (uint16_t col = 0; col < w; col++) {
+            while (SPI_STATUS & SPI_SR_TX_FULL);
             SPI_TX = hi;
+            while (SPI_STATUS & SPI_SR_TX_FULL);
             SPI_TX = lo;
         }
     }
