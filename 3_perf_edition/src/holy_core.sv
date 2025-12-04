@@ -578,7 +578,7 @@ if (DCACHE_EN) begin : gen_data_cache
     
     holy_data_cache #(
         .WORDS_PER_LINE(16),
-        .NUM_SETS(64)
+        .NUM_SETS(8)
     ) data_cache (
         .clk(clk),
         .rst_n(rst_n),

@@ -17,7 +17,7 @@ _start:
     # csrrw x0, 0x7C3, t0
     # csrrw x0, 0x7C4, t1
 
-    # jump to program in cocotb's ram
+    // jump to program in cocotb's ram
     la t0, 0x80000000
     jalr x0, t0, 0                
 

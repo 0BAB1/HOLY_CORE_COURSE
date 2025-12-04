@@ -20,7 +20,7 @@ import holy_core_pkg::*;
 
 module holy_data_cache #(
     parameter WORDS_PER_LINE = 16,
-    parameter NUM_SETS = 64,
+    parameter NUM_SETS = 8,
     // MODIFYING THE FOLLOWING IS NOT SUPPORTED. 
     parameter NUM_WAYS = 2 
 )(
@@ -101,13 +101,64 @@ module holy_data_cache #(
     assign req_word_offset = address[BYTE_OFFSET_BITS +: WORD_OFFSET_BITS];
 
     // =======================
+    // BRAM PORTS SIGNALS
+    // =======================
+    
+    // Enable signals for each way
+    logic bram_we_way0, bram_we_way1;
+    logic bram_re_way0, bram_re_way1;
+    // to flag when read recieve is fully over
+    logic bram_write_complete, next_bram_write_complete;
+    
+    // Address signals for BRAM access
+    logic [SET_INDEX_BITS-1:0]   bram_set_addr;
+    logic [WORD_OFFSET_BITS-1:0] bram_word_addr;
+    
+    // R/W data for BRAMs
+    logic [31:0] bram_wdata;
+    logic [3:0]  bram_be;
+    logic [31:0] rdata_way0, rdata_way1;
+    logic [31:0] bram_rdata;
+
+    // =======================
     // Data slots declaration - SEPARATED WAYS FOR BRAM INFERENCE
     // =======================
 
     // Cache storage: 2 separate BRAMs, one per way
     // Each BRAM: NUM_SETS × WORDS_PER_LINE words
-    (* ram_style = "block" *) logic [31:0] cache_data_way0 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
-    (* ram_style = "block" *) logic [31:0] cache_data_way1 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
+
+    // (* ram_style = "block" *) logic [31:0] cache_data_way0 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
+    // (* ram_style = "block" *) logic [31:0] cache_data_way1 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
+
+    // Way 0 BRAM
+    cache_bram_way #(
+    .NUM_SETS(NUM_SETS),
+    .WORDS_PER_LINE(WORDS_PER_LINE)
+    ) bram_way0 (
+        .clk(clk),
+        .we(bram_we_way0),
+        .be(bram_be),
+        .set_addr(bram_set_addr),
+        .word_addr(bram_word_addr),
+        .wdata(bram_wdata),
+        .re(bram_re_way0),
+        .rdata(rdata_way0)
+    );
+
+    // Way 1 BRAM
+    cache_bram_way #(
+    .NUM_SETS(NUM_SETS),
+    .WORDS_PER_LINE(WORDS_PER_LINE)
+    ) bram_way1 (
+        .clk(clk),
+        .we(bram_we_way1),
+        .be(bram_be),
+        .set_addr(bram_set_addr),
+        .word_addr(bram_word_addr),
+        .wdata(bram_wdata),
+        .re(bram_re_way1),
+        .rdata(rdata_way1)
+    );
 
     // Metadata remains as before
     logic [TAG_BITS-1:0] cache_tags  [NUM_WAYS-1:0][NUM_SETS-1:0];
@@ -163,60 +214,69 @@ module holy_data_cache #(
     logic next_lru_bits     [NUM_SETS-1:0];
 
     // =======================
-    // BRAM PORT SIGNALS
-    // =======================
-    
-    // Enable signals for each way
-    logic bram_we_way0, bram_we_way1;
-    logic bram_re_way0, bram_re_way1;
-    // to flag when read recieve is fully over
-    logic bram_write_complete, next_bram_write_complete;
-    
-    // Address signals for BRAM access
-    logic [SET_INDEX_BITS-1:0]   bram_set_addr;
-    logic [WORD_OFFSET_BITS-1:0] bram_word_addr;
-    
-    // R/W data for BRAMs
-    logic [31:0] bram_wdata;
-    logic [3:0]  bram_be;
-    logic [31:0] rdata_way0, rdata_way1;
-    logic [31:0] bram_rdata;
-
-    // =======================
     // BRAM R/W LOGIC - ACTIVE HIGH ENABLE, ACTIVE ON POSEDGE CLK
     // =======================
     
+    // always_ff @(posedge clk) begin
+    //     if (~rst_n) begin
+    //         bram_write_complete <= 0;
+    //     end else begin
+    //         bram_write_complete <= next_bram_write_complete;
+    //     end
+
+    //     // WRITE WAY 0
+    //     if (bram_we_way0) begin
+    //         if (bram_be[0]) cache_data_way0[bram_set_addr][bram_word_addr][ 7: 0] <= bram_wdata[ 7: 0];
+    //         if (bram_be[1]) cache_data_way0[bram_set_addr][bram_word_addr][15: 8] <= bram_wdata[15: 8];
+    //         if (bram_be[2]) cache_data_way0[bram_set_addr][bram_word_addr][23:16] <= bram_wdata[23:16];
+    //         if (bram_be[3]) cache_data_way0[bram_set_addr][bram_word_addr][31:24] <= bram_wdata[31:24];
+    //     end
+
+    //     // WRITE WAY 1
+    //     if (bram_we_way1) begin
+    //         if (bram_be[0]) cache_data_way1[bram_set_addr][bram_word_addr][ 7: 0] <= bram_wdata[ 7: 0];
+    //         if (bram_be[1]) cache_data_way1[bram_set_addr][bram_word_addr][15: 8] <= bram_wdata[15: 8];
+    //         if (bram_be[2]) cache_data_way1[bram_set_addr][bram_word_addr][23:16] <= bram_wdata[23:16];
+    //         if (bram_be[3]) cache_data_way1[bram_set_addr][bram_word_addr][31:24] <= bram_wdata[31:24];
+    //     end
+
+    //     // READ Way 0 BRAM
+    //     if (bram_re_way0) begin
+    //         bram_rdata <= cache_data_way0[bram_set_addr][bram_word_addr];
+    //     end
+        
+    //     // READ Way 1 BRAM
+    //     if (bram_re_way1) begin
+    //         bram_rdata <= cache_data_way1[bram_set_addr][bram_word_addr];
+    //     end
+    // end
+
+    // bram_write_complete registers (keep these)
     always_ff @(posedge clk) begin
         if (~rst_n) begin
             bram_write_complete <= 0;
         end else begin
             bram_write_complete <= next_bram_write_complete;
         end
+    end
 
-        // WRITE WAY 0
-        if (bram_we_way0) begin
-            if (bram_be[0]) cache_data_way0[bram_set_addr][bram_word_addr][ 7: 0] <= bram_wdata[ 7: 0];
-            if (bram_be[1]) cache_data_way0[bram_set_addr][bram_word_addr][15: 8] <= bram_wdata[15: 8];
-            if (bram_be[2]) cache_data_way0[bram_set_addr][bram_word_addr][23:16] <= bram_wdata[23:16];
-            if (bram_be[3]) cache_data_way0[bram_set_addr][bram_word_addr][31:24] <= bram_wdata[31:24];
-        end
-
-        // WRITE WAY 1
-        if (bram_we_way1) begin
-            if (bram_be[0]) cache_data_way1[bram_set_addr][bram_word_addr][ 7: 0] <= bram_wdata[ 7: 0];
-            if (bram_be[1]) cache_data_way1[bram_set_addr][bram_word_addr][15: 8] <= bram_wdata[15: 8];
-            if (bram_be[2]) cache_data_way1[bram_set_addr][bram_word_addr][23:16] <= bram_wdata[23:16];
-            if (bram_be[3]) cache_data_way1[bram_set_addr][bram_word_addr][31:24] <= bram_wdata[31:24];
-        end
-
-        // READ Way 0 BRAM
-        if (bram_re_way0) begin
-            bram_rdata <= cache_data_way0[bram_set_addr][bram_word_addr];
-        end
-        
-        // READ Way 1 BRAM
-        if (bram_re_way1) begin
-            bram_rdata <= cache_data_way1[bram_set_addr][bram_word_addr];
+    // Mux the read data
+    // We want to read when :
+    //   - we are reading (read OK)
+    //   - sending back data on a write back (flush or missed request)
+    always_comb begin
+        bram_rdata = '0;
+        if(state == READ_OK) begin
+            if (hit_way0)
+                bram_rdata = rdata_way0;
+            else if (hit_way1)
+                bram_rdata = rdata_way1;
+        end else if(state == SENDING_WRITE_DATA) begin
+            if(csr_flushing) begin
+                bram_rdata = flush_way ? rdata_way1 : rdata_way0;
+            end else begin
+                bram_rdata = current_way ? rdata_way1 : rdata_way0;
+            end
         end
     end
     
@@ -650,6 +710,11 @@ module holy_data_cache #(
                 end
 
                 if(bram_write_complete) begin
+                    // update cache metadata
+                    next_cache_tags[current_way][pending_set] = pending_tag;
+                    next_cache_valid[current_way][pending_set] = 1'b1;
+                    next_lru_bits[pending_set] = ~current_way;
+                    // state transition
                     next_state = READ_OK;
                     next_cache_dirty[current_way][pending_set] = 1'b0;
                 end
@@ -661,10 +726,6 @@ module holy_data_cache #(
                 // Signal output data as valid
                 if(read_ack) begin
                     next_state = IDLE;
-                    // Update cache metadata
-                    next_cache_tags[current_way][pending_set] = pending_tag;
-                    next_cache_valid[current_way][pending_set] = 1'b1;
-                    next_lru_bits[pending_set] = ~current_way;
                 end
                 
                 // Set read data from appropriate way
@@ -707,5 +768,52 @@ module holy_data_cache #(
     assign axi.arid = 4'b0000;
     // DATA CHANNELS
     assign axi.wstrb = 4'b1111;              // Full word writes
+
+endmodule
+
+
+module cache_bram_way #(
+    parameter NUM_SETS = 4,
+    parameter WORDS_PER_LINE = 16,
+    parameter DATA_WIDTH = 32
+)(
+    input  wire        clk,
+    
+    // Write port
+    input  wire        we,
+    input  wire [3:0]  be,
+    input  wire [$clog2(NUM_SETS)-1:0]       set_addr,
+    input  wire [$clog2(WORDS_PER_LINE)-1:0] word_addr,
+    input  wire [DATA_WIDTH-1:0]             wdata,
+    
+    // Read port
+    input  wire        re,
+    output reg  [DATA_WIDTH-1:0]             rdata
+);
+
+    localparam DEPTH = NUM_SETS * WORDS_PER_LINE;
+    localparam ADDR_WIDTH = $clog2(DEPTH);
+
+    // FLATTENED 1D array - this is what Vivado wants for BRAM
+    (* ram_style = "block" *) reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
+
+    // Combined address
+    wire [ADDR_WIDTH-1:0] addr = {set_addr, word_addr};
+
+    // Simple dual-port: sync write, sync read
+    always @(posedge clk) begin
+        // Write with byte enables
+        if (we) begin
+            if (be[0]) mem[addr][ 7: 0] <= wdata[ 7: 0];
+            if (be[1]) mem[addr][15: 8] <= wdata[15: 8];
+            if (be[2]) mem[addr][23:16] <= wdata[23:16];
+            if (be[3]) mem[addr][31:24] <= wdata[31:24];
+        end
+        
+        // Registered read
+        if (re) begin
+            rdata <= mem[addr];
+        end
+    end
 
 endmodule

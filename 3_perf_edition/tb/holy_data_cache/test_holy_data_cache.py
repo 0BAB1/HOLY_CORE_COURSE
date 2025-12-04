@@ -311,7 +311,6 @@ async def test_random_writes(dut):
     assert memory_errors == 0, f"Memory verification failed with {memory_errors} mismatches"
     dut._log.info("✓ WRITE TEST PASSED")
 
-
 @cocotb.test()
 async def test_random_read_write_mixed(dut):
     """Random read/write mixed stress test with locality"""
