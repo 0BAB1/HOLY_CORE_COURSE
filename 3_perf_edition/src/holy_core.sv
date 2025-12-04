@@ -577,8 +577,8 @@ if (DCACHE_EN) begin : gen_data_cache
     assign data_read_valid = non_cachable ? non_cachable_read_valid : cachable_read_valid;
     
     holy_data_cache #(
-        .WORDS_PER_LINE(8),
-        .NUM_SETS(4)
+        .WORDS_PER_LINE(16),
+        .NUM_SETS(64)
     ) data_cache (
         .clk(clk),
         .rst_n(rst_n),

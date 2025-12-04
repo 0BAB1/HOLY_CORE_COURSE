@@ -44,24 +44,25 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0]
 # we allow this loops (involving stall) as the control signals aare logically mutually exclusive
 # it should go away when pipelining / introducing better handshakes.
 set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/holy_csr_file/d_cache_stall]
-set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/d_cache_stall]
-set_property ALLOW_COMBINATORIAL_LOOPS TRUE \
-    [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/stall]
+set_property ALLOW_COMBINATORIAL_LOOPS true [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/d_cache_stall]
+set_property ALLOW_COMBINATORIAL_LOOPS true [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/stall]
 
 
 # battle against stupid vivado optimsations:
 set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *arbitre*]
 set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *instr_cache*]
 set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *data_cache*]
-set_property DONT_TOUCH TRUE [get_cells -hierarchical *instr_cache*]
-set_property DONT_TOUCH TRUE [get_cells -hierarchical *axi_instr*]
-set_property DONT_TOUCH TRUE [get_cells -hierarchical *arbitre*]
+set_property DONT_TOUCH true [get_cells -hierarchical *instr_cache*]
+set_property DONT_TOUCH true [get_cells -hierarchical *axi_instr*]
+set_property DONT_TOUCH true [get_cells -hierarchical *arbitre*]
 set_property DONT_TOUCH true [get_nets m_axi_*]
 set_property KEEP_HIERARCHY yes [get_cells wrapped]
 
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property CONFIG_MODE SPIx4 [current_design]
+
+set_property RAM_STYLE BLOCK [get_cells -hierarchical *cache_data_way*]
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

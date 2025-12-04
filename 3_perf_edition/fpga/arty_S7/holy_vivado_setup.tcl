@@ -481,6 +481,9 @@ set_property CONFIG.GPIO2_BOARD_INTERFACE {Custom} [get_bd_cells axi_gpio_0]
 endgroup
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {shield_dp0_dp9 ( Shield Pins 0 through 9 ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_gpio_0/GPIO2]
 
+# force BRAM for D$
+set_property RAM_STYLE BLOCK [get_cells -hierarchical *cache_data_way*]
+
 # Validate + wrapper
 assign_bd_address
 validate_bd_design
