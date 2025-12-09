@@ -376,7 +376,7 @@ void D_Display (void)
 //
 void D_DoomLoop (void)
 {
-    uart_puts("Init graphics\n\r");
+    uart_puts("init graphics\n\r");
     I_InitGraphics ();
 
     while (1)

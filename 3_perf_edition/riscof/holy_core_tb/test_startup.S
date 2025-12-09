@@ -23,7 +23,10 @@ _test_startup:
     li t0, 0x80000000
     jalr x0, 0(x5) # 0x00028067
 
+# the test comes back here at the end of each test
 _test_end:
+    nop
+    nop
     # flush the data cache
     li t0, 0x1
     csrrw x0, 0x7c0, t0

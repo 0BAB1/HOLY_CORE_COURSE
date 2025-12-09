@@ -33,6 +33,8 @@ module axi_err_slv #(
   input  axi_req_t  slv_req_i,
   output axi_resp_t slv_resp_o
 );
+/* verilator lint_off WIDTHTRUNC */
+
   typedef logic [AxiIdWidth-1:0] id_t;
   typedef struct packed {
     id_t           id;
@@ -258,4 +260,5 @@ module axi_err_slv #(
   `endif
   // pragma translate_on
 
+/* verilator lint_on WIDTHTRUNC */
 endmodule

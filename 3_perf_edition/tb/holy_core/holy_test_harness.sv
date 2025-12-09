@@ -192,7 +192,7 @@ holy_core #(
     // and hardwire thes to the correct address before the test.
     //
     // In an actual SoC, these input would be hardwired to the known
-    // debug module's ROM adresses.
+    // debug module's ROM adresses (e.g. 0x3000_0000).
     //
     // .DEBUG_HALT_ADDR(0),
     // .DEBUG_EXCEPTION_ADDR(0),
@@ -200,16 +200,7 @@ holy_core #(
     .clk(clk), 
     .rst_n(rst_n),
 
-    // Note : the AXI MASTER interface
-    // is only used to retrieve instructions
-    // in this tb. so it is a striahgt passthrough
-    // to the top IF
     .m_axi(m_axi),
-
-    // Note : The AXI LITE MASTER interface
-    // goes to the corssbar as it can trasact with
-    // multiple savles acrosse the system.
-    // i.e. RAM, CLINT & PLIC.
     .m_axi_lite(m_axi_lite),
 
     // Interrupts
@@ -228,6 +219,8 @@ hc_axil_pulp_axil_passthrough hc_to_xbar(
 //=======================
 // AXI LITE XBAR
 //=======================
+
+/* verilator lint_off WIDTHTRUNC */
 
 // Cofig docs
 // https://github.com/pulp-platform/axi/blob/master/doc/axi_lite_xbar.md
@@ -251,22 +244,25 @@ localparam xbar_cfg_t Cfg = '{
 // defined in vendor/axi/src/axi_pkg.sv
 axi_pkg::xbar_rule_32_t [Cfg.NoAddrRules-1:0] addr_map;
 
-// EXTERNAL REQUESTS (RAM)
+// BOOT ROM (Where we operate in basic TB)
 assign addr_map[0].idx = 0;
 assign addr_map[0].start_addr = 32'h0;
-assign addr_map[0].end_addr = 32'h2FFF;
+assign addr_map[0].end_addr = 32'h0FFFFFFF;
 
 // CLINT
 assign addr_map[1].idx = 1;
-assign addr_map[1].start_addr = 32'h3000;
-assign addr_map[1].end_addr = 32'hEFFF;
+assign addr_map[1].start_addr = 32'h40000000;
+assign addr_map[1].end_addr = 32'h7FFFFFFF;
 
 // PLIC
 assign addr_map[2].idx = 2;
-assign addr_map[2].start_addr = 32'hF000;
-assign addr_map[2].end_addr = 32'hFFFF;
+assign addr_map[2].start_addr = 32'h90000000;
+assign addr_map[2].end_addr = 32'hFFFFFFFF;
 
 // DEBUG MODULE
+// NOTE : it's not used here, we set the debug space
+// in testbench to code we can modify.
+// See core declaration above + TB code + test assembly for more infos.
 assign addr_map[3].idx = 3;
 assign addr_map[3].start_addr = 32'h30000000;
 assign addr_map[3].end_addr = 32'h3FFFFFFF;
@@ -285,6 +281,8 @@ axi_lite_xbar_intf #(
     .default_mst_port_i('{1})
 );
 
+/* verilator lint_on WIDTHTRUNC */
+
 //=======================
 // HOLY PLIC (LITE SLAVE)
 //=======================
@@ -293,7 +291,7 @@ logic ext_irq;
 
 holy_plic #(
     .NUM_IRQS (NUM_IRQS),
-    .BASE_ADDR('hF000)
+    .BASE_ADDR('h90000000)
 ) plic (
     .clk        (clk),
     .rst_n      (rst_n),
@@ -315,7 +313,7 @@ logic timer_irq;
 logic soft_irq;
 
 holy_clint #(
-    .BASE_ADDR('h3000)
+    .BASE_ADDR('h40000000)
 ) clint (
     .clk        (clk),
     .rst_n      (rst_n),

@@ -33,6 +33,8 @@ module axi_lite_to_axi #(
   output axi_req_t        mst_req_o,
   input  axi_resp_t       mst_resp_i
 );
+  /* verilator lint_off WIDTHEXPAND */
+  /* verilator lint_off WIDTHTRUNC */
   localparam int unsigned AxiSize = axi_pkg::size_t'($unsigned($clog2(AxiDataWidth/8)));
 
   // request assign
@@ -157,4 +159,6 @@ module axi_lite_to_axi_intf #(
   assign in_if.r_valid    = out_if.r_valid;
   assign out_if.r_ready   = in_if.r_ready;
 
+  /* verilator lint_on WIDTHEXPAND */
+  /* verilator lint_on WIDTHTRUNC */
 endmodule

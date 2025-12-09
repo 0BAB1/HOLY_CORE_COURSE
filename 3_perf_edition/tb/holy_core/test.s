@@ -23,7 +23,7 @@ _start:
     csrrw x0, 0x7C4, t1
 
     # DATA ADDR STORE
-    lui x3, 0x1
+    lui x3, 0x100
 
     # LW TEST START
     lw x18, 8(x3)
@@ -250,7 +250,7 @@ _start:
     ################
     # SW INTR TEST
     ################
-    lui x4, 0x3             # Clint base addr
+    lui x4, 0x40000         # Clint base addr
     la x6, trap             # Trap handler base addr
     csrrw x0, mtvec, x6     # we set mtvec to the trap handler's addr
     
@@ -287,7 +287,7 @@ wait_for_timer_irq:
     # EXTERNAL INTR TEST
     ################
     # set up plic by enabling intr
-    li x4, 0x0000F000       # plic base addr
+    li x4, 0x90000000       # plic base addr
     ori x5, x0, 0x1         
     sw x5, 0(x4)            # enable ext intr #1
     nop                     # signal tb we are about to wait for ext intr
@@ -314,6 +314,9 @@ wait_for_debug_mode:
     nop
     # tb will send a debug request, effectively jumping
     # to "debug ROM", which we can find below
+    li t3, 0x2
+    csrr t2, dscratch0
+    beq t2, t3, cache_stress_test
     j wait_for_debug_mode
 
 #########################
@@ -441,10 +444,313 @@ single_step_test:
     andi   t1, t0, (1 << 2) # t1 = dcsr.step ? 4 : 0
     beqz   t1, set_step     # if step == 0, go set it
 clear_step:
+# note : set step is exeuted before in the tb
     csrci  0x7b0, 4
     li     t2, 2
     csrw   0x7b2, t2
+    # set scratch0 to 2 to flag this tst as done
+    csrwi dscratch0, 0x2
     dret
 set_step:
     csrsi  0x7b0, 4
     dret
+
+# ========================================
+# DATA STRESS TEST - Phase 1: Sequential Writes
+# ========================================
+# Memory region: 0x1000 - 0x1040 (16 words)
+# Pattern: each word = its own address
+# Checksum: XOR of all written values
+
+cache_stress_test:
+    # Setup
+    lui x3, 0x1              # x3 = 0x1000 (base address)
+    addi x4, x3, 0x40        # x4 = 0x1040 (end = 16 words)
+    li x10, 0                # x10 = checksum
+    li x7, 0xA5A5A500        # x7 = base pattern
+    csrwi 0x7c1, 0x0         # cache setup
+    csrwi 0x7c2, 0x0         # cache setup
+    csrwi 0x7c3, 0x0         # cache setup
+    csrwi 0x7c4, 0x0         # cache setup
+
+write_loop:
+    or x8, x7, x3            # x8 = 0xA5A5A500 | addr (unique per word)
+    sw x8, 0(x3)             # mem[addr] = pattern
+    add x10, x10, x8         # checksum += pattern
+    addi x3, x3, 4
+    bne x3, x4, write_loop
+
+    # Now verify by reading back
+    lui x3, 0x1              # reset to 0x1000
+    li x11, 0                # x11 = read checksum
+
+read_loop:
+    lw x5, 0(x3)             # x5 = mem[addr]
+    add x11, x11, x5         # read_checksum += value
+    addi x3, x3, 4
+    bne x3, x4, read_loop
+
+    # Store results at 0x1200
+    li x6, 0x1200
+    sw x10, 0(x6)            # store write checksum
+    sw x11, 4(x6)            # store read checksum
+
+    # Flush the cache (also a marker to tell this phase is over# so we can run asserions)
+    csrwi 0x7C0, 0x1
+
+# ========================================
+# CACHE STRESS TEST - Phase 2: Read-Write Interleaving
+# ========================================
+# Write to region A, read from A, write to region B
+# Stresses cache with rapid R/W switching
+
+    # ---- Phase 1: Fill region A (0x1000-0x103F) ----
+    lui x3, 0x1              # x3 = 0x1000
+    addi x4, x3, 0x40        # x4 = 0x1040 (16 words)
+    li x9, 1                 # counter
+
+fill_a:
+    sw x9, 0(x3)
+    addi x9, x9, 1
+    addi x3, x3, 4
+    bne x3, x4, fill_a
+
+    # ---- Phase 2: Read A, write to B (0x1100-0x113F) ----
+    lui x3, 0x1              # x3 = 0x1000 (read from A)
+    li x4, 0x1100            # x4 = 0x1100 (write to B)
+    li x5, 0x1140            # x5 = end of B
+    li x10, 0                # checksum
+
+interleave_loop:
+    lw x6, 0(x3)             # read from A
+    add x10, x10, x6         # checksum += value
+    sw x6, 0(x4)             # write same value to B
+    addi x3, x3, 4
+    addi x4, x4, 4
+    bne x4, x5, interleave_loop
+
+    # ---- Phase 3: Verify B matches A ----
+    lui x3, 0x1              # x3 = 0x1000 (A)
+    li x4, 0x1100            # x4 = 0x1100 (B)
+    li x5, 0x1140            # end
+    li x11, 0                # verify checksum
+
+verify_loop:
+    lw x6, 0(x3)             # read A
+    lw x7, 0(x4)             # read B
+    add x11, x11, x7         # checksum from B
+    addi x3, x3, 4
+    addi x4, x4, 4
+    bne x4, x5, verify_loop
+
+    # Store results at 0x1200
+    li x6, 0x1200
+    sw x10, 0(x6)            # checksum from interleave
+    sw x11, 4(x6)            # checksum from verify
+
+    # Flush the cache (also a marker to tell this phase is over# so we can run asserions)
+    csrwi 0x7C0, 0x1
+
+# ========================================
+# CACHE STRESS TEST - Phase 3: Jumps + Large Memory
+# ========================================
+# - Jumps across code to stress I$ 
+# - Writes across 4 separate memory regions
+# - 64 words per region = 256 words total
+
+    li x10, 0                # checksum
+    li x9, 1                 # counter
+    
+    # Region bases
+    lui x20, 0x1             # x20 = 0x1000 (region A)
+    li x21, 0x1200           # x21 = 0x1200 (region B)
+    li x22, 0x1400           # x22 = 0x1400 (region C)
+    li x23, 0x1600           # x23 = 0x1600 (region D)
+    
+    j phase3_start
+
+# ============ NOP BLOCK 1 ============
+.balign 64
+nop_block_1:
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    j write_region_b
+
+# ============ NOP BLOCK 2 ============
+.balign 64
+nop_block_2:
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    j write_region_d
+
+# ============ NOP BLOCK 3 ============
+.balign 64
+nop_block_3:
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    j verify_start
+
+# ============ MAIN CODE ============
+.balign 64
+phase3_start:
+    # ---- Write Region A: 0x1000-0x10FF (64 words) ----
+    mv x3, x20
+    addi x4, x3, 0x100       # end = 0x1100
+write_region_a:
+    sw x9, 0(x3)
+    add x10, x10, x9
+    addi x9, x9, 1
+    addi x3, x3, 4
+    bne x3, x4, write_region_a
+    j nop_block_1            # jump far
+
+# ============ NOP BLOCK 4 ============
+.balign 64
+nop_block_4:
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    j write_region_c
+
+.balign 64
+write_region_b:
+    # ---- Write Region B: 0x1200-0x12FF (64 words) ----
+    mv x3, x21
+    addi x4, x3, 0x100
+write_region_b_loop:
+    sw x9, 0(x3)
+    add x10, x10, x9
+    addi x9, x9, 1
+    addi x3, x3, 4
+    bne x3, x4, write_region_b_loop
+    j nop_block_4            # jump far
+
+.balign 64
+write_region_c:
+    # ---- Write Region C: 0x1400-0x14FF (64 words) ----
+    mv x3, x22
+    addi x4, x3, 0x100
+write_region_c_loop:
+    sw x9, 0(x3)
+    add x10, x10, x9
+    addi x9, x9, 1
+    addi x3, x3, 4
+    bne x3, x4, write_region_c_loop
+    j nop_block_2            # jump far
+
+.balign 64
+write_region_d:
+    # ---- Write Region D: 0x1600-0x16FF (64 words) ----
+    mv x3, x23
+    addi x4, x3, 0x100
+write_region_d_loop:
+    sw x9, 0(x3)
+    add x10, x10, x9
+    addi x9, x9, 1
+    addi x3, x3, 4
+    bne x3, x4, write_region_d_loop
+    j nop_block_3            # jump far
+
+# ============ VERIFY ALL REGIONS ============
+.balign 64
+verify_start:
+    li x11, 0                # verify checksum
+    
+    # Verify A
+    mv x3, x20
+    addi x4, x3, 0x100
+verify_a:
+    lw x5, 0(x3)
+    add x11, x11, x5
+    addi x3, x3, 4
+    bne x3, x4, verify_a
+    
+    # Verify B
+    mv x3, x21
+    addi x4, x3, 0x100
+verify_b:
+    lw x5, 0(x3)
+    add x11, x11, x5
+    addi x3, x3, 4
+    bne x3, x4, verify_b
+    
+    # Verify C
+    mv x3, x22
+    addi x4, x3, 0x100
+verify_c:
+    lw x5, 0(x3)
+    add x11, x11, x5
+    addi x3, x3, 4
+    bne x3, x4, verify_c
+    
+    # Verify D
+    mv x3, x23
+    addi x4, x3, 0x100
+verify_d:
+    lw x5, 0(x3)
+    add x11, x11, x5
+    addi x3, x3, 4
+    bne x3, x4, verify_d
+
+    # Store results at 0x1800
+    li x6, 0x1800
+    sw x10, 0(x6)            # write checksum
+    sw x11, 4(x6)            # verify checksum
+
+    # Flush the cache (also a marker to tell this phase is over# so we can run asserions)
+    csrwi 0x7C0, 0x1

@@ -46,8 +46,8 @@ serving_state_t serving, next_serving;
 logic i_cache_requesting;
 logic d_cache_requesting;
 
-assign i_cache_requesting = i_cache_state != IDLE;
-assign d_cache_requesting = d_cache_state != IDLE;
+assign i_cache_requesting = i_cache_state != IDLE && i_cache_state != READ_OK;
+assign d_cache_requesting = d_cache_state != IDLE && d_cache_state != READ_OK;
 
 // Lock state machine
 always_ff @(posedge clk) begin
@@ -264,8 +264,8 @@ serving_state_t serving, next_serving;
 logic i_cache_requesting;
 logic d_cache_requesting;
 
-assign i_cache_requesting = i_cache_state != IDLE;
-assign d_cache_requesting = d_cache_state != IDLE;
+assign i_cache_requesting = i_cache_state != IDLE && i_cache_state != READ_OK;
+assign d_cache_requesting = d_cache_state != IDLE && d_cache_state != READ_OK;
 
 always_ff @(posedge clk) begin
     if (~rst_n) begin
@@ -298,6 +298,8 @@ always_comb begin
                 next_serving = SERVING_NONE;
             end
         end
+
+        default:;
     endcase
 end
 

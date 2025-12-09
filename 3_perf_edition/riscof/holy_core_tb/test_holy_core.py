@@ -222,7 +222,7 @@ async def cpu_insrt_test(dut):
     ############################################
     # FORCE JUMP TO _test_end_pc
     ############################################
-    dut._log.info(f"Jump too far for JAL, forcing PC directly to 0x{_test_end_pc:08X}")
+    dut._log.info(f"Forcing PC directly to 0x{_test_end_pc:08X}")
 
     dut.core.pc.value = _test_end_pc
     for _ in range(1000):

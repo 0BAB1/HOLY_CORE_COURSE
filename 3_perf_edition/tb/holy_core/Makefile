@@ -10,7 +10,7 @@
 
 SIM ?= verilator
 TOPLEVEL_LANG ?= verilog
-EXTRA_ARGS += --trace --trace-structs --sv -Wno-fatal
+EXTRA_ARGS += --trace --trace-structs --sv
 WAVES ?= 1
 
 TOPLEVEL = holy_test_harness
@@ -92,7 +92,7 @@ OUT_HEX     := test.hex
 OUT_DIS     := test.D
 
 CFLAGS  := -march=$(ARCH) -mabi=$(ABI) -static -mcmodel=medany \
-           -fvisibility=hidden -nostdlib -nostartfiles -g
+           -fvisibility=hidden -nostdlib -nostartfiles -g -Wl,-Ttext=0x0
 
 # === HEX generation ===
 $(OUT_ELF): $(SRC)

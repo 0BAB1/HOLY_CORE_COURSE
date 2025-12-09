@@ -6,6 +6,9 @@
 //  - Provides default clk and rst options to simplify code
 //  - Provides boiler plate template for common assertions
 
+/* verilator lint_off UNOPTFLAT */
+/* verilator lint_off REDEFMACRO */
+
 `ifndef PRIM_ASSERT_SV
 `define PRIM_ASSERT_SV
 
@@ -176,3 +179,6 @@
 `include "prim_flop_macros.sv"
 
 `endif // PRIM_ASSERT_SV
+
+/* verilator lint_on UNOPTFLAT */
+/* verilator lint_on REDEFMACRO */

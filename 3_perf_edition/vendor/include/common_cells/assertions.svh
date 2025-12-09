@@ -6,6 +6,9 @@
 //  - Provides default clk and rst options to simplify code
 //  - Provides boiler plate template for common assertions
 
+/* verilator lint_off UNOPTFLAT */
+/* verilator lint_off REDEFMACRO */
+
 `ifndef COMMON_CELLS_ASSERTIONS_SVH
 `define COMMON_CELLS_ASSERTIONS_SVH
 
@@ -208,3 +211,5 @@
 
 
 `endif // COMMON_CELLS_ASSERTIONS_SVH
+/* verilator lint_on UNOPTFLAT */
+/* verilator lint_on REDEFMACRO */

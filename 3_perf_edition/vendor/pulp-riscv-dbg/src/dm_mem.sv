@@ -58,6 +58,10 @@ module dm_mem #(
   input  logic [BusWidth/8-1:0]            be_i,
   output logic [BusWidth-1:0]              rdata_o
 );
+
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off WIDTHTRUNC */
+
   localparam int unsigned DbgAddressBits = 12;
   localparam int unsigned HartSelLen     = (NrHarts == 1) ? 1 : $clog2(NrHarts);
   localparam int unsigned NrHartsAligned = 2**HartSelLen;
@@ -541,4 +545,6 @@ module dm_mem #(
     end
   end
 
+/* verilator lint_on WIDTHEXPAND */
+/* verilator lint_on WIDTHTRUNC */
 endmodule : dm_mem

@@ -2,6 +2,8 @@ interface axi_lite_if #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32
 );
+/* verilator lint_off UNOPTFLAT */
+
     // Write Address Channel
     logic [ADDR_WIDTH-1:0] awaddr;
     logic awvalid;
@@ -79,4 +81,5 @@ interface axi_lite_if #(
         input  rready
     );
 
+/* verilator lint_on UNOPTFLAT */
 endinterface

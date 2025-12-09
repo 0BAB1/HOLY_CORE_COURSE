@@ -32,13 +32,7 @@ module holy_plic #(
     axi_lite_if.slave s_axi_lite,
 
     // Interrupt output to core
-    output logic                 ext_irq_o,
-
-    // out signals for debug
-    output logic [NUM_IRQS-1:0]  irq_meta,
-    output logic [NUM_IRQS-1:0]  irq_req,
-    output logic [NUM_IRQS-1:0]  ip,
-    output logic in_service
+    output logic                 ext_irq_o
 );
 
     // REGISTERS MAP
@@ -51,9 +45,9 @@ module holy_plic #(
 
     // The role of this gateway is to sync interrupt signals
     // and set the pending signals accordingly.
-    // logic [NUM_IRQS-1:0]  ip; //Interrupt Pending...
-    // logic [NUM_IRQS-1:0]  irq_meta;
-    // logic [NUM_IRQS-1:0]  irq_req;
+    logic [NUM_IRQS-1:0]  ip; //Interrupt Pending...
+    logic [NUM_IRQS-1:0]  irq_meta;
+    logic [NUM_IRQS-1:0]  irq_req;
     logic [NUM_IRQS-1:0]  irq_clear;
 
     // Synchronise the incomming interupts
@@ -95,8 +89,7 @@ module holy_plic #(
     // which deasserts target's notification until completion.
     // even though the actual interrput pending signal commin
     // from the gateways is high.
-    // logic in_service, in_service_next;
-    logic in_service_next;
+    logic in_service, in_service_next;
     // We also have to remember what is the current ID
     // being serviced. This is because the targets rewrites
     // this ID to the CONTEXT_CLAIM_COMPLETE register

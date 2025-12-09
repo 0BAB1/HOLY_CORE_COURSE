@@ -77,11 +77,11 @@ import holy_core_pkg::*;
 assign debug_pc = pc;  
 assign debug_pc_next = pc_next;  
 assign debug_instruction = instruction;  
-assign debug_i_cache_state = i_cache_state;  
+assign debug_i_cache_state = 0;  
 assign debug_i_cache_stall = i_cache_stall;  
 assign debug_d_cache_stall  = d_cache_stall; 
 assign debug_csr_flush_order = csr_flush_order;
-assign debug_pc_source = pc_source;
+assign debug_pc_source = 0;
 assign debug_wb_data = mem_read_write_back_data;
 assign debug_mem_read = mem_read;
 assign debug_mem_byte_en = mem_byte_enable;
@@ -104,7 +104,7 @@ external_req_arbitrer mr_l_arbitre(
     .rst_n(rst_n),
     .m_axi(m_axi),
     .s_axi_instr(axi_instr),
-    .i_cache_state(i_cache_state),
+    .i_cache_state(i_cachable_state),
     .s_axi_data(axi_data),
     .d_cache_state(d_cachable_state),
     .debug_serving(debug_serving),
@@ -120,7 +120,7 @@ external_req_arbitrer_lite lite_mux(
 
     // in ifs + infos on cache state for preemption
     .s_axi_lite_instr(axi_lite_instr),
-    .i_cache_state(i_cache_state),
+    .i_cache_state(i_non_cachable_state),
     .s_axi_lite_data(axi_lite_data),
     .d_cache_state(d_non_cachable_state)
 );
@@ -175,46 +175,67 @@ end
 
 /**
 * INSTRUCTION CACHE MEMORY
+* Todo : pour cache/ uncached logic in a separate module.
 */
 
-// Acts as a ROM.
-wire [31:0] instruction;
-wire instr_cache_valid;
-cache_state_t i_cache_state;
+logic [31:0]    instruction, instr_cachable_rdata, instr_non_cachable_rdata;
+logic           instr_cachable_read_valid, instr_non_cachable_read_valid;
+cache_state_t   i_cachable_state, i_non_cachable_state;
 
-// Simple 1 way block cache
-// 512kB (128 words)
+logic instr_read_ack;
+// if a mem read / write is ongoing, then we wait for it to complete, otherwise, ack all.
+assign instr_read_ack = (mem_read_enable || mem_write_enable) ? data_req_complete : 1'b1;
+
+// determine cachability of requested PC
+logic instr_non_cachable;
+assign instr_non_cachable = (pc >= instr_non_cachable_base) && 
+                          (pc < instr_non_cachable_limit);
+
 holy_instr_cache instr_cache (
     .clk(clk),
     .rst_n(rst_n),
 
     // CPU IF
     .address(pc),
-    .write_data(32'd0),
-    .read_enable(1'b1),
-    .write_enable(1'b0),
-    .byte_enable(4'd0),
-    .csr_flush_order(csr_flush_order),
-    .read_data(instruction),
-    .cache_stall(i_cache_stall),
-
-    // We make the debug module non cachable, the rest is cacheble.
-    .non_cachable_base(instr_non_cachable_base),
-    .non_cachable_limit(instr_non_cachable_limit),
-
+    .read_data(instr_cachable_rdata),
+    // handshake
+    .req_valid(~instr_non_cachable),
+    .req_ready(),
+    .read_valid(instr_cachable_read_valid),
+    .read_ack(instr_read_ack),
 
     // M_AXI EXERNAL REQ IF
     .axi(axi_instr),
-    .axi_lite(axi_lite_instr),
-
-    .cache_state(i_cache_state),
-    .debug_next_cache_state(debug_i_next_cache_state),
-    .instr_valid(instr_cache_valid),
-
-    //debug
-    .set_ptr_out(debug_i_set_ptr),
-    .next_set_ptr_out(debug_i_next_set_ptr)
+    .cache_state(i_cachable_state)
 );
+
+holy_no_cache instr_no_cache (
+    .clk(clk),
+    .rst_n(rst_n),
+
+    // CPU IF
+    .address(pc),
+    .read_data(instr_non_cachable_rdata),
+    .write_data('0),
+    .byte_enable('0),
+    // handshake
+    .req_valid(instr_non_cachable),
+    .req_ready(),
+    .req_write('0),
+    .read_valid(instr_non_cachable_read_valid),
+    .read_ack(instr_read_ack),
+    // AXI Lite
+    .axi_lite(axi_lite_instr),
+    .cache_state(i_non_cachable_state)
+);
+
+// stall the core if instruction is not valid
+assign i_cache_stall = instr_non_cachable ? ~instr_non_cachable_read_valid : ~instr_cachable_read_valid;
+assign instruction = instr_non_cachable ? instr_non_cachable_rdata : instr_cachable_rdata;
+
+// instrruction valid flag for control and CSR decision making
+logic instruction_valid;
+assign instruction_valid = instr_non_cachable ? instr_non_cachable_read_valid : instr_cachable_read_valid;
 
 /**
 * CONTROL
@@ -255,7 +276,7 @@ control control_unit(
     .func7(f7),
     .alu_zero(alu_zero),
     .alu_last_bit(alu_last_bit),
-    .instr_cache_valid(instr_cache_valid),
+    .instr_cache_valid(instruction_valid),
     .alu_aligned_addr(alu_aligned_addr),
     .second_add_aligned_addr(second_add_aligned_addr),
 
@@ -408,6 +429,7 @@ logic [31:0] data_non_cachable_limit;
 logic [31:0] instr_non_cachable_base;
 logic [31:0] instr_non_cachable_limit;
 
+/* verilator lint_off PINMISSING */
 csr_file holy_csr_file(
     //in
     .clk(clk),
@@ -420,6 +442,7 @@ csr_file holy_csr_file(
     .current_core_pc(pc),
     .anticipated_core_pc(pc_anticipated),
     .current_core_fetch_instr(instruction),
+    .instruction_valid(instruction_valid),
 
     // interrupts in
     .timer_itr(timer_itr),
@@ -458,6 +481,7 @@ csr_file holy_csr_file(
     // debug dpc for exiting debug mode
     .csr_dpc(csr_dpc)
 );
+/* verilator lint_on PINMISSING */
 
 /**
 * ALU
@@ -523,6 +547,7 @@ load_store_decoder ls_decode(
 
 /**
 * DATA CACHE GENERATION
+* Todo : pour cache/ uncached logic in a separate module.
 */
 
 // We need to translate control's simple ENABLE signals into a well
@@ -534,8 +559,8 @@ logic data_req_ready;
 logic data_read_valid;
 logic data_read_ack;
 // request complete marker
-logic req_complete;
-assign req_complete = (data_read_valid && data_read_ack) || (data_req_valid && data_req_write && data_req_ready);
+logic data_req_complete;
+assign data_req_complete = (data_read_valid && data_read_ack) || (data_req_valid && data_req_write && data_req_ready);
 
 assign data_req_valid = ~i_cache_stall && (mem_write_enable || mem_read_enable);
 assign data_req_write = mem_write_enable;
@@ -549,9 +574,8 @@ always_comb begin
     if(~data_req_valid) begin
         d_cache_stall = 1'b0;
     end else begin
-        d_cache_stall = ~req_complete;
+        d_cache_stall = ~data_req_complete;
     end
-
 end
 
 wire    [31:0]  mem_read;

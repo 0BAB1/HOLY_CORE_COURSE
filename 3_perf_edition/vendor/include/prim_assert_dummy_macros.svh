@@ -5,6 +5,9 @@
 // Macro bodies included by prim_assert.sv for tools that don't support assertions. See
 // prim_assert.sv for documentation for each of the macros.
 
+/* verilator lint_off UNOPTFLAT */
+/* verilator lint_off REDEFMACRO */
+
 `define ASSERT_I(__name, __prop)
 `define ASSERT_INIT(__name, __prop)
 `define ASSERT_INIT_NET(__name, __prop)
@@ -28,3 +31,6 @@
   `define ASSUME(__name, __prop, __clk = `ASSERT_DEFAULT_CLK, __rst = `ASSERT_DEFAULT_RST)
 `endif
 `define ASSUME_I(__name, __prop)
+
+/* verilator lint_on UNOPTFLAT */
+/* verilator lint_on REDEFMACRO */

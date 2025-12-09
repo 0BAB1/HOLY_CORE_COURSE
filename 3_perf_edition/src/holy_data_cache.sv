@@ -69,6 +69,13 @@ module holy_data_cache #(
     logic [SET_INDEX_BITS-1:0]      pending_set, next_pending_set;
     logic [WORD_OFFSET_BITS-1:0]    pending_word_offset, next_pending_word_offset;
     logic [TAG_BITS-1:0]            pending_tag, next_pending_tag;
+    // Separate register to determine wether the upcomming READ OK results from a
+    // missed request.
+    logic                           pending_read, next_pending_read;
+
+    // On read HIT, make 100% sure we remember DA WAE
+    // This is just safety but DOOm is bugging so we tryna make this air tight
+    logic pending_hit_way, next_pending_hit_way;
 
     assign read_valid = (state == READ_OK);
 
@@ -267,10 +274,13 @@ module holy_data_cache #(
     always_comb begin
         bram_rdata = '0;
         if(state == READ_OK) begin
-            if (hit_way0)
-                bram_rdata = rdata_way0;
-            else if (hit_way1)
-                bram_rdata = rdata_way1;
+            if(~pending_read) begin
+                // Read was a HIT
+                bram_rdata = pending_hit_way ? rdata_way1 : rdata_way0;
+            end else begin
+                // Read was a MISS
+                bram_rdata = current_way ? rdata_way1 : rdata_way0;
+            end
         end else if(state == SENDING_WRITE_DATA) begin
             if(csr_flushing) begin
                 bram_rdata = flush_way ? rdata_way1 : rdata_way0;
@@ -367,7 +377,7 @@ module holy_data_cache #(
         
         // Read address setup
         if (next_state == READ_OK) begin
-            if(hit) begin
+            if(hit && ~pending_read) begin
                 bram_re_way0 = hit_way0;
                 bram_re_way1 = hit_way1;
             end else begin
@@ -375,7 +385,7 @@ module holy_data_cache #(
                 bram_re_way1 = (current_way == 1'b1);
             end
 
-            if (hit) begin
+            if (hit && ~pending_read) begin
                 bram_set_addr = req_set;
                 bram_word_addr = req_word_offset;
             end else begin
@@ -411,14 +421,16 @@ module holy_data_cache #(
                 lru_bits[s] <= 1'b0;
             end
 
-            // write miss latches
+            // missed requests latches
             pending_write <= 1'b0;
             pending_addr <= '0;
             pending_data <= '0;
-            pending_be <= '0;
+            pending_be <= 4'b0;
             pending_set <= '0;
             pending_word_offset <= '0;
             pending_tag <= '0;
+            pending_read <= 1'b0;
+            pending_hit_way <= 1'b0;
             
         end else begin
             // DEFAULT REG LATCHES
@@ -443,6 +455,8 @@ module holy_data_cache #(
             pending_set <= next_pending_set;
             pending_word_offset <= next_pending_word_offset;
             pending_tag <= next_pending_tag;
+            pending_read <= next_pending_read;
+            pending_hit_way <= next_pending_hit_way;
 
             // Handle dirty flag update on cache hit write
             if (hit && req_write && req_accepted && state == IDLE) begin
@@ -509,6 +523,8 @@ module holy_data_cache #(
         next_pending_set = pending_set;
         next_pending_word_offset = pending_word_offset;
         next_pending_tag = pending_tag;
+        next_pending_read = pending_read;
+        next_pending_hit_way = pending_hit_way;
 
         // AXI DEFAULT
         axi.wlast = 0;
@@ -552,6 +568,7 @@ module holy_data_cache #(
 
                     // Latch the entire request for later fulfillment
                     next_pending_write = req_write;
+                    next_pending_read = ~req_write;
                     next_pending_addr = address;
                     next_pending_data = write_data;
                     next_pending_be = byte_enable;
@@ -572,6 +589,7 @@ module holy_data_cache #(
                 else if (hit && ~req_write && req_accepted) begin
                     // Cache miss on accepted request - determine victim way
                     next_state = READ_OK;
+                    next_pending_hit_way = hit_way_select;
                 end
             end
             
@@ -702,6 +720,7 @@ module holy_data_cache #(
                         if(pending_write) begin
                             next_state = FULFILL_PENDING_WRITE;
                         end else begin
+                            // (this miss was a read...)
                             // We have to wait for the bram write to be fully over by adding a 1 cycle delay
                             // thru "bram_write_complete" to make sure read data was written internally
                             next_bram_write_complete = 1;
@@ -726,6 +745,8 @@ module holy_data_cache #(
                 // Signal output data as valid
                 if(read_ack) begin
                     next_state = IDLE;
+                    // reset pending read request
+                    next_pending_read = 0;
                 end
                 
                 // Set read data from appropriate way

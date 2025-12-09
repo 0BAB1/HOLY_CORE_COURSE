@@ -21,6 +21,10 @@
 //! AXI Package
 /// Contains all necessary type definitions, constants, and generally useful functions.
 package axi_pkg;
+
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off WIDTHTRUNC */
+
     /// AXI Transaction Burst Width.
   parameter int unsigned BurstWidth  = 32'd2;
   /// AXI Transaction Response Width.
@@ -540,4 +544,6 @@ package axi_pkg;
       return (width != 32'd0) ? unsigned'(width-1) : 32'd0;
   endfunction
 
+/* verilator lint_on WIDTHEXPAND */
+/* verilator lint_on WIDTHTRUNC */
 endpackage
