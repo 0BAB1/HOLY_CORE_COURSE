@@ -1,0 +1,10 @@
+site_name: Holy Core - Documentation
+theme:
+  name: material
+  custom_dir: docs
+extra_css:
+  - styles/custom.css
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences

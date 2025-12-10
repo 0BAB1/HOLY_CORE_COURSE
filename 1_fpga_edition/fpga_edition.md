@@ -49,7 +49,7 @@ I really encourage you to read the [blog post](https://0bab1.github.io/BRH/posts
 
 Towards the end of this \*fpga editionù, I'll use a ZYBO Z7-20 embedding a Zynq. I won't use the Zynq's processing system and anything works just fine as long as it's programable logic **so your average FPGA should do the trick**.
 
-![Zybo board](../images/zybo.jpg)
+![Zybo board](../user_docs/docs/images/zybo.jpg)
 
 Just note that even if I give a lot of details, the actual vivado TCL scripts and constraints file are for my board. It sould not be musch of a problem adapting these to your own needs though.
 
@@ -120,7 +120,7 @@ This is because all we'll do is simply **wait for it to arrive** by **stalling**
 
 To replace our old `memory.sv` logic and interface between the core and external memory, we'll use a **cache** (`$`) system :
 
-![very abstract stall](../images/very%20abstract%20stall.png)
+![very abstract stall](../user_docs/docs/images/very%20abstract%20stall.png)
 
 > If you don't know what a cache is, refer to the resources to learn more and get yourself up to speed.
 
@@ -170,7 +170,7 @@ So when the cpu asks to read the data in a certain address, in order to know whe
 Here is the logic to determine the stall signal using the **CPU request** alongside the **cache table** signals.
 Note that there is a **register** at the end to ensure that the stall assertion is asynchronous but the de-assertion is synchronous to ensure all AXI transactions (we'll go over that in the next section) are finished before starting fetching new instructions.
 
-![cache without AXI](../images/cache%20without%20AXI.png)
+![cache without AXI](../user_docs/docs/images/cache%20without%20AXI.png)
 
 ### Requesting data from main memory using AXI
 
@@ -193,7 +193,7 @@ They are also optional meaning it's bloat anyway.
 
 We'll drive this axi interface by using a Finite State Machine that can modify the cache using a pointer and that produces a `cache_state` signal which we'll be able to use to know what the cache's AXI interface is currently doing :
 
-![full holy cache with AXI](../images/full%20cache.png)
+![full holy cache with AXI](../user_docs/docs/images/full%20cache.png)
 
 We'll go over this design in more details later (Note this scheme is a simplification).
 
@@ -209,7 +209,7 @@ Well, just like the single cycle edition, we'll have :
 
 They both operate separatly and hold their own cache table. Here is what such an integration look like :
 
-![holy core only cache](../images/HOLYCORE%20no%20arbitrer.png)
+![holy core only cache](../user_docs/docs/images/HOLYCORE%20no%20arbitrer.png)
 
 On this scheme I also added the stalling logic that simply makes sures the next PC is set to the current PC whenever the core stalls.
 
@@ -221,11 +221,11 @@ To address this problem, we can add a simple `external_request_arbitrer` module 
 
 The `external_request_arbitrer` will simply work by probing the different cache state to route on or another cache M_AXI interface to the main core's M_AXI.
 
-![holy core arbitrer](../images/arbitrer.png)
+![holy core arbitrer](../user_docs/docs/images/arbitrer.png)
 
 And here is the integration with the new external request arbitrer :
 
-![full holy core](../images/HOLY_CORE_FPGA.png)
+![full holy core](../user_docs/docs/images/HOLY_CORE_FPGA.png)
 
 And that was the full core ! Now that we know the _why_, let's do the _how_ shall we ?
 
@@ -419,7 +419,7 @@ each of them having their own way of talking to the cache.
 And when the cache is talking to memory, he simply signals the CPU to wait while he's in buisness by asserting `stall`.
 Here is a reminder of the cache's structure :
 
-![holy cache without AXI](../images/full%20cache.png)
+![holy cache without AXI](../user_docs/docs/images/full%20cache.png)
 
 To make the whole AXI thing work out, we'll build the cache around a Finite State Machine (FSM).
 Here are the different states we'll use to describe _what_ the cache is currently doing with main memory :
@@ -524,7 +524,7 @@ endmodule
 
 Regarding the `next_cache_valid` signal, it's simply a way to drive the next value of a signal using comb logic like so :
 
-![dq latch](../images/dq.JPG)
+![dq latch](../user_docs/docs/images/dq.JPG)
 
 > Note that we are using the `CACHE_SIZE` parameter. It's fixed to 128 and it shall stay that way as every bit range will be hardcoded from now on.
 > (Because I was a beginner and this was easier for me haha)
@@ -540,7 +540,7 @@ We'll also assert the state we're in is `IDLE` by declaring some states (even th
 
 You can refer to the cache schemes for reference :
 
-![full holy cache for hit and stall reference](../images/full%20cache.png)
+![full holy cache for hit and stall reference](../user_docs/docs/images/full%20cache.png)
 
 ```verilog
 // holy_cache.sv
@@ -685,7 +685,7 @@ We also use **SEQ LOGIC** driven by `aclk`to :
 
 Enough talking, here is a scheme of the FSM :
 
-![holy core axi FSM](../images/axi%20fsm.png)
+![holy core axi FSM](../user_docs/docs/images/axi%20fsm.png)
 
 Of course, depending on the current state, we'll assert diffferent signals and when data is being transfered, we'll
 have to modify the `set_ptr` accordingly.
@@ -1408,7 +1408,7 @@ Of course merging, two AXI interface toghteher is simply not possible but what w
 
 It would look like this :
 
-![external AXI request arbitrer simplified](../images/external%20AXI%20request%20arbitrer%20simplified.png).
+![external AXI request arbitrer simplified](../user_docs/docs/images/external%20AXI%20request%20arbitrer%20simplified.png).
 
 One question now remains : **How do we decide what AXI interface gets to get muxes to the outside ?**. To answer, we can first make some assumptions
 
@@ -1421,7 +1421,7 @@ One question now remains : **How do we decide what AXI interface gets to get mux
 
 We now introduce some control logic for our custom interconnect :
 
-![external AXI request arbitrer full](../images/external%20AXI%20request%20arbitrer%20full.png)
+![external AXI request arbitrer full](../user_docs/docs/images/external%20AXI%20request%20arbitrer%20full.png)
 
 Here is the verilog description of the logic for this module :
 
@@ -1732,7 +1732,7 @@ async def main_test(dut):
 
 Recall the schemes for our final design :
 
-![full holy core](../images/HOLY_CORE_FPGA.png)
+![full holy core](../user_docs/docs/images/HOLY_CORE_FPGA.png)
 
 We see that we now have all the missing pieces to make it happen.
 
@@ -1745,7 +1745,7 @@ Note that the `load_store_unit` is simply a wrapper for all the logic that surro
 
 Here is an in depth view as a reminder :
 
-![Holy core's load store unit](../images/lsu.png)
+![Holy core's load store unit](../user_docs/docs/images/lsu.png)
 
 _Nota :_ `LSU` a common term in computer design but for us **it's just a way to make the schemes simpler**,
 **we won't create any additional module**. With that being said, integration should be relatively simple compared to
@@ -2216,7 +2216,7 @@ Before starting here are a few specifics on what I use :
 
 I use a Zybo Z7-20 for the board
 
-![zybo z7-20 board](../images/zybo.jpg)
+![zybo z7-20 board](../user_docs/docs/images/zybo.jpg)
 
 And I also use vivado 2023.2 as an EDA.
 
@@ -2224,7 +2224,7 @@ It's better if you have the same environment as me (especially for the EDA) but 
 
 Here is a schematic of the SoC we'll put together :
 
-![SoC shemes for HOLY CORE](../images/SoC_simple.png)
+![SoC shemes for HOLY CORE](../user_docs/docs/images/SoC_simple.png)
 
 There are a few new things here, let me get you up to speed on these :
 
@@ -2334,7 +2334,7 @@ We can then add (by a drag and drop) our `holy_wrapper.v` top module in the bloc
 
 After that, simply add all of the other components like so :
 
-![final holy core fpga soc in vivado](../images/SoC_final.png)
+![final holy core fpga soc in vivado](../user_docs/docs/images/SoC_final.png)
 
 You can then validate the block design, generate an HDL wrapper an set this wrapper as the new top module for synthesis.
 
@@ -2356,13 +2356,13 @@ The clock speed is set to 50MHz in my example.
 
 We can now launch bitstream generation & flash the said bitstream onto the board. We'll be greeted by the ILA dubugger that we can leverage to check on our live debug signals.
 
-![ila debugging](../images/ila2.png)
+![ila debugging](../user_docs/docs/images/ila2.png)
 
 > If you are not familiar with ILA debugging yet, it is a very powerful tool that you should learn. See the resources to learn more.
 
 Now, we put the CORE on reset and the AXI interfaces on active using the buttons we defined in our constraint file like in the following example :
 
-![flashed board reset](../images/flashed%20board%20reset.png)
+![flashed board reset](../user_docs/docs/images/flashed%20board%20reset.png)
 
 We can now move on to building a program.
 
@@ -2466,7 +2466,7 @@ Once this is done, the program is in the BRAM, ready to run.
 
 To run it simply realease the CORE's `reset` signal. And _voilà_ ! blinking LEDs !
 
-![counter program running](../images/working%20leds.png)
+![counter program running](../user_docs/docs/images/working%20leds.png)
 
 ## 7 : Making the core's cache more usable: introducing CSRs ! (Zicsr)
 
@@ -2545,11 +2545,11 @@ The way `flush_cache` will work is by simply setting the lowest bit to 1, the ca
 
 Then the harware automatically resets the flag to 0 afeter its raised and life goes on:
 
-![flushing timing diagram](../images/flush_timing.png)
+![flushing timing diagram](../user_docs/docs/images/flush_timing.png)
 
 Here is what the module would look like :
 
-![csr file scheme](../images/csr_file.png)
+![csr file scheme](../user_docs/docs/images/csr_file.png)
 
 The broad idea is to add a 12bits addressable register file, where we implement ONLY the registers we need. The CSR file then ouput some arbitrary control signals from these CSRs (and in the future, will also be able to recieve inputs to set different CSRs).
 
@@ -2827,11 +2827,11 @@ Lucky us, we manage our cache using a state machine. This means we can simply ad
 
 Here is how we're going to update our AXI FSM in the cache :
 
-![New axi fsm to add manual flush](../images/updated_fsm_axi_csr.jpg)
+![New axi fsm to add manual flush](../user_docs/docs/images/updated_fsm_axi_csr.jpg)
 
 As you can see, we now shall switch to write-back is we recieve `csr_flush_order` and the `csr_flushing` register (which is set to 1 when `csr_flush_order` is recieved) will condition the skipping of the read sequence. Here is the timing diagram as a reminder:
 
-![flushing timing diagram](../images/flush_timing.png)
+![flushing timing diagram](../user_docs/docs/images/flush_timing.png)
 
 ### 8.2.a : HDL Code
 
@@ -3232,7 +3232,7 @@ Good, now we have everything we need to implement our CSR regfile. Next step : i
 
 Alright so here what we aim to implement under the form of a nice scheme :
 
-![datapath with CSR regfile](../images/added_csr.jpg)
+![datapath with CSR regfile](../user_docs/docs/images/added_csr.jpg)
 
 As you can see, there a bit of work to do ! We have to :
 
@@ -3691,7 +3691,7 @@ async def test_csr_file(dut):
 
 Well, here is the core of the work we'll have to perform to make this improvement a reality... So let's setlle our logic on a nice scheme first...
 
-![holy data cache scheme](../images/data_cache.jpg)
+![holy data cache scheme](../user_docs/docs/images/data_cache.jpg)
 
 A bit of explaination : Here are the point of attetion that will change compared to the last cache subystem :
 
@@ -3921,7 +3921,7 @@ endmodule
 
 Now let's think about how all of this is going to come together. How ? Well, most of it relies in our FSM design ! Let's detail our vision for how it would work :
 
-![NEW FSM with axi lite scheme](../images/axi_lite_fsm.jpg)
+![NEW FSM with axi lite scheme](../user_docs/docs/images/axi_lite_fsm.jpg)
 
 As you can see, this logic got added to the previous FSM, which makes way more sense. Lookin at this new FSM, the cache logic becomes way clearer and now it's mostly a matter of nailing the muxes and RTL right to makes all these ideas go smoothly.
 
@@ -4594,7 +4594,7 @@ In a nutshell :
 
 Here is an updated scheme for our cache :
 
-![data cache with done flag scheme](../images/data_cache_with_done_flag.jpg)
+![data cache with done flag scheme](../user_docs/docs/images/data_cache_with_done_flag.jpg)
 
 As you can see, we also bring our `non_cachable` to the hit logic to avoid side effects where the cache thinks we are missing and stalls the core after `axi_lite_tx_done` goes low because of `seq_stall`, which, _if you remember correctly_, have a 1 cycle delay. Keeping hit high on non cachable operation prevents such behavior. (Note the _holy_cache_'stest has been slightly modified for this bug fix by adding assertions on the `cache_stall` signal and changing the requested address on the non cachble data transactions tests, nothing fancy.)
 
@@ -4914,7 +4914,7 @@ And **voilà** ! we tested our feature and it *kinda* works ! Great ! Now let's 
 
 Okay so to test in out on FPGA, it all depends on your FPGA and board. Here is what my LED test design looks like :
 
-![new soc for design with axi lite if](../images/axi_soc2.png)
+![new soc for design with axi lite if](../user_docs/docs/images/axi_soc2.png)
 
 As you can see, **AXI LITE** and and **AXI FULL** use the same interconnect and thus axi lite can access any range (peripheral) as well as **AXI** full can.
 
@@ -4973,9 +4973,9 @@ Well, we'll use an ip for that of course because I don't wanna drive an output p
 
 So let's drag and drop it to our SoC, while begin careful to map the addresses well and note them down to make sure we can set it as non cachable.
 
-![SoC block design](../images/soc_hello.png)
+![SoC block design](../user_docs/docs/images/soc_hello.png)
 
-![SoC addresses](../images/soc_hello_addr.png)
+![SoC addresses](../user_docs/docs/images/soc_hello_addr.png)
 
 > Note : you can perfecly connect an AXI LITE master to an AXI FULL slave (contrary not possible). Connection automation will not do it for you though so you'll have to mannually add interfaces to the `smart_connect` block (you need that to assign addresses) and simply connect your devices as usual !
 
@@ -4985,7 +4985,7 @@ Don't be like me: _a fool_... Who though that "`uart_rtl`" meant my CPU would _m
 
 **Turns out it doesn't**, so instead of looking around on how to highjack the FTDI chip from the PL, I'll just use a PMOD-USB module :
 
-![pmod uart to usb](../images/uart_usb_being_used.png)
+![pmod uart to usb](../user_docs/docs/images/uart_usb_being_used.png)
 
 [_(clickable link to the docs)_](https://digilent.com/reference/pmod/pmodusbuart/reference-manual?redirect=1)
 
@@ -4997,7 +4997,7 @@ Don't be like me: _a fool_... Who though that "`uart_rtl`" meant my CPU would _m
 
 Alright so we'll say we'll plug this nice little PCB in the JE PMOD upper female connector. Let's see which pin is which using the schematics :
 
-![alt text](../images/pmod_schemes.png)
+![alt text](../user_docs/docs/images/pmod_schemes.png)
 
 We can see that pins 1 to 4 of the PMOD are linked to pins JE1 to JE4 of the board.
 
@@ -5046,7 +5046,7 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_rtl_txd]
 
 As you can see, JE1 is not really JE1 and same for JE2. You'll need to check your boards schematics to know the REAL FPGA pin name on the IO bank. Example :
 
-![alt text](../images/io_bank_pin.png)
+![alt text](../user_docs/docs/images/io_bank_pin.png)
 
 Looks like we are all set ! once you have a bitstream, we can
 
@@ -5176,7 +5176,7 @@ To connect to the `tty` terminal via the host pc, multiple solution exists. I pe
 
 Once the `tty` terminal is open, you can load the program in the BRAM using a `.tcl` script (Leveraging the JTAG to AXI MASTER IP as a bootloader once again) and realease the reset. Here is the result :
 
-![hello world from HOLY CORE](../images/hello.png)
+![hello world from HOLY CORE](../user_docs/docs/images/hello.png)
 
 And finally, after all this work, after all this struggle, after all this learning, time designing; tinkering, fixing, enjoying and try-harding. Here it is...
 

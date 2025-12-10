@@ -1,6 +1,6 @@
 # HOLY CORE COURSE PROJECT
 
-![banner](banner.png)
+![banner](./user_docs/docs/images/banner.png)
 
 An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailed tutorials as a reference.
 
@@ -180,7 +180,7 @@ Continuing.
 
 And voila ! your program running on the *HOLY CORE*. You can also use GDB extensively to debug your program if needed.
 
-![interrupt based sell test program](./images/holy_shell.png)
+![interrupt based sell test program](./user_docs/docs/images/holy_shell.png)
 
 ## OPEN SOURCE and CONTRIBUTIONS
 
