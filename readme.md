@@ -4,22 +4,23 @@
 
 An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailed tutorials as a reference.
 
-RISC-V is open source, but the digital design field is more about giving headaches than real solutions. Engineers **LOVE** making everything overcomplicated. This course aims at showing than anyone can do it, with just some will power, patience and an FPGA.
+The specificity of this project is that everything is documented in accute details, keaving you with easy to follow documents and scheme to make the learning process as simple as possible.
+
+RISC-V is open source, but the digital design field is more about giving headaches than real solutions for people looking to learn new stuff. Engineers **LOVE** making everything overcomplicated. This course aims at showing than anyone can do it, with just some will power, patience and an FPGA (not mandatory).
 
 "For God is not a God of confusion but of peace."
 — 1 Corinthians 14:33
 
-> [!TIP]
-> You will find a **quickstart** guide to simply use the core as a developper below.
+> And yes, This CPU runs "DOOM".
 
-## Features
+## Start Building
 
 This project is a course you can follow to build the HOLY CORE and everything that comes with it, and the final product of your work will feature :
 
-- A single cycle RV32I Zicsr (holy) Core
+- A **single cycle** RV32I Zicsr (holy) Core
 - Privileged specs support (Interrupts & Exceptions)
 - A customizable cache system
-- Software
+- A small SoC & Some Software
 
 > You will find quickstart guides in the code case to help you out using the core without having to build it from scratch.
 
@@ -33,9 +34,7 @@ The course is divided in multiple blocks to learn different aspects of digital d
 | Performance Edition     | ON MY TODO LIST |
 | OS edition              | ON MY TODO LIST |
 
-> The code will always be **open-source**. I do give the option to donate for PDFs. You can do without, it is a way for you to support my work whilst having a better looking platform to learn from :).
-
-Link : [support using PDF Versions](https://babinriby.gumroad.com/l/holy_core)
+The code will always be **open-source**. I do give the option to donate money for nicer and reworked PDF versions. Link : [support using PDF Versions](https://babinriby.gumroad.com/l/holy_core)
 
 > Side note: please checkout the end of this document regarding the future of this situation.
 
@@ -48,8 +47,10 @@ Once the setup is done you can start working on the *single cycle edition* tutor
 1. [Setup your project](./setup.md)
 2. [Build a basic single core](./0_single_cycle_edition/single_cycle_edition.md)
 3. [Add memory and GPIO interfacing (Cache + AXI) / Use Vivado to impl on FPGA / Run real software](./1_fpga_edition/fpga_edition.md)
+4. [Make the core RISC-V compliant and create a real SoC + Privileged Specs support (only available as PDF for now)](https://babinriby.gumroad.com/l/holy_core)
 
 Happy learning !
+
 
 ## Course summary
 
