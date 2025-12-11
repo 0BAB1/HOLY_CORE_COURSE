@@ -544,7 +544,6 @@ load_store_decoder ls_decode(
     .data(mem_write_data)
 );
 
-
 /**
 * DATA CACHE GENERATION
 * Todo : pour cache/ uncached logic in a separate module.
