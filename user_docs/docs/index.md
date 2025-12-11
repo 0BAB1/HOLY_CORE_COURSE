@@ -7,11 +7,11 @@
 The HOLY CORE is an **MCU class** open-source core, made for learning and experimentation purposes, targetting hobbyists and very high stakes and critical industrial applications, like running **PONG** or **DOOM**.
 
 !!! note "Target Adience"
-    The target audience of this document are people who **just want to use the core in their own project** (for whatever reason).
+    The target audience of this document are people who **just want to use the core in their own project** (for whatever reason) or simply learn more about the HOLY CORE before building it / out of curiosity.
 
     **If you are an RTL dev** looking to modify the inner HDL of the HOLY CORE, refer to the [**DEV DOCS**](./dev_docs/).
     
-    **If you are a learner** and want to **build the core yourself**, go back to [the repo](https://github.com/0BAB1/HOLY_CORE_COURSE) and read the main "`readme`" file where guidelines are given especially for you ;)
+    **If you are a learner** and just want to **build the core yourself**, go back to [the repo](https://github.com/0BAB1/HOLY_CORE_COURSE) and read the main "`readme`" file to start learning.
 
 The system is not very configurable. It provides a fixed, slow and unefficient platform. Its only strength is that **it works**, is **100 % Compliant to RISC-V** and is somewhat fast enough to **run DOOM** at slideshow grade speeds.
 
@@ -34,7 +34,7 @@ The project comes with a `fpga/holy_top.sv` file. The main wrapper provides all 
 - A boot ROM
 - A software framework (*a shitty and non flexible library*)
 - External access AXI & AXI LITE interface for integration on larger SoCs with actual peripherals
-- The HOLY CORE Platform has **no custom peripherals** other than the one listed above. Generic peripherals are yours to add depending on your needs. Guidelines are given in the document, see "**Getting Started**".
+- The HOLY CORE Platform has **no custom peripherals** other than the one listed above. Generic peripherals **are yours to add** depending on your needs. Guidelines are given in the document, see [Getting Started](#getting-started).
 
 #### The Core Itself
 
@@ -84,11 +84,11 @@ HOLY CORE COURSE
 
 It depends on what you want to know.
 
-If you want to know how to get the HOLY CORE platform running on your FPGA, whithout caring about the actual usage yet, go to the "**Practical FPGA Usage Guidelines**" section.
+If you want to know how to get the HOLY CORE platform running on your FPGA, whithout caring about the actual usage yet, go to the [Practical FPGA Usage Guidelines](#fpga-usage-guidelines) section.
 
-If you have the holy core platform up and running and just want to know how to make in run some program, start with "**Using the Holy Core Platform**".
+If you have the holy core platform up and running and just want to know how to make in run some program, start with [Using the Holy Core Platform](#holy-core-platform).
 
-## Using the Holy Core Platform
+## Holy Core Platform
 
 ### Description & Top I/Os
 
@@ -143,7 +143,7 @@ These caches MAY cause problems when trying to exchange data with MMIOs (data wi
 | `instr_non_cachable_limit` | 0x7c4  |  limit addr of non cachable instruction space   |
 
 !!! note
-    See "**Address space**" section below of you wonder where I get the adresses from
+    See [Address space section](#address-space) for generic address layout.
 
 For example, this code sets up averything exepct RAM space (starting at 0x80000000) and up as non cachable (this also sets PLIC as cachable, I gotta do something about that... but yeah who cares ?)
 
@@ -261,16 +261,20 @@ No nested traps support, did you really think I would implement that ?
 
 ### Default BOOT sequence
 
-When booting (after releasing CPU reset), **the default PC will be 0x0** and **All cache related CSRs** wil be set to declare the entre memory as non cacheble.
+When booting (after releasing CPU reset), **the default PC will be 0x0** and **All cache related CSRs** will be set to declare the entre memory as non-cachable.
 
-This means th first requests (instructions fetch) will go directly to the boot ROM, where the boot ROM code will await.
+This means the first requests (instructions fetch) will go directly to the boot ROM through the internal AXI LITE interface.
 
-By default, the BOOT ROM contains an **infinite loop** with some GPIO interaction to turn and LED on and off (which signals the CPU is alive). This allows the USer (you) to connect via OpenOCD to the platform thourgh JTAG, turn on GDB, connect to CPU and then load whatever program he wants and executing from anywhere in memory (in RAM à 0x80000000 preferably).
+![boot reset release](./images/boot.png)
+
+**By default, the BOOT ROM contains an infinite loop** (*with some GPIO interaction to turn and LED on and off, to clearly signals the CPU is alive when using it on FPGA*).
+
+The boot ROM can be modified in `./fpga/ROM/rom.S` where you'll have to run `make` to generate a verilog ROM from your assembly code. **The ROM changes will only "apply" once your re-run the synthesis and implementation process.**
+
+Having an infinite loop there "parks" the HOLY CORE and allows the user (you) to connect via OpenOCD/GDB and do whatever you want (especially load a program).
 
 !!! Info
-    More information on that in "**On-chip Debugging Solutions**" or in "**Using the Fpga/ Folder to build and Debug**" for program simulation.
-
-The boot ROM can be modified in `./fpga/ROM/rom.S` where you'll have to run `make` to generate a verilog ROM from your assembly code.
+    More information on debugging in [On-chip Debugging Solutions](#on-chip-debugging-solutions).
 
 > *TODO : add a real bootloading solution.*
 
@@ -290,9 +294,6 @@ As stated before, by default, the CORE boots on the boot ROM where some infinite
 
 To get out of this loop, one can use a debugger.
 
-!!! Info
-    The **actual debugger** usage will be detailled in the "**Software Guidelines**" section. This part aims to guide the user on how debugging works and to to set it up properly.
-
 If you look closely at the SoC scheme or the top I/O table, you'll see seom "JTAG SIGNALS" Signals comming in and out of the `holy_top.sv` module.
 
 These JTAG signals talk directly with the debug module, which is not mine and pulled from a [pulp platform's repo](https://github.com/pulp-platform/riscv-dbg).
@@ -302,7 +303,7 @@ The debug module's job is to translate JTAG debugging instructions into real CPU
 #### Debugging Setup
 
 !!! warning
-    Before doing all this, a working SoC with memory and some perpherals available is mandatory ! Follows the "**Practical FPGA Usage Guidelines**" if you do not have this yet.
+    Before doing all this, a working SoC with memory and some perpherals available is mandatory ! Follows the [Practical FPGA Usage Guidelines](#fpga-usage-guidelines) if you do not have this yet.
 
 To debug the core, you need the system to be **running** (i.e. no reset) and the core to be in a stable state (e.g. running a program or parked in an infinite loop).
 
@@ -352,7 +353,7 @@ Continuing.
 
 And the program will then execute. You can use various GDB tricks to debug you programs, but these practical aspects are discussed in the software guidelines.
 
-## Practical FPGA Usage Guidelines
+## FPGA Usage Guidelines
 
 This part of the user guide is made to guide SoC designers integrate the HOLY CORE into their system and get it running.
 
@@ -360,10 +361,13 @@ Recommended FPGA board : **Arty S7-50**. More details below.
 
 ### How to actually flash the HOLY CORE platform on my FPGA ?
 
-Short answer : **It depends.** Though not precise, this answers is true. This sub-part will be divided in multiple use cases so you can start exploring solutions right away.
+This sub-part will be divided in 2 use cases (Xilinx and non-xilinx) so you can start exploring solutions right away.
 
 !!! Info
-    Before jumping into this part, take a minute to read the [SoC description](/#description-top-ios) section to know what "*product*" you are dealing with and what you actually need to implement.
+    Before jumping into this part, take a minute to read the [SoC description](#description-top-ios) section to know what "*product*" you are dealing with and what you actually need to implement.
+
+!!! Warning "Point of Attention Before Running Synthesis"
+    The `holy_top.sv` top module comes whith a bootROM to feed the the core with some basic instructions when releasing the CPU reset. Y**ou should build the said ROM** before running synth to get a verilg ROM output. Make sure you check the code being built before building. I suggest you create a nop loop or a LED on/off loop. More info in [BOOT ROM the dedicated section](#default-boot-sequence).
 
 #### If you use xilinx FPGAs
 
@@ -382,12 +386,21 @@ That means you have a full TCL scripts to build an entire pre-made SoC that has
 !!! warning
     The RAM is only compatible with the **ARTY S7-50**, you'll need to get rid of this and add you own memory solution if you do not use this exact board.
 
+To get this "starter SoC" going :
+
+```sh
+(HOLY_CORE_COURSE/)$ vivado -source vivado -source ./3_perf_edition/fpga/arty_S7/holy_vivado_setup.tcl
+```
+
 !!! tip
     The entire libraries were built for this specific SoC configuration (with Xilinx's IPs) as well !
 
 If your board is not an arty, which is more than likely, you can still run the script, change the target and modify the few board dependant aspects, like the constraints and the RAM solution.
 
 If you still want to build an SoC from scratch, import all the source files (don't forget package and vendor folders !) and use `holy_top.sv` or its plain verilog wrapper `holy_top.v` in your SoC. Then it's just a matter of connecting tohe top signals and intreface just like you would do with any softcore on the market.
+
+!!! Tip "FPGA Targets Contributions"
+    Contributions on this part are very welcome : If you make an SoC that works, don't hesitate to create a PR with a tcl script targeting your specific setup.
 
 #### If you use other tools than Xilinx's
 
@@ -402,11 +415,37 @@ If your synthesis tool do not provide any AXI LITE interconnect solutions, you w
 !!! example
     Use `holy_top.sv` to see an exmaple of using the **AXI Lite crossbar**.
 
-### Using the `fpga/` Folder to build and Debug
-
 ### Integration in an SoC Guidelines
 
-### Pre-Made SoC Using Vivado TCL Script (Xilinx only)
+This part aims at giving a quick easy to follow guide to get a basic demo running as quickly as possible.
+
+You'll need to connect the following top pins like so:
+
+| Port | What to do ? | 
+|------|-----------|
+| `clk` | **30MHz clock** generated by whatever clocking solution (max is 32MHz, safe is 25MHz) | 
+| `rst_n` | Active low push button, preferably comming from an reset controller (should wait for `periph_rst_n` to be fully reset) |
+| `periph_rst_n` | Active low switch, preferably comming from an reset controller |
+| `irq_in` | Nothing / GND for basic applications |
+| `tck_i` | Nothing / GND for basic applications |
+| `tms_i` | Nothing / GND for basic applications |
+| `trst_ni` | High (1) for basic applications | 
+| `td_i` | Nothing / GND for basic applications | 
+| `td_o` | Nothing / GND for basic applications |
+| `pc/pc_next/instruction`  | useful basic debug signal, plug in an ILA to see if the core runs at first |
+
+**Regarding the AXI interfaces**, you'll need an interconnect solution.
+
+- The `AXI` interface only needs to be plugged to RAM (not mandatory as [cache is disabled in CSRs](#external-interfaces-cache-usage-for-the-user-via-csrs) by default)
+- The exernal `AXI LITE` needs to go to a basic peripherals, like a GPIO controller connected o an LED (default GPIO address in holy core library is 0x10010000)
+
+Once this basic setup synths, you are ready to go, you should start to worry about what happens once you release the `rst_n`, the default BOOT scenario is described [here](#default-boot-sequence). Write a basic assebly program in the [ROM](#default-boot-sequence) that turns the LED on and off to check if the core is indeed running.
+
+First troubleshooting solutions if the HOLY CORE shows no signs of life is to leverage the simple yet useful debug signals like `pc` or `instruction` with an **ILA**, these signals mirror what the HOLY CORE pc is and what instruction is currently fetched.
+
+Tools like Vivado provides easy "plug and play" AXI interconnect solutions. Here is an examaple of a working basic SoC built around `holy_top.sv` and the associated memory map :
+
+![vivado soc exmaple](./images/vivado_soc.png)
 
 ### FPGA Resources Usage (Core, Caches and SoC)
 
@@ -423,7 +462,7 @@ With caches (noted '$' with I = Instruction and D = Data):
 I$ is way larger because **the HOLY CORE has no "Frontend",** there is no speculative regime nor "prefetching" nonsense. Instead, instructions are fetched "on the fly", meaning the I$ behaves as a normal cache except we read in an **async** fashion (to avoid the BRAM's 1 cycles dealys on each instruction fetch HIT, thus literraly doubling performances of the I$), forcing the FPGA to syth the cache data as LUTs and FFs. I$ Size thus has a hug impact on the system's footprint and performances.
 
 !!! Warning
-    Note that caches also have `no_cache` version in the core's data path. This allows users to [set non cachable range (using custom CSRs)](#), when a Instruction fetch or a data request happens in these ranges, caches are bypassed and the request goes through these "no cache" modules. Both af these uses around 600 LUTs and 50 FFs.
+    Note that caches also have `no_cache` version in the core's data path. This allows users to [set non cachable range (using custom CSRs)](#external-interfaces-cache-usage-for-the-user-via-csrs), when a Instruction fetch or a data request happens in these ranges, caches are bypassed and the request goes through these "no cache" modules. Both af these uses around 600 LUTs and 50 FFs.
 
 !!! Note
     Note that the I$ is mandatory and the D$ is optional. Both caches can be modified in size (not the number of ways though).
@@ -439,25 +478,44 @@ Regaring th **SoC**, here is a more generic utilization report:
 | plic | 35 | 75 |
 | debug_module + its AXI converter | 1600| 1000 |
 
-The final occupation will be determined by your peripherals. In vivado, everything is heavy, especially AXI smartconnects. My final SoC built by the TCL script is **25K+ LUTs and FFs**, which is pretty heavy ngl.
+The final occupation will be determined by your peripherals. In vivado, everything is heavy, especially AXI smartconnects. My final SoC built by the TCL script is **25K+ LUTs and FFs**, which is pretty heavy, but this depends on your own SoC layout.
 
 ## Software Guidelines
 
-### Writing Software
+### Write & Build
 
-### Building Software
+The HOLY CORE platform is as bare-metal as it gets.
+
+Software is very "primitive", yet you can build (almost) any bare metal C program an run it.
+
+Once you have a running SoC, the best way to get started is not through an extensive block of test but through exmaples.
+
+You'll find many exmaples in the `example_programs/` folder. As well as a Makefile with all the right flags.
+
+To build a program :
+
+```sh
+(exmaple_programs/)$ make APP=<hello_world>
+```
+
+You can replace **hello_world** with your app's folder name. You need a `startup.S` assembly file that will do all the neceassy stack and cache setup.
+
+More complex apps will oviously need more setup, you can consult the `exmaple_program/doom-riscv` DOOM example to see how larger apps can be set up.
 
 ### Executing software
 
-## RTL Developper Guidelines
+Once you have a valid `.elf` file you want to run, you'll need to load it into your system and order the HOLY CORE to execute it.
 
-If you want to modify the HDL and contribute, please know that I am not interrested in major architecture modifications, i.e. pipelining, superscallar*ing* etc...
+!!! Note
+    If you didn't read the [boot](#default-boot-sequence) section, read it to have better context.
 
-Typos fix are *welcome changes*.
+By default, the core should be executing whatever is in the **BOOT ROM** once you release reset, hopefully, an infinite loop.
 
-Docs better*ifications*, code optimisation / refoctorization or more efficient synth code structure are **very welcome** **changes**.
+The best way to load some other program if you didn't not add any bootloading solution (like me), you should use the [debugger](#on-chip-debugging-solutions).
 
-## CSRs list
+In the `holy_core.sv` top module, the debug module is a bus master by default and has the power of accessing your SoC through the `AXI_LITE` external interface, including your memory solution (e.g. BRAM, DRAM controller, etc). [GDB and OpenOCD](#on-chip-debugging-solutions) will works as expected and will allow you to frelly control the execution flow.
+
+Adding a better bootloading solution is on my todo list.
 
 ## Acknowledgements
 

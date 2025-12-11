@@ -36,3 +36,6 @@ Fr those who did not go through  the entire course, here is how to simulate modu
 
 todo : redirect to riscof readme, then explain the debug process
 
+### Using the `fpga/` Folder to Simulate Software Execution=
+
+The HOLY CORE codebase provides both unit testbenches

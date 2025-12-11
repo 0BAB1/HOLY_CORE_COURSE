@@ -30,6 +30,7 @@ hello.hex
 *.a
 test.sh
 venv
+site/
 output/
 test.D
 .vscode
