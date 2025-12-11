@@ -1,3 +1,431 @@
-h1, h2, h3 {
-  color: #ff7640; /* pick any color */
+/* =============================================================================
+   Holy Core Documentation - Custom Theme
+   Color Palette:
+   - Coral:     #F7A5A5 (RGB 247,165,165)
+   - Peach:     #FFDBB6 (RGB 255,219,182)
+   - Blue:      #0066CC (RGB 0,102,204)
+   - Navy:      #1A2A4F (RGB 26,42,79)
+   ============================================================================= */
+
+:root {
+  /* Primary palette */
+  --hc-coral: #F7A5A5;
+  --hc-peach: #FFDBB6;
+  --hc-blue: #0066CC;
+  --hc-navy: #1A2A4F;
+
+  /* Derived colors */
+  --hc-coral-light: #FBD2D2;
+  --hc-peach-light: #FFF0DC;
+  --hc-blue-light: #E6F0FA;
+  --hc-navy-light: #2D4A7C;
+
+  /* Material theme overrides */
+  --md-primary-fg-color: var(--hc-navy);
+  --md-primary-fg-color--light: var(--hc-navy-light);
+  --md-primary-fg-color--dark: #0F1A2F;
+  --md-accent-fg-color: var(--hc-blue);
+  --md-accent-fg-color--transparent: rgba(0, 102, 204, 0.1);
+
+  /* Typography */
+  --md-typeset-color: var(--hc-navy);
+  --md-typeset-a-color: var(--hc-blue);
+
+  /* Code blocks */
+  --md-code-bg-color: #F8F9FC;
+  --md-code-fg-color: var(--hc-navy);
+}
+
+/* =============================================================================
+   Header & Navigation
+   ============================================================================= */
+
+.md-header {
+  background: linear-gradient(135deg, var(--hc-navy) 0%, var(--hc-navy-light) 100%);
+  box-shadow: 0 2px 8px rgba(26, 42, 79, 0.15);
+}
+
+.md-header__title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.md-tabs {
+  background-color: var(--hc-navy);
+}
+
+.md-tabs__link {
+  opacity: 0.85;
+}
+
+.md-tabs__link:hover,
+.md-tabs__link--active {
+  opacity: 1;
+}
+
+/* Navigation sidebar */
+.md-nav__title {
+  color: var(--hc-navy);
+  font-weight: 600;
+}
+
+.md-nav__link:hover {
+  color: var(--hc-blue);
+}
+
+.md-nav__link--active {
+  color: var(--hc-blue);
+  font-weight: 600;
+}
+
+.md-nav__item--active > .md-nav__link {
+  border-left: 3px solid var(--hc-coral);
+  padding-left: calc(0.6rem - 3px);
+  background: var(--hc-peach-light);
+}
+
+/* =============================================================================
+   Content Area
+   ============================================================================= */
+
+.md-content {
+  max-width: 52rem;
+}
+
+/* Headings */
+.md-typeset h1 {
+  color: var(--hc-navy);
+  font-weight: 700;
+  border-bottom: 3px solid var(--hc-coral);
+  padding-bottom: 0.4em;
+}
+
+.md-typeset h2 {
+  color: var(--hc-navy);
+  font-weight: 600;
+  border-bottom: 2px solid var(--hc-peach);
+  padding-bottom: 0.3em;
+}
+
+.md-typeset h3,
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+  color: var(--hc-navy);
+  font-weight: 600;
+}
+
+/* Links */
+.md-typeset a {
+  color: var(--hc-blue);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.md-typeset a:hover {
+  border-bottom-color: var(--hc-blue);
+}
+
+/* =============================================================================
+   Code Blocks
+   ============================================================================= */
+
+.md-typeset code {
+  background-color: var(--hc-peach-light);
+  color: var(--hc-navy);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-size: 0.85em;
+}
+
+.md-typeset pre {
+  background-color: var(--hc-navy);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(26, 42, 79, 0.12);
+}
+
+.md-typeset pre > code {
+  background-color: transparent;
+  color: #E8ECF4;
+  padding: 1em;
+}
+
+/* Code copy button */
+.md-clipboard {
+  color: var(--hc-peach);
+}
+
+.md-clipboard:hover {
+  color: var(--hc-coral);
+}
+
+/* =============================================================================
+   Admonitions
+   ============================================================================= */
+
+/* Base admonition styling */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(26, 42, 79, 0.08);
+  border: none;
+  border-left: 4px solid;
+}
+
+.md-typeset .admonition-title,
+.md-typeset details summary {
+  font-weight: 600;
+}
+
+/* Note - Blue theme */
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  background-color: var(--hc-blue-light);
+  border-left-color: var(--hc-blue);
+}
+
+.md-typeset .note > .admonition-title,
+.md-typeset .note > summary {
+  background-color: rgba(0, 102, 204, 0.12);
+}
+
+/* Tip/Hint - Peach theme */
+.md-typeset .admonition.tip,
+.md-typeset .admonition.hint,
+.md-typeset details.tip,
+.md-typeset details.hint {
+  background-color: var(--hc-peach-light);
+  border-left-color: #E6A64A;
+}
+
+.md-typeset .tip > .admonition-title,
+.md-typeset .hint > .admonition-title,
+.md-typeset .tip > summary,
+.md-typeset .hint > summary {
+  background-color: rgba(255, 219, 182, 0.5);
+}
+
+/* Warning/Caution - Coral theme */
+.md-typeset .admonition.warning,
+.md-typeset .admonition.caution,
+.md-typeset details.warning,
+.md-typeset details.caution {
+  background-color: var(--hc-coral-light);
+  border-left-color: var(--hc-coral);
+}
+
+.md-typeset .warning > .admonition-title,
+.md-typeset .caution > .admonition-title,
+.md-typeset .warning > summary,
+.md-typeset .caution > summary {
+  background-color: rgba(247, 165, 165, 0.4);
+}
+
+/* Info - Navy light theme */
+.md-typeset .admonition.info,
+.md-typeset details.info {
+  background-color: #F0F3F8;
+  border-left-color: var(--hc-navy-light);
+}
+
+.md-typeset .info > .admonition-title,
+.md-typeset .info > summary {
+  background-color: rgba(26, 42, 79, 0.08);
+}
+
+/* =============================================================================
+   Tables
+   ============================================================================= */
+
+.md-typeset table:not([class]) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(26, 42, 79, 0.08);
+  border: 1px solid #E8ECF4;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--hc-navy);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75em;
+  letter-spacing: 0.05em;
+  padding: 1em;
+}
+
+.md-typeset table:not([class]) td {
+  padding: 0.8em 1em;
+  border-bottom: 1px solid #E8ECF4;
+}
+
+.md-typeset table:not([class]) tr:nth-child(even) {
+  background-color: var(--hc-peach-light);
+}
+
+.md-typeset table:not([class]) tr:hover {
+  background-color: var(--hc-blue-light);
+}
+
+/* Inline code within tables - always visible on any row */
+.md-typeset table:not([class]) code {
+  background-color: white;
+  border: 1px solid var(--hc-coral);
+  box-shadow: 0 1px 2px rgba(247, 165, 165, 0.2);
+  white-space: nowrap;
+}
+
+/* Allow horizontal scroll for wide tables */
+.md-typeset__scrollwrap {
+  overflow-x: auto;
+}
+
+.md-typeset table:not([class]) {
+  min-width: max-content;
+}
+
+/* =============================================================================
+   Buttons & Interactive Elements
+   ============================================================================= */
+
+.md-typeset .md-button {
+  background-color: var(--hc-blue);
+  border-color: var(--hc-blue);
+  color: white;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.md-typeset .md-button:hover {
+  background-color: var(--hc-navy);
+  border-color: var(--hc-navy);
+  box-shadow: 0 4px 12px rgba(26, 42, 79, 0.2);
+}
+
+.md-typeset .md-button--primary {
+  background-color: var(--hc-coral);
+  border-color: var(--hc-coral);
+  color: var(--hc-navy);
+}
+
+.md-typeset .md-button--primary:hover {
+  background-color: #F08E8E;
+  border-color: #F08E8E;
+}
+
+/* =============================================================================
+   Search
+   ============================================================================= */
+
+.md-search__form {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+
+.md-search__form:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+.md-search__input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.md-search-result__link:hover {
+  background-color: var(--hc-peach-light);
+}
+
+.md-search-result__more > summary {
+  color: var(--hc-blue);
+}
+
+/* =============================================================================
+   Table of Contents (Right Sidebar)
+   ============================================================================= */
+
+.md-nav--secondary .md-nav__link--active {
+  color: var(--hc-blue);
+  border-left: 2px solid var(--hc-coral);
+}
+
+.md-nav--secondary .md-nav__item {
+  border-left: 1px solid #E8ECF4;
+}
+
+/* =============================================================================
+   Footer
+   ============================================================================= */
+
+.md-footer {
+  background-color: var(--hc-navy);
+}
+
+.md-footer-meta {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.md-footer__link {
+  transition: opacity 0.2s ease;
+}
+
+.md-footer__link:hover {
+  opacity: 0.8;
+}
+
+/* =============================================================================
+   Scrollbar Styling
+   ============================================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--hc-peach-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hc-coral);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #E8908E;
+}
+
+/* =============================================================================
+   Selection Highlight
+   ============================================================================= */
+
+::selection {
+  background-color: var(--hc-coral);
+  color: var(--hc-navy);
+}
+
+/* =============================================================================
+   Responsive Adjustments
+   ============================================================================= */
+
+@media screen and (max-width: 76.25em) {
+  .md-nav--primary .md-nav__item--active > .md-nav__link {
+    background: var(--hc-peach-light);
+  }
+}
+
+/* =============================================================================
+   Print Styles
+   ============================================================================= */
+
+@media print {
+  .md-typeset h1,
+  .md-typeset h2,
+  .md-typeset h3 {
+    color: var(--hc-navy) !important;
+  }
+  
+  .md-typeset a {
+    color: var(--hc-blue) !important;
+  }
 }
