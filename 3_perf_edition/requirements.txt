@@ -1,5 +1,6 @@
-cocotb>=1.7.0
-cocotb-test>=0.2.4
-cocotbext-axi
+cocotb==1.9.2
+cocotb-test==0.2.6
+cocotb-bus==0.2.1
+cocotbext-axi==0.1.24
 numpy
-pytest
+pytest==8.4.1
