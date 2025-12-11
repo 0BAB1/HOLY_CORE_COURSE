@@ -51,6 +51,7 @@ jobs:
       - name: Check software version
         run: |
           verilator --version
+
       # Run tests in soc_software_edition
       - name: Run Tests in soc_software_edition
         run: |
@@ -67,5 +68,11 @@ jobs:
       - name: Run Tests in fpga_edition
         run: |
           cd 1_fpga_edition/tb
+          pytest test_runner.py
+
+      # Run tests in perf edition
+      - name: Run Tests in soc_software_edition
+        run: |
+          cd 3_perf_edition/tb
           pytest test_runner.py
 

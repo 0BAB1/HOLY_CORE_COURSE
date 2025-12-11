@@ -2,22 +2,20 @@
 
 Remove / cleanup debug probe (datapath and fpga top wapper)
 
-make a specialize ReadOnly no cache for instructions
+make a specialize ReadOnly no cache for instructions (save couple hundred LUTs)
 
 in datapath, harmonize notation (especially across caches signals)
 
-
 Add M extension support
 
-nuking next_ signals for tags and flags for more area efficient d$
-
-Pipeline the core (OBJ = 100MHz)
 
 # DOING
 
 
 
 # DONE
+
+make part 3 CI actually test everything
 
 Improve and specialize I$ cache system
   - Remove write

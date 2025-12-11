@@ -55,6 +55,7 @@ async def test_csr_file(dut):
 
         # ----------------------------------
         # test simple write
+        dut.instruction_valid.value = 1
         dut.write_enable.value = 1
         dut.write_data.value = 0xDEADBEEF
         dut.address.value = addr
@@ -66,6 +67,7 @@ async def test_csr_file(dut):
 
         # ----------------------------------
         # nothing gets written if we flag is low
+        dut.instruction_valid.value = 1
         dut.write_enable.value = 0b0
         dut.write_data.value = 0x12345678
         await RisingEdge(dut.clk)
@@ -140,6 +142,7 @@ async def test_trap_behavior(dut):
 
     # We set an interrupt
     dut.timer_itr.value = 1
+    dut.instruction_valid.value = 1
     await RisingEdge(dut.clk)
     await Timer(1, units="ns")
 
@@ -256,6 +259,7 @@ async def test_cache_control_behavior(dut):
     dut.write_data.value = 0xFFFFFFFE
     dut.address.value = 0x7C0
     dut.f3.value = 0b001
+    dut.instruction_valid.value = 1
     await RisingEdge(dut.clk)
     await Timer(2, units="ns")
     assert dut.flush_cache.value == 0xFFFFFFFE
@@ -357,6 +361,7 @@ async def test_debug_behavior(dut):
     assert dut.debug_mode.value == 0
 
     dut.debug_req.value = 1
+    dut.instruction_valid.value = 1
     await Timer(2, units="ns")
 
     assert dut.jump_to_debug.value == 1
@@ -457,10 +462,11 @@ async def test_debug_behavior(dut):
     assert dut.debug_mode.value == 0
     dut.d_ret.value = 0
 
-    # stalling delays the jump to debug signals until stalling is no more
+    # stalling (no valid instruction) delays the jump to debug signals until stalling is no more
 
     dut.debug_req.value = 1
     dut.stall.value = 1
+    dut.instruction_valid.value = 0
     await Timer(2, units="ns")
 
     assert dut.jump_to_debug.value == 0
@@ -469,6 +475,7 @@ async def test_debug_behavior(dut):
     await Timer(2, units="ns")
     assert dut.debug_mode.value == 0
 
+    dut.instruction_valid.value = 1
     dut.stall.value = 0
     dut.debug_req.value = 1
     await Timer(2, units="ns")
