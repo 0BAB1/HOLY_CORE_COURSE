@@ -151,12 +151,9 @@ This `exception` flag, along its cause are sent to the [csr file](#csr-file) to 
 
 The CSR file contains the CSRs.
 
-But it also is the heart of all peration that goes betond the simple RV32I instruction set like traps and debugging.
+But it also is the heart of all operations that goes betond the simple RV32I instruction set **like traps and debugging**.
 
-It globally acts as the regular regfile in a way that it has register that we can read and write (addressable over 12 bits !) BUT it also outputs control signals to affect how the core behaves.
-
-!!! Example
-    The CSR file has a control signal to flush the data cache, to mirror `mtvec`, `mepc` and `dpc` as a pc sources, or to set the cacheble ranges for I$ and D$.
+It globally acts as the regular regfile in a way that it has register that we can read and write (addressable over 12 bits !) BUT it also outputs control signals to affect how the core behaves. For example : the CSR file has a control signal to flush the data cache, to mirror `mtvec`, `mepc` and `dpc` as a pc sources, or to set the cacheble ranges for I$ and D$.
 
     It also has a `trap` signal that can [cause the core to trap when conditions are met](#trap-execution-flow).
 
@@ -190,24 +187,289 @@ After that, the csr file will be in `trap_taken` mode and that will clear when `
 
 #### Debug Execution Flow
 
+!!! Info
+    Learn more about the debugging flow in the [*External Debug Support* specs](https://riscv.org/wp-content/uploads/2024/12/riscv-debug-release.pdf), especially the "A.2 Execution Based" chapter.
+
 Debug works like traps.
 
 We can find similar elements:
 
-- A `jump_to_debug` flag, sent to the control unit.
+- A `jump_to_debug` flag, sent to the control unit when the conditions are met.
+- Some debug CSRs that are updated in a stard way when entring the debug mode
+- etc ...
 
-## Simulation Tips
+But there are a couple of specificities in the hardware implementation :
 
-> For advance software debugging tips when using on FPGA, see the User docs : "**Using the Fpga/ Folder to build and Debug**" Section
+- Debug requests have a priority over all traps
+- `ebreak` can jump to debug (instead of trap handler), considered as a software breakpoint depending on `dcsr[15:12]` values
+- Exeptions in debug mode do not trap but jump to the debug module's exception handler.
 
-### Navigating and Using the tb/ Folder
+### Register File
 
-Fr those who did not go through  the entire course, here is how to simulate modules and the core to validate changes
+The register file is a standard async read, sync write register file addressable via 5bits and containing 32 registers.
 
-### Debugging RISCOF tests when sh*t goes south
+The `x0` register is tied to GND and cannot have any other value than 0.
 
-todo : redirect to riscof readme, then explain the debug process
+### Sign exender / Imm decoder
 
-### Using the `fpga/` Folder to Simulate Software Execution=
+!!! Info
+    Immediate decoder is also called "sign extender" because of legacy naming.
 
-The HOLY CORE codebase provides both unit testbenches
+The immediate decoder's role is to extract the immediate out of the instruction being fetched.
+
+The way the immediate is extracted depends on the control signal sent by the main instruction decoder ([the control unit](#control)).
+
+### Second Adder
+
+Below the main ALU is a second 32bits adder named "**second adder**" in the code base.
+
+The second adder's role is to compute branch and jump targets and evey other pc-related values (e.g. values needed for `auipc`).
+
+The second adder's result can also be used to access directly the immediate's result. This is not very intutive though and I could just have the immediate value wired to the write back MUX. I was not really clever on this one back then and that's a todo.
+
+In thery, this second adder should only be used to compute pc related values and be embedded in a branching unit that would separate the bach logic from the main decoder, which makes more sense when pipelinning even though not mandatory.
+
+Again, that is a refactorization todo but this whoe seconder adder thing works so I figured I would do that later. Chances are I'll never do it haha.
+
+### ALU
+
+The ALU is a standard one cycle ALU. It doe snot have any busy flags and **executes all operations in 1 cycle.**
+
+This is not the best for performaces, but adding somy busy flags + a handshake would complexify the "execution part" and I though it was not really the priority.
+
+### Load/Sotre decoder
+
+The load store decoder's role is to compute the `byte_enable` mask for reads and writes.
+
+In case of a write that is not a full word, it also aligns the data correctly before feeding it to the data memory.
+
+### Reader
+
+The reader'rs role is to **format the read data** comming from the data cache by alignning the data correctly and applying the `byte_enable` mask (if not a full word).
+
+### Write Back Mux
+
+The write back mux is not a module but is an important step as pieplined architecture givng it it's own stage.
+
+It's role is to select the right data source to feed back in the registers and produce a valid signal to assert the data is valid.
+
+The regfile then applies the read.
+
+## Dev Workflow & Simulation
+
+### Verification Software Stack
+
+For the whole HOLY CORE course, we use **cocotb + verilator** for simulation and assertions.
+
+You have a document to setup your work environment [in the repo : "**setup.md**"](https://github.com/0BAB1/HOLY_CORE_COURSE/blob/master/setup.md).
+
+!!! Warning
+    Make sure you're all setup correctly to verify the things you make, this is mandatory.
+
+### Generic RTL Changes & Testing Worflow
+
+#### Navigating and Using the tb/ Folder for submodules
+
+When making improvements to the codebase, it is mandatory to verify the submodule you just modified.
+
+You can earn more about how a basic cocotb testbench is structured and how it works in [this blog post](https://0bab1.github.io/BRH/posts/TIPS_FOR_COCOTB/) or on the [cocotb website](https://docs.cocotb.org/en/stable/quickstart.html). In a nutshell, you use a python file as a frontend that cocotb will use to run assertion by simulating the design in the backend using whatever simulator you want, in our case, **Verilator**.
+
+To verify, `cd` into `<edition_root>/tb/<module_name>` and run `make`.
+
+If you added significant changes, make sure you add the adequate test cases to the cocotb python file.
+
+Once your changes are verified, cd back into `tb/` and run `pytest test_runner.py`, this will run all tests on all submodules.
+
+!!! Note
+    Running the cocotb testbench for `tb/holy_core` is slightly different, more infos [below](#verifying-the-holy-core-using-the-cocotb-testbench).
+
+!!! Bug
+    Sometimes, the tests fail with no real reason, cd back to the edition's roo and run `make clean` to cleaup up all simulation builds and retry `pytest test_runner.py` in the `tb/` folder.
+
+#### Verifying the HOLY CORE using the cocotb testbench
+
+##### Testbench Structure
+
+When changing some elements in the code, it is important to have a quick way to verify if our chages broke something. Verifying the core is especially long with methods like the RISCOF framwork.
+
+This is why a simple **cocotb HOLY CORE testbech** was developped.
+
+Just like any oher submodule, you can verify the core running a simple make command : `make sim`.
+
+Note, the `sim` added after make : this is because make alone builds the `test.S` program the core is tested againts.
+
+Here is the `tb/holy_core/` file strcture in details :
+
+```txt
+tb/holy_core
+├── axi_if_convert.sv       Top wrapper used to convert axi interfaces for cocotb to understand
+├── holy_test_harness.sv    Harness wrapper embedding some peripherals. See it as a stripped down holy_top.sv
+├── Makefile                Builds test.S into a .hex file and runs sim. 
+├── old                     Misc
+├── test_dmemory.hex        Legacy memory init file (still used)
+├── test_holy_core.py       Cocotb assetions
+└── test.s                  Actual test program
+```
+
+As you can see, there is a test harness and a top wrapper that goes around the HOLY CORE that embeddeds basic peripherals that the test program will use to test basic SoC interaction :
+
+![holy core cocotb test harness](./images/hc_cocotb_tb.png)
+
+##### Test Program
+
+The `test.S` programs runs the HOLY CORE through basic instructions and the cocotb testbench runs assertions to make sure these simple test cases executed as expected.
+
+When running `make sim`, it is comiled into an elf and dumped into a `.hex` file, which cocotb can read, interpret and load into its simulatd memory that the core will then access as regular momory to fetch instruction and run data transactions.
+
+It also runs the core through some basic trap and debug flow to check the core's behavior is correct and compliant as these are not tested by riscof and are complicated to test otherwise.
+
+This basic testbench for the HOLY CORE is the best dev tool to quickly verify your changes did not break everything, once your changes are verified and this test passes, you can move on to [verifying using RISCOF](#verifying-the-core-using-riscof).
+
+#### Verifying the core using RISCOF
+
+The RISCOF verification framework is far more "heavyweight" than the basoc tests we detailled in ["*Verifying the HOLY CORE using the cocotb testbench*"](#verifying-the-holy-core-using-the-cocotb-testbench).
+
+This document will not explain how [RICOF works](https://riscof.readthedocs.io/en/latest/intro.html). Nor how the plugin is built as this is too dense and detailled extensively in the tutorials.
+
+The RISCOF verification happens in the `riscof/` folder :
+
+```txt
+riscof
+├── config.ini          Riscof Hints
+├── holy_core           Contains the HOLY CORE riscof plugin
+├── holy_core_tb        Contains a holy core cocotb testbench, adapted especially for ricof
+├── Makefile            Cleanup makefile
+├── readme.md           Guide on how to setup and run RISCOF tests
+├── riscof_work         (Once you run the test) contains all the results
+├── riscv-arch-test     (Once you run the test) contains all the RV tests source code
+├── spike               Contains the reference simulator riscof plugin
+└── testlist.yaml       Not used
+```
+
+In the backstage, RISCOF will use a cocotb testbench to test each program and dump the tests results into a signature file, which will get compared to a reference signature file (from the SPIKE Risc-V simulator).
+
+To run the tests, a guide already exists in the `riscof/readme.md` file.
+
+!!! Note
+    RISCOF tests executions (on the HOLY CORE) are all precedented by the execution of `riscof/holy_core_tb/test_startup.S`, which ironcally also contains a test end macro.
+
+    The goal of this very small piece of code is to [setup the caches](/#external-interfaces-cache-usage-for-the-user-via-csrs) and set everything as non cachable, meaning all RISCOF tests run as fully cached.
+
+    The test end makes sure to flush the cache before fully ending the test.
+
+    This piece of code is entirely customizable to your need to ease begugging, make sure you builf it correctly with `make -f start.Makefile`
+
+### RISCOF Debugging Guidelines
+
+RISCOF runs tests and compares signatures, but it offers little to no debug utilities.
+
+Fortunatly, we have excellent ways to debug the HOLY CORE if a test fails.
+
+In the `ricof/riscof_work` folder lies all the tests results. Here's the `add` test sim results as an example:
+
+```txt
+riscof/riscof_work/rv32i_m/I/src/add-01.S
+├── dut
+│   ├── dump.vcd                        HOLY CORE waveforms
+│   ├── DUT-holy_core.signature         Signature file (should be same as Reference-spike.signature)
+│   ├── dut.log                         Spike-like CPU logs
+│   ├── dut.symbols                     Test elf's symbols
+│   ├── my.bin                          Test bin
+│   ├── my.elf                          Test elf
+│   ├── my.hex                          Test hex
+│   └── tb_messages.log                 Cocotb logs
+└── ref
+    ├── my.elf                          Test elf
+    ├── Reference-spike.signature       Spike ref signature
+    └── ref.log                         Spike CPU logs
+```
+
+If you know the test fails from the report, you can use these results to inverstigate.
+
+First of all, use `tb_messages.log` to check if the cocotb test went well, if it failed, investigate on this error first (*syntax ? forgot to cleanup ? error loading the program ? etc*).
+
+Then, a great tool to know **exactly when the HOLY FAILED to follow a "compliant execution flow"** is to use `dut.log` and `ref.log`.
+
+These logging files trace back all register, csr, memory and pc transaction / evolutions, which allows the dev (you) to **pinpoint exactly when the CPU failed to execute the program in a compliant way** and therefore fail the test.
+
+Once the exact failure point in the simulation has been identified, you can use the waveform and your knowledge of the RISC-V specs to patch the HDL accordingly.
+
+###  Simulating Real Program Execution
+
+Sometimes, RICOF tests passes but bugs (unexpected exceptions) occur when testing a piece of software on FPGA.
+
+It may not always be due to hardware bugs, but it may be and sometimes, all the software debugging tools are not enough to clear that doubt.
+
+A good solution to clear that doubt (or shed light on a specific edge case bug) is to simulate the actual software execution.
+
+To do so, in `fpga/`, you have access to another cocotb testbench : `test_run_lint.py`. (*named "lint" as it was first bult to lint `holy_top.sv`*).
+
+This tesbench simulates the holy_top.sv internal base SoC directly and the whole exterls are just cocotb simulated RAM slaves :
+
+![fpga testbench scheme](./images/fpga_tb.png)
+
+What this testbench do is load whatever `.hex` dump file you specify in the simulated memory and release reset.
+
+#### Prepare your Program
+
+To siulate your program, you first need to get it into an hex dump format. [The `example_program` folder](/#write-build) allows you to build software and automatically generate the said hexdump in the right format.
+
+Once this is done, you can specify the following in `test_run_lint.py` :
+
+```txt
+hex_path = "path_to_your_hex.hex"
+```
+
+#### Prepare the `holy_top.sv` SoC
+
+The real `holy_top.sv` gets simulated with your rogram in memory here.
+
+BUT :
+
+- The program gets loaded at address 0x80000000
+- The CPU start (boots) at PC = 0x00000000
+- The code at 0x00000000 is the one in the BOOT ROM
+
+And remember, by default, the ROM implement an FPGA park loop to wait for the User to connect with a debugger.
+
+That means you should [**modify** the boot rom](/#default-boot-sequence) to jump to 0x80000000 with a program that looks like this:
+
+```
+    .global _start
+
+_start:
+    # ==============================================
+    # for TestBench : Jump to Main program directly
+    # ==============================================
+
+    # Example of sim start sequence : setup cache if needed
+    # data cache setup
+    li t0, 0x0
+    li t0, 0x7FFFFFFF
+    csrrw x0, 0x7C1, t0
+    csrrw x0, 0x7C2, t1
+
+    # instr cache setup
+    li t0, 0x0
+    li t1, 0x7FFFFFFF
+    csrrw x0, 0x7C3, t0
+    csrrw x0, 0x7C4, t1
+
+    // jump to program in cocotb's ram
+    la t0, 0x80000000
+    jalr x0, t0, 0   
+```
+
+And your program should start executing.
+
+You ca of course modify `test_run_lint.py` to fit your need and sto the test whenever a condition is met (e.g. an exception has been met or a predefined PC has been reached...)
+
+You can use this useful simulation tool to :
+
+- Profile a program's performance (e.g. IPC/CPI)
+- Reproduce software bugs in simulation
+- test SoC components behavior (CLINT, PLIC, ...)
+
+
+!!! Note
+    Make sure you restom `rom.s` and rebuild it like it was bofore to avoid unexpected bugs for future FPGA users.
