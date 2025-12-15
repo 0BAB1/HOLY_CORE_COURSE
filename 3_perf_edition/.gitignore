@@ -9,3 +9,4 @@ temp.py
 *.vcd
 blink.hex
 dump.txt
+csr.csv

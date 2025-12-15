@@ -36,3 +36,7 @@ test.D
 .vscode
 bootloader.tcl
 doom-*
+*/litex_holy_core/rtl
+*/litex_holy_core/litex_holy_core.egg-info
+3_perf_edition/litex_holy_core/examples/build
+3_perf_edition/litex_holy_core/

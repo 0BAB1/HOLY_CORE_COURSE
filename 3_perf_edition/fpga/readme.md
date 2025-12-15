@@ -1,5 +1,7 @@
 <!-- BRH 11/2025 to help people figure out what's going on here-->
-# FPGA FOLDER
+# **MANUAL** FPGA INTEGRATION UTILS FOLDER
+
+Manual SoC integration for fpgas.
 
 Here you will find a top module : `holy_top.sv` which is the basic internal exmaple HOLY SoC.
 
@@ -8,7 +10,8 @@ It comes with:
 - A **CLINT** (timer)
 - A **PLIC** (interrupt controller)
 - the actual **HOLY CORE**
-- a static **ROM** (hardcoded)
+- A static **ROM** (hardcoded)
+- All the glue logic that ties this basic "inner soc" toghether.
 
 To modify the `ROM/`, go in the ROM folder
 

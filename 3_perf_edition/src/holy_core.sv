@@ -14,6 +14,8 @@
 
 `timescale 1ns/1ps
 
+import holy_core_pkg::*;
+
 module holy_core #(
     // IF DCACHE_EN is 0, we only enerate the non cache version.
     // Which is lighter, less complex and more suited to simple FPGA SoCs.
@@ -42,49 +44,23 @@ module holy_core #(
     // Debug req
     input logic debug_req,
 
-    // DEBUG SIGNALS FOR LOGIC ANALYSERS
-    // Not related to debug module but rather
-    // raw on board SoC debugging hints.
+    // RAW DEBUG SIGNALS FOR LOGIC ANALYSERS
     output logic [31:0] debug_pc,  
     output logic [31:0] debug_pc_next,
     output logic [1:0] debug_pc_source,
     output logic [31:0] debug_instruction,  
-    output logic [3:0] debug_i_cache_state,  
-    output logic [3:0] debug_i_next_cache_state,  
-    output logic [6:0] debug_i_set_ptr,  
-    output logic [6:0] debug_i_next_set_ptr,  
-    output logic [6:0] debug_d_set_ptr,  
-    output logic [6:0] debug_d_next_set_ptr,  
     output logic debug_i_cache_stall,  
-    output logic debug_d_cache_stall,
-    output logic debug_csr_flush_order,
-    output logic       debug_d_cache_seq_stall,
-    output logic       debug_d_cache_comb_stall,
-    output logic [3:0] debug_d_cache_next_state,
-    output logic [31:0] debug_mem_read,
-    output logic [3:0] debug_mem_byte_en,
-    output logic [31:0] debug_wb_data,
-    output serving_state_t debug_serving,
-    output serving_state_t debug_next_serving
+    output logic debug_d_cache_stall
 );
-
-import holy_core_pkg::*;
 
 /**
 * FPGA Debug_out signals
 */
-
 assign debug_pc = pc;  
 assign debug_pc_next = pc_next;  
 assign debug_instruction = instruction;  
-assign debug_i_cache_state = 0;  
 assign debug_i_cache_stall = i_cache_stall;  
-assign debug_d_cache_stall  = d_cache_stall; 
-assign debug_csr_flush_order = csr_flush_order;
-assign debug_pc_source = 0;
-assign debug_wb_data = mem_read_write_back_data;
-assign debug_mem_read = mem_read;
-assign debug_mem_byte_en = mem_byte_enable;
+assign debug_d_cache_stall  = d_cache_stall;
 
 /**
 * TOP AXI INTERFACES MUXING

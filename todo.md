@@ -1,17 +1,17 @@
 # TODO
 
-Remove / cleanup debug probe (datapath and fpga top wapper)
+Make a specialize ReadOnly no cache for instructions (save couple hundred LUTs)
 
-make a specialize ReadOnly no cache for instructions (save couple hundred LUTs)
+In datapath, harmonize notation (especially across caches signals)
 
-in datapath, harmonize notation (especially across caches signals)
-
-Add M extension support
-
+Add litex support for better SoC flexibility and portability.
+  - or manually add board supports + start supporting other vendors (latice, altera, gowin...) but that's a big budget tbh.
 
 # DOING
 
+Add M extension support
 
+Remove / cleanup debug probe (datapath and fpga top wapper)
 
 # DONE
 
