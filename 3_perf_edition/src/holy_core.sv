@@ -82,9 +82,7 @@ external_req_arbitrer mr_l_arbitre(
     .s_axi_instr(axi_instr),
     .i_cache_state(i_cachable_state),
     .s_axi_data(axi_data),
-    .d_cache_state(d_cachable_state),
-    .debug_serving(debug_serving),
-    .debug_next_serving(debug_next_serving)
+    .d_cache_state(d_cachable_state)
 );
 
 // AXI LITE MUXER / ARBITRER
@@ -115,7 +113,7 @@ logic [31:0] pc_plus_four;
 logic stall;
 logic d_cache_stall;
 logic i_cache_stall;
-assign stall = d_cache_stall | i_cache_stall;
+assign stall = d_cache_stall | i_cache_stall | alu_stall;
 
 always_comb begin : pc_select
     pc_plus_four = pc + 4;
@@ -233,6 +231,7 @@ imm_source_t imm_source;
 wire mem_write_enable;
 wire mem_read_enable;
 wire reg_write;
+wire alu_req_valid;
 // trap (exception and return) related outs
 logic m_ret;
 logic d_ret;
@@ -268,6 +267,7 @@ control control_unit(
     .pc_source(pc_source),
     .second_add_source(second_add_source),
     .csr_write_enable(csr_write_enable),
+    .alu_req_valid(alu_req_valid),
 
     // TRAP HANDLING INFOS IN
     // to handle traps, control and csr work toghter.
@@ -460,13 +460,11 @@ csr_file holy_csr_file(
 /* verilator lint_on PINMISSING */
 
 /**
-* ALU
+* ALUs
 */
 
-wire [31:0] alu_result;
+// sr2 MUX
 logic [31:0] alu_src2;
-aligned_addr_signal alu_aligned_addr;
-
 always_comb begin
     case (alu_source)
         ALU_SOURCE_IMM: alu_src2 = immediate;
@@ -474,24 +472,59 @@ always_comb begin
     endcase
 end
 
+wire [31:0] alu_base_result;
+aligned_addr_signal alu_aligned_addr; // exception infos
+
 alu alu_inst(
     .alu_control(alu_control),
     .src1(read_reg1),
     .src2(alu_src2),
-    .alu_result(alu_result),
+    .alu_result(alu_base_result),
     .zero(alu_zero),
     .last_bit(alu_last_bit),
     .aligned_addr(alu_aligned_addr)
 );
 
+logic   alu_stall;
+logic   alu_res_valid;
+logic   alu_res_ack;
+
+logic   is_mul_div;
+assign  is_mul_div = alu_control >= ALU_MUL && alu_control != ALU_ERROR; // this assignment is NOT stable (todo)!!!
+
+logic   mdu_req_valid;
+assign  mdu_req_valid = alu_req_valid && is_mul_div && instruction_valid;
+
+wire    [31:0] mdu_result;
+
+mul_div_unit mdu(
+    .clk,
+    .rst_n,
+    // Operands
+    .src1(read_reg1),
+    .src2(read_reg1),
+    .mdu_control(alu_control),
+    // Handshake
+    .req_valid(mdu_req_valid),
+    .res_ack(),
+    .res_valid(alu_res_valid),
+    // Result
+    .mdu_result()
+);
+
+assign  alu_stall = mdu_req_valid && !(alu_res_valid && alu_res_ack);
+
+// alu/mdu result mux
+logic   [31:0] alu_result;
+assign  alu_result = is_mul_div ? mdu_result : alu_base_result;
+
 /**
 * SECOND ADDER
 */
 
-// Select second add sources and result
-// (yes second add is not a module on its own)
-aligned_addr_signal second_add_aligned_addr;
+aligned_addr_signal second_add_aligned_addr; // exception infos
 
+// Scond add src MUX
 always_comb begin : second_add_select
     case (second_add_source)
         SECOND_ADDER_SOURCE_PC : second_add_result = pc + immediate;

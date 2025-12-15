@@ -7,6 +7,10 @@ In datapath, harmonize notation (especially across caches signals)
 Add litex support for better SoC flexibility and portability.
   - or manually add board supports + start supporting other vendors (latice, altera, gowin...) but that's a big budget tbh.
 
+Get rid of unecessry second adder logic, i.e. make this whole thing more readable and intuitive.
+
+Rename LS decoder input to 2 bits wide offset instead of full blown alu restult
+
 # DOING
 
 Add M extension support
@@ -15,7 +19,7 @@ Remove / cleanup debug probe (datapath and fpga top wapper)
 
 # DONE
 
-make part 3 CI actually test everything
+Make part 3 CI actually test everything
 
 Improve and specialize I$ cache system
   - Remove write

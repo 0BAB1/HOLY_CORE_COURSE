@@ -39,6 +39,7 @@ module control (
     output second_add_source_t second_add_source,
     output csr_wb_source_t csr_write_back_source,
     output logic csr_write_enable,
+    output logic alu_req_valid,
 
     // TRAP HANDLING INFOS IN
     input logic clk,
@@ -58,6 +59,9 @@ module control (
 );
 
 logic trap_pending;
+
+// M extension detection
+wire is_m_extension = (op == OPCODE_R_TYPE) && (func7 == 7'b0000001);
 
 /**
 * MAIN DECODER
@@ -81,6 +85,7 @@ always_comb begin
     m_ret = 1'b0;
     d_ret = 1'b0;
     jump = 0;
+    alu_req_valid = 0;
 
     // if the instruction being fectched
     // is not valid, exception should NOT
@@ -92,6 +97,7 @@ always_comb begin
         // I-type (read data mem)
         OPCODE_I_TYPE_LOAD : begin
             if(valid_load_func3)begin
+                alu_req_valid = 1;
                 reg_write = 1'b1;
                 imm_source = I_IMM_SOURCE;
                 mem_write = 1'b0;
@@ -126,6 +132,7 @@ always_comb begin
         // ALU I-type
         OPCODE_I_TYPE_ALU : begin
             if(valid_alu_func3) begin
+                alu_req_valid = 1;
                 exception = 0;
                 imm_source = I_IMM_SOURCE;
                 alu_source = ALU_SOURCE_IMM; //imm
@@ -142,6 +149,7 @@ always_comb begin
         // S-Type (store/mem write)
         OPCODE_S_TYPE : begin
             if(valid_store_func3) begin
+                alu_req_valid = 1;
                 exception = 0;
                 reg_write = 1'b0;
                 imm_source = S_IMM_SOURCE;
@@ -177,11 +185,12 @@ always_comb begin
         // R-Type
         OPCODE_R_TYPE : begin
             if(valid_rtype_combination) begin
+                alu_req_valid = 1;
                 exception = 0;
                 reg_write = 1'b1;
                 mem_write = 1'b0;
                 mem_read = 1'b0;
-                alu_op = ALU_OP_MATH;
+                alu_op = is_m_extension ? ALU_OP_MULDIV : ALU_OP_MATH;
                 alu_source = ALU_SOURCE_RD;
                 write_back_source = WB_SOURCE_ALU_RESULT;
                 branch = 1'b0;
@@ -192,6 +201,7 @@ always_comb begin
         // B-type
         OPCODE_B_TYPE : begin
             if(valid_branch_func3) begin
+                alu_req_valid = 1;
                 imm_source = B_IMM_SOURCE;
                 alu_source = ALU_SOURCE_RD;
                 reg_write = 1'b0;
@@ -325,8 +335,9 @@ always_comb begin
         default:;
     endcase
 
-    // Final validation => if an exception is detected, CPU state should NOT be affected !
+    // Final check => if a trap request is detected, CPU state should NOT be affected !
     if(trap || trap_pending) begin
+        alu_req_valid = 0;
         csr_write_enable = 1'b0;
         reg_write = 1'b0;
         mem_write = 1'b0;
@@ -344,39 +355,31 @@ always_comb begin
         // LW, SW
         ALU_OP_LOAD_STORE : alu_control = ALU_ADD;
         // R-Types, I-types
-        ALU_OP_MATH : begin
+        ALU_OP_MATH: begin
             case (func3)
-                // ADD (and later SUB with a different F7)
-                F3_ADD_SUB : begin
-                    // 2 scenarios here :
-                    // - R-TYPE : either add or sub and we need to a check for that
-                    // - I-Type : aadi -> we use add arithmetic
-                    if(op == OPCODE_R_TYPE) begin // R-type
-                        alu_control = (func7 == F7_SUB)? ALU_SUB : ALU_ADD;
-                    end else begin // I-Type
-                        alu_control = ALU_ADD;
-                    end
-                end
-                // AND
-                F3_AND : alu_control = ALU_AND;
-                // OR
-                F3_OR : alu_control = ALU_OR;
-                // SLT, SLTI
-                F3_SLT: alu_control = ALU_SLT;
-                // SLTU, SLTIU
-                F3_SLTU : alu_control = ALU_SLTU;
-                // XOR
-                F3_XOR : alu_control = ALU_XOR;
-                // SLL
-                F3_SLL : alu_control = ALU_SLL;
-                // SRL, SRA
-                F3_SRL_SRA : begin
-                    if(func7 == F7_SLL_SRL) begin
-                        alu_control = ALU_SRL; // srl
-                    end else if (func7 == F7_SRA) begin
-                        alu_control = ALU_SRA; // sra
-                    end
-                end
+                F3_ADD_SUB: alu_control = (op == OPCODE_R_TYPE && func7 == F7_SUB) ? ALU_SUB : ALU_ADD;
+                F3_AND:     alu_control = ALU_AND;
+                F3_OR:      alu_control = ALU_OR;
+                F3_SLT:     alu_control = ALU_SLT;
+                F3_SLTU:    alu_control = ALU_SLTU;
+                F3_XOR:     alu_control = ALU_XOR;
+                F3_SLL:     alu_control = ALU_SLL;
+                F3_SRL_SRA: alu_control = (func7 == F7_SRA) ? ALU_SRA : ALU_SRL;
+                default:    alu_control = ALU_ADD;
+            endcase
+        end
+        // R-Types MUL & DIV
+        ALU_OP_MULDIV: begin
+            case (func3)
+                3'b000: alu_control = ALU_MUL;
+                3'b001: alu_control = ALU_MULH;
+                3'b010: alu_control = ALU_MULHSU;
+                3'b011: alu_control = ALU_MULHU;
+                3'b100: alu_control = ALU_DIV;
+                3'b101: alu_control = ALU_DIVU;
+                3'b110: alu_control = ALU_REM;
+                3'b111: alu_control = ALU_REMU;
+                default: alu_control = ALU_MUL;
             endcase
         end
         // BRANCHES
@@ -504,7 +507,7 @@ wire valid_branch_func3 = (func3 == 3'b000) || // BEQ
                           (func3 == 3'b111);   // BGEU
 
 // R-type ALU ops (ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND)
-wire valid_rtype_combination = (
+wire valid_rtype_base= (
     // ADD, SUB
     (func3 == 3'b000 && (func7 == 7'b0000000 || func7 == 7'b0100000)) ||
     // SLL
@@ -520,8 +523,10 @@ wire valid_rtype_combination = (
     // OR
     (func3 == 3'b110 && func7 == 7'b0000000) ||
     // AND
-    (func3 == 3'b111 && func7 == 7'b0000000)
-);
+    (func3 == 3'b111 && func7 == 7'b0000000));
 
+// R VALID M EXTENSION ? SUPPORT
+wire valid_rtype_m_ext = (func7 == 7'b0000001);
+wire valid_rtype_combination = valid_rtype_base || valid_rtype_m_ext;
 
 endmodule

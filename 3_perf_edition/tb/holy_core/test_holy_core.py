@@ -770,6 +770,30 @@ async def cpu_insrt_test(dut):
     await NextInstr(dut) # lhu x21 -6(x7)
     assert binary_to_hex(dut.core.regfile.registers[21].value) == "0000DEAD"
 
+    ##################
+    # MUL TEST START
+    # li x5, 0x12345678
+    # li x6, 0x1212ABCD
+    # mul x4, x5, x6
+    ##################
+
+    await NextInstr(dut) # li x5, 0x12345678
+    await NextInstr(dut) # li x6, 0x1212ABCD
+    await NextInstr(dut) # mul x4, x5, x6
+
+    assert dut.core.regfile.registers[4].value == (0x12345678 * 0x1212ABCD) & 0xFFFFFFFF
+
+    ##################
+    # MULH TEST START
+    # li x5, 0x12345678
+    # li x6, 0x1212ABCD
+    # mul x4, x5, x6
+    ##################
+
+    await NextInstr(dut) # mulh x4, x5, x6
+
+    assert dut.core.regfile.registers[4].value == (0x12345678 * 0x1212ABCD) >> 32
+
     ###############################################################################
     # due to increased cache complexity, the cache testbench is now
     # better and more "systemic", meaning these tests are both now

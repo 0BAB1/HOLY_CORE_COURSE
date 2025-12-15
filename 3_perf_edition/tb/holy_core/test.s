@@ -207,6 +207,16 @@ _start:
     nop
     lhu x21, -6(x7)
 
+    # MUL TEST START
+    li x5, 0x12345678
+    li x6, 0x1212ABCD
+    mul x4, x5, x6
+
+    # MULH TEST START
+    li x5, 0x12345678
+    li x6, 0x1212ABCD
+    mulh x4, x5, x6
+
     ###############################################################################
     # due to increased cache complexity, the cache testbench is now
     # better and more "systemic", meaning these tests are both now

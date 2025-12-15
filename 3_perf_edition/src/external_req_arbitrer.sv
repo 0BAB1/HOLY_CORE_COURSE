@@ -24,16 +24,8 @@ module external_req_arbitrer (
     axi_if.slave s_axi_instr,
     input cache_state_t i_cache_state,
     axi_if.slave s_axi_data,
-    input cache_state_t d_cache_state,
-
-    // TEMP : debug probes
-    output serving_state_t debug_serving,
-    output serving_state_t debug_next_serving
+    input cache_state_t d_cache_state
 );
-
-// temp : debug probes assigns
-assign debug_serving = serving;
-assign debug_next_serving = next_serving;
 
 // ============================================================================
 // TRANSACTION LOCKING

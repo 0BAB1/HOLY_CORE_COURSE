@@ -43,6 +43,13 @@ package holy_core_pkg;
     LITE_SENDING_READ_DATA
   }axi_state_slave_t;
 
+  // ALU STATES
+  typedef enum logic [1:0] { 
+    ALU_IDLE,
+    ALU_BUSY,
+    ALU_DONE
+  } alu_state_t;
+
   // INSTRUCTION OP CODES
   typedef enum logic [6:0] {
     OPCODE_R_TYPE         = 7'b0110011,
@@ -62,7 +69,8 @@ package holy_core_pkg;
   typedef enum logic [1:0] {
     ALU_OP_LOAD_STORE     = 2'b00,
     ALU_OP_BRANCHES       = 2'b01,
-    ALU_OP_MATH           = 2'b10
+    ALU_OP_MATH           = 2'b10,
+    ALU_OP_MULDIV         = 2'b11
   } alu_op_t ;
 
   // "MATH" F3 (R&I Types)
@@ -109,21 +117,27 @@ package holy_core_pkg;
   } rtype_f7_t;
 
   // ALU control arithmetic
-  typedef enum logic [3:0] {
-    ALU_ADD = 4'b0000,
-    ALU_SUB = 4'b0001,
-    ALU_AND = 4'b0010,
-    ALU_OR = 4'b0011,
-    ALU_SLL = 4'b0100,
-    ALU_SLT = 4'b0101,
-    ALU_SRL = 4'b0110,
-    ALU_SLTU = 4'b0111,
-    ALU_XOR = 4'b1000,
-    ALU_SRA = 4'b1001,
-    ALU_ERROR = 4'b1111
-    // ALU ERROR is there for defaults but should
-    // never appear / be used as exceptions will
-    // be detected and a trap will occur.
+  typedef enum logic [4:0] {
+    ALU_ADD       = 5'b00000,
+    ALU_SUB       = 5'b00001,
+    ALU_AND       = 5'b00010,
+    ALU_OR        = 5'b00011,
+    ALU_SLL       = 5'b00100,
+    ALU_SLT       = 5'b00101,
+    ALU_SRL       = 5'b00110,
+    ALU_SLTU      = 5'b00111,
+    ALU_XOR       = 5'b01000,
+    ALU_SRA       = 5'b01001,
+    ALU_MUL       = 5'b01010,
+    ALU_MULH      = 5'b01011,
+    ALU_MULHSU    = 5'b01100,
+    ALU_MULHU     = 5'b01101,
+    ALU_DIV       = 5'b01110,
+    ALU_DIVU      = 5'b01111,
+    ALU_REM       = 5'b10000,
+    ALU_REMU      = 5'b10001,
+    // Default "error" place holder
+    ALU_ERROR     = 5'b11111
   } alu_control_t;
 
   // IMM sources
