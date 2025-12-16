@@ -776,23 +776,105 @@ async def cpu_insrt_test(dut):
     # li x6, 0x1212ABCD
     # mul x4, x5, x6
     ##################
+    print("\n\nTESTING MUL\n\n")
 
-    await NextInstr(dut) # li x5, 0x12345678
-    await NextInstr(dut) # li x6, 0x1212ABCD
+    await NextInstr(dut); await NextInstr(dut) # li x5, 0x12345678
+    await NextInstr(dut); await NextInstr(dut) # li x6, 0x1212ABCD
     await NextInstr(dut) # mul x4, x5, x6
 
     assert dut.core.regfile.registers[4].value == (0x12345678 * 0x1212ABCD) & 0xFFFFFFFF
 
     ##################
     # MULH TEST START
-    # li x5, 0x12345678
-    # li x6, 0x1212ABCD
+    # li x5, 0x00000005
+    # li x6, 0xFFFFFFFF
     # mul x4, x5, x6
     ##################
+    print("\n\nTESTING MULH\n\n")
 
+    await NextInstr(dut) # li x5, 0x00000005
+    await NextInstr(dut) # li x6, 0xFFFFFFFF
     await NextInstr(dut) # mulh x4, x5, x6
+    # result of this simple mul signed is -5, so upper bits carry the sign (all 1s)
+    assert dut.core.regfile.registers[4].value == 0xFFFFFFFF
 
-    assert dut.core.regfile.registers[4].value == (0x12345678 * 0x1212ABCD) >> 32
+    ##################
+    # MULHSU TEST START
+    # li x5, 0xFFFFFFFF
+    # li x6, 0xF123F123
+    # mulsu x4, x5, x6
+    ##################
+    print("\n\nTESTING MULHSU\n\n")
+
+    await NextInstr(dut) # li x5, 0xFFFFFFFF
+    await NextInstr(dut) # li x6, 0xF123F123
+    await NextInstr(dut) # mulhsu x4, x5, x6
+
+    # x5 interpreted as signed and x6 as unsigned
+    assert dut.core.regfile.registers[4].value == ((-1 * 0xF123F123) & 0xFFFFFFFF << 32) >> 32
+
+    ##################
+    # MULHU TEST START
+    # mulhu x4, x5, x6
+    ##################
+    print("\n\nTESTING MULHU\n\n")
+
+    await NextInstr(dut); await NextInstr(dut) # mulhu x4, x5, x6
+
+    # this time, x5 AND x6 are interpreted as unsigned, so no signext should happen and whe shoud have a raw result
+    assert dut.core.regfile.registers[4].value == ((0xFFFFFFFF * 0xF123F123) & 0xFFFFFFFF << 32) >> 32
+    
+    ##################
+    # DIV TEST START
+    # li x5, 0xFFFFFFFF
+    # li x6, 0x00000003
+    # div x4, x5, x6
+    ##################
+    print("\n\nTESTING DIV\n\n")
+
+    await NextInstr(dut) # li x5, 0xFFFFFFFF
+    await NextInstr(dut) # li x6, 0x00000003
+    await NextInstr(dut) # div x4, x5, x6
+
+    dividend = 0xF0000000
+    dividend_signed = dividend - 0x100000000 if dividend >= 0x80000000 else dividend
+    expected = int(dividend_signed / 3) & 0xFFFFFFFF
+
+    assert dut.core.regfile.registers[4].value == expected
+    assert expected == 0xFAAAAAAB
+
+    ##################
+    # DIVU TEST START
+    # divu x4, x5, x6
+    ##################
+    print("\n\nTESTING DIVU\n\n")
+
+    await NextInstr(dut); await NextInstr(dut); await NextInstr(dut) # divu x4, x5, x6
+    assert dut.core.regfile.registers[4].value == 0xF0000000 // 3
+
+    ##################
+    # REM TEST START
+    # li x5, 0xF0000005
+    # li x6, 0x00000003
+    # rem x4, x5, x6
+    ##################
+    print("\n\nTESTING REM\n\n")
+
+    await NextInstr(dut); await NextInstr(dut) # li x5, 0xF0000005
+    await NextInstr(dut) # li x5, 0xF0000005
+    await NextInstr(dut) # rem x4, x5, x6
+    
+    assert dut.core.regfile.registers[4].value - (1 << 32) == -2
+
+    ##################
+    # REMU TEST START
+    # remu x4, x5, x6
+    ##################
+    print("\n\nTESTING REMU\n\n")
+
+    await NextInstr(dut) # remu x4, x5, x6
+
+    assert dut.core.regfile.registers[4].value == 2
 
     ###############################################################################
     # due to increased cache complexity, the cache testbench is now

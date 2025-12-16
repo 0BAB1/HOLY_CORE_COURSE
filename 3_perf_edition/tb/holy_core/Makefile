@@ -78,7 +78,7 @@ EXTRA_ARGS += -I$(PWD)/../../vendor/include/common_cells
 # COMPILE TEST ASSEMBLY
 ##################################
 
-ARCH        := rv32i_zicsr
+ARCH        := rv32im_zicsr
 ABI         := ilp32
 CC          := riscv64-unknown-elf-gcc
 OBJCOPY     := riscv64-unknown-elf-objcopy

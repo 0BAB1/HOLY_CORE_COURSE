@@ -1,6 +1,6 @@
 hart_ids: [0]
 hart0:
-  ISA: RV32IZicsr
+  ISA: RV32IMZicsr
   User_Spec_Version: '2.3'
   Privilege_Spec_Version: "1.11"
   hw_data_misaligned_support: False

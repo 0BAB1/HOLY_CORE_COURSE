@@ -486,8 +486,9 @@ alu alu_inst(
 );
 
 logic   alu_stall;
-logic   alu_res_valid;
-logic   alu_res_ack;
+logic   mdu_res_valid;
+logic   mdu_res_ack;
+assign  mdu_res_ack = mdu_res_valid && ~i_cache_stall && ~d_cache_stall;
 
 logic   is_mul_div;
 assign  is_mul_div = alu_control >= ALU_MUL && alu_control != ALU_ERROR; // this assignment is NOT stable (todo)!!!
@@ -502,17 +503,17 @@ mul_div_unit mdu(
     .rst_n,
     // Operands
     .src1(read_reg1),
-    .src2(read_reg1),
+    .src2(read_reg2),
     .mdu_control(alu_control),
     // Handshake
     .req_valid(mdu_req_valid),
-    .res_ack(),
-    .res_valid(alu_res_valid),
+    .res_ack(mdu_res_ack),
+    .res_valid(mdu_res_valid),
     // Result
-    .mdu_result()
+    .mdu_result(mdu_result)
 );
 
-assign  alu_stall = mdu_req_valid && !(alu_res_valid && alu_res_ack);
+assign  alu_stall = mdu_req_valid && !(mdu_res_valid && mdu_res_ack);
 
 // alu/mdu result mux
 logic   [31:0] alu_result;

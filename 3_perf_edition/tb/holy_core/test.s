@@ -213,9 +213,35 @@ _start:
     mul x4, x5, x6
 
     # MULH TEST START
-    li x5, 0x12345678
-    li x6, 0x1212ABCD
+    li x5, 0x00000005
+    li x6, 0xFFFFFFFF
     mulh x4, x5, x6
+
+    # MULHSU TEST START
+    li x5, 0xFFFFFFFF
+    li x6, 0xF123F123
+    mulhsu x4, x5, x6
+
+    # MULHU TEST START
+    mulhu x4, x5, x6
+
+    # DIV TEST START
+    li x5, 0xF0000000
+    li x6, 0x00000003
+    div x4, x5, x6
+
+    # DIVU TEST START
+    li x5, 0xF0000000
+    li x6, 0x00000003
+    divu x4, x5, x6
+
+    # REM TEST START
+    li x5, 0xF0000005
+    li x6, 0x00000003
+    rem x4, x5, x6
+
+    # REMU TEST START
+    remu x4, x5, x6
 
     ###############################################################################
     # due to increased cache complexity, the cache testbench is now

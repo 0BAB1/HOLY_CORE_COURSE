@@ -165,7 +165,7 @@ module mul_div_unit (
     end
 
     // =========================================================================
-    // Division Datapath Sequential Logic
+    // Division Datapath Sequential Logic (NOTA : state transition is not here)
     // =========================================================================
 
     always_ff @(posedge clk) begin
@@ -185,17 +185,20 @@ module mul_div_unit (
             case (state)
                 ALU_IDLE: begin
                     if (req_valid && is_div_op) begin
-                        // Initialize: dividend in quotient reg, remainder = 0
+                        // Initialize div: latch sources
                         divisor_reg      <= src2_abs;
                         quotient         <= src1_abs;
+                        // reset counters
                         remainder        <= 32'd0;
                         div_counter      <= 6'd0;
-                        dividend_neg     <= is_signed_op && src1[31];
-                        divisor_neg      <= is_signed_op && src2[31];
+                        // detect edge cases according to RV32M specs
                         div_by_zero      <= (src2 == 32'd0);
                         overflow         <= is_signed_op && 
                                            (src1 == 32'h8000_0000) && 
                                            (src2 == 32'hFFFF_FFFF);
+                        // latch onto metadata
+                        dividend_neg     <= is_signed_op && src1[31];
+                        divisor_neg      <= is_signed_op && src2[31];
                         is_signed_op_reg <= is_signed_op;
                         is_rem_op_reg    <= is_rem_op;
                         dividend_orig    <= src1;
