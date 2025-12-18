@@ -1,11 +1,20 @@
 # Holy Core - Dev Docs
 
-!!! Info
-    As you may already know, most of the CPU architecture is documented through the **tutorials** around which the HOLY CORE Course project is built around.
-    
-    But this document aims at giving an overview of the **latest changes** by going **straight to the point** as briefly as possible to clear potential doubts on what's the potential role of each part of the CPU.
 
-Welcome to the Dev's documentation, a quick reference guide on how the core works to quickly get up to speed.
+Welcome to the Dev's documentation, a quick reference guide on how the *HOLY CORE*'s microarchitecture works to quickly get up to speed.
+
+You'll also find here some guidelines and simulation tips.
+
+!!! Info
+    As you may already know, most of the CPU architecture is documented through the **tutorials** around which the HOLY CORE Course project is built around (the goal is for people to build it themselves with no experience if not basic HDL knwledge).
+    
+    Yet, the HOLY CORE is evolving from times to times and editions, features, bugs fixes, etc may be added witout being documented. These change smay be small or comletely change the whole datapath.
+    
+    To that reagrd, this document aims at giving an overview of the **latest changes** by going **straight to the point** as this document targets experience developper looking to check the latest microarchitecture cahnges to understand or modify it.
+
+## Introduction
+
+The *HOLY_CORE* is an open source RISCV-V core IP written entirly in **systemVerilog**.
 
 You'll see the core is **extremely simple** as it's a :
 
@@ -15,22 +24,26 @@ You'll see the core is **extremely simple** as it's a :
 - ...single execution at a time...
 - ...single cycle CPU.
 
-You'll also find here some guidelines and simulation tips, as well as some notes for myself.
+The *HOLY CORE* uses **two AXI interfaces** (*FULL and LITE*) to fetch data from external peripherals from the [`cache`/`no_cache`](#external-requests-arbiters) sub systems.
+
+The [unit testbenches](#testbench-structure) are done via **cocotb**, the backend simulator used is **verilator** and higher level verification of the ISA is done via [**RISCOF**](#verifying-the-core-using-riscof).
+
+Implementaion of the core is ensure by Xilinx tools (official support) but you can implement it in anything as look as there is enough LUTs. See User Docs for guidelines on how to actually use the *HOLY CORE* in your system.
 
 ## RTL Contributions Guidelines
 
-If you want to modify the HDL and contribute, please know that I am **not interested in major architecture modifications** (e.g. pipelining).
+If you want to modify the HDL and contribute, please know that I am **not interested in major architecture modifications** (e.g. pipelining) without a careful planning process, contact me for more infos (you can use github issues).
 
 Typos fix are *welcome changes*.
 
 Docs improvements, code optimisations or more efficient synth code structure that could save LUTs and FFs are **very welcome** **changes**.
 
-!!! Tip
-    You can check out the `todo.md` file at the root of the project to see what are the projects things that should be done if you are looking for quick ways to participate.
-
 When making an RTL change to a module, make sure you run the module's testbench, eventually add testcases to the said testbench, run the HOLY CORE quick testbench and then run the riscof test suite.
 
 This document will also guide you around all the simulation and verification tools available.
+
+!!! Tip
+    You can check out the `todo.md` file at the root of the project to see what are the projects things that should be done if you are looking for quick ways to participate.
 
 ## Core Overview
 
