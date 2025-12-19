@@ -243,39 +243,11 @@ _start:
     # REMU TEST START
     remu x4, x5, x6
 
-    ###############################################################################
-    # due to increased cache complexity, the cache testbench is now
-    # better and more "systemic", meaning these tests are both now
-    # prone to False Negatives and are not worth maintaining...
-    # Furthermore, cocotb's tests suite and fpga's SoC simulation are more
-    # likely to shed light on specific problems that would not be catched
-    # here anyway.
-    ###############################################################################
+    #######################
+    # PRIV SPECS TESTS
+    #######################
 
-    # # CACHE WB TEST
-    # addi x7, x3, 0x200
-    # lw x20, 0(x7)
-
-    # # CSR FLUSH TEST
-    # addi x20, x0, 1
-    # csrrw x21, 0x7C0, x20
-
-    # # CSR $ RANGE TEST
-    # addi x20, x0, 0
-    # lui x20, 0x2
-    # addi x21, x20, 0x200
-    # csrrw x0, 0x7C1, x20
-    # csrrw x0, 0x7C2, x21
-
-    # addi x20, x20, 4
-    # lui x22, 0xABCD1
-    # addi x22, x22, 0x111
-    # sw x22, 0(x20)
-    # lw x22, 4(x20)
-    # lw x22, 0(x20)
-
-    # to easy testbench, we set all as non cachable
-    # for the priv specs specs
+    # Set no cache for now
     li t0, 0x00000000
     li t1, 0xFFFFFFFF
     csrrw x0, 0x7C1, t0
@@ -340,20 +312,37 @@ wait_for_ext_irq:
     nop
     ecall                   # provoke ecall
 
-    ################
-    # DEBUG MODE TEST
-    ################
+
+#######################
+# DEBUG SPECS TESTS
+#######################
 
 wait_for_debug_mode:
-    la t0, debug_rom # load addrs for compiler issues
-    la t1, debug_exception # load addrs for compiler issues
+    # load addrs so TB can grab it and set CORE's
+    # debug jumps addresses constants
+    la t0, debug_rom 
+    la t1, debug_exception
     nop
     # tb will send a debug request, effectively jumping
-    # to "debug ROM", which we can find below
+    # to our own "debug ROM" for total control over the test
+    # -> debug rom which is defined below in this file
     li t3, 0x2
     csrr t2, dscratch0
     beq t2, t3, cache_stress_test
     j wait_for_debug_mode
+
+set_i_cache:
+    # BUG FIX 12/2025
+    # the lowwing is where single step executes an instruction
+    # changing the instr cache cachable range should provoke a bug
+    csrrw x0, 0x7c3, t0
+    nop
+
+###########################################################################
+###########################################################################
+###################### TEST FUNCTIONS & HANDLERS ##########################
+###########################################################################
+###########################################################################
 
 #########################
 # Trap handler
@@ -436,10 +425,14 @@ m_ret: # return form trap routine
 #########################
 
 debug_rom:
-    # some nops and a dret
+    # simple jump to emulate real entry
+    j debug_rom_entry
     nop
-    # if dscratch0 == 1, we want to do the single
-    #step debug test
+debug_rom_entry:
+    # in real debug rom, there is a fence at entry
+    fence
+    # if dscratch0 == 1 (we already did first d_ret test)
+    # we want to skip to the single step debug test
     csrr t2, dscratch0
     li t3, 0x1
     beq t2, t3, single_step_test
@@ -472,23 +465,44 @@ single_step_test:
     nop
     nop
     # we set dscr's step flag to 1
-    # and d_ret. the cu should come back
+    # and d_ret. the cpu should come back
     # right after. Except if single step already was 1
     # in which case we clear it, write 2 to scratch for
     # the testbench to check and  leave
-    csrr   t0, 0x7b0        # dcsr
-    andi   t1, t0, (1 << 2) # t1 = dcsr.step ? 4 : 0
-    beqz   t1, set_step     # if step == 0, go set it
+    csrr    t0, dcsr
+    # Check if we already did single step test before ?
+    andi    t1, t0, (1 << 2) # t1 = dcsr.step ? 4 : 0 (check if flag is set)
+    beqz    t1, set_step     # if step == 0, go set it, if not, advance to clear_step.
+    # if we arrive here, we did the single step once
+    # so we restore dpc frrm set_i_cache to old one
+    # (stored in dscratch1) and advance to clear the step
+    csrr    t0, dscratch1
+    csrw    dpc, t0
 clear_step:
-# note : set step is exeuted before in the tb
-    csrci  0x7b0, 4
-    li     t2, 2
-    csrw   0x7b2, t2
+    # once dpc is restore, we clear step, hint we did it in dscratch0 and dret back to the test
+    csrci   dcsr, 4
+    li      t2, 2
+    csrw    dscratch0, t2
     # set scratch0 to 2 to flag this tst as done
-    csrwi dscratch0, 0x2
+    csrwi   dscratch0, 0x2
     dret
 set_step:
-    csrsi  0x7b0, 4
+    # set single step flag
+    csrsi   dcsr, 4
+    # BUG FIX 12/2025
+    # Single stepping and I$ setting causes huge timing issues
+    # so here, we'll set dpc to a piece of code that especially re-activate the
+    # I$.
+    # we save that address in dscratch1 to restore it later
+    csrrw   t1, dpc, x0
+    csrrw   x0, dscratch1, t1
+    #set dpc to problematic instruction
+    la      t0, set_i_cache
+    csrrw   x0, dpc, t0
+    nop
+    # t0 will be used to set upper limit of instr_non_cachable_limit, which we set to debug ROM start
+    la t0, debug_rom
+    # addi t0, t0, -4
     dret
 
 # ========================================

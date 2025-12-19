@@ -11,9 +11,17 @@ Get rid of unecessry second adder logic, i.e. make this whole thing more readabl
 
 Rename LS decoder input to 2 bits wide offset instead of full blown alu restult
 
+check and rework vivado tcl setup
+
+add a cache invalider that simply set all valid bits to 0 in D$ (maybe I$ as well ? in theory useful but in practice completely useless)
+  - this would allow to deactivate cache and then reactivate it + set all data as stale as it (the data) changed while deactivated redering cached data non valid.
+
 # DOING
 
 Add M extension support
+  - update readme
+  - update doc
+  - make new course edition perf_edition.md
 
 Remove / cleanup debug probe (datapath and fpga top wapper)
 

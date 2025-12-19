@@ -104,7 +104,7 @@ logic [31:0] mtval, next_mtval;                 // 0x343
 logic [31:0] dcsr, next_dcsr;                   // 0x7b0
 logic [31:0] dpc, next_dpc;                     // 0x7b1
 logic [31:0] dscratch0, next_dscratch0;         // 0x7b2
-logic [31:0] dscratch1, next_dscratch1;         // 0x7b2
+logic [31:0] dscratch1, next_dscratch1;         // 0x7b3
 
 // Custom CSRs to controle cache behavior (if cache is enabled)
 logic [31:0] flush_cache, next_flush_cache;                           // 0x7C0
@@ -177,9 +177,9 @@ always_ff @(posedge clk) begin
         else if(m_ret)  trap_taken <= 1'b0;
 
         // Debug mode seq logic
-        if(jump_to_debug) begin
+        if(jump_to_debug || jump_to_debug_exception) begin
             debug_mode <= 1;
-        end else if(d_ret) begin
+        end else if(d_ret && instruction_valid) begin
             debug_mode <= 0;
         end else begin
             debug_mode <= debug_mode;
@@ -202,13 +202,13 @@ always_comb begin : next_csr_value_logic
         next_mstatus[3] = 0;                // Disable interrupts (IE = 0)
     end else if(m_ret)begin
         next_mstatus[3] = next_mstatus[7];  // Restore old IE when returning
-    end else if (instruction_valid && write_enable & (address == 12'h300)) begin
+    end else if (~stall && write_enable & (address == 12'h300)) begin
         next_mstatus = write_back_to_csr;
     end
 
     // mie
     next_mie = mie;
-    if (instruction_valid && write_enable && (address == 12'h304)) begin
+    if (~stall && write_enable && (address == 12'h304)) begin
         next_mie = write_back_to_csr;
     end
 
@@ -217,7 +217,7 @@ always_comb begin : next_csr_value_logic
 
     // mtvec
     next_mtvec = mtvec;
-    if (instruction_valid && write_enable && (address == 12'h305)) begin
+    if (~stall && write_enable && (address == 12'h305)) begin
         next_mtvec = write_back_to_csr;
     end
 
@@ -225,13 +225,13 @@ always_comb begin : next_csr_value_logic
     next_mepc = mepc;
     if (trap) begin
         next_mepc = current_core_pc;
-    end else if (instruction_valid && write_enable && (address == 12'h341)) begin
+    end else if (~stall && write_enable && (address == 12'h341)) begin
         next_mepc = write_back_to_csr;
     end
 
     //mscratch
     next_mscratch = mscratch;
-    if (instruction_valid && write_enable && (address == 12'h340)) begin
+    if (~stall && write_enable && (address == 12'h340)) begin
         next_mscratch = write_back_to_csr;
     end
 
@@ -251,7 +251,7 @@ always_comb begin : next_csr_value_logic
             31'd11: next_mtval = 32'd0;                             // ecall
             default:next_mtval = mtval;
         endcase
-    end else if (instruction_valid && write_enable && (address == 12'h343)) begin
+    end else if (~stall && write_enable && (address == 12'h343)) begin
         next_mtval = write_back_to_csr;
     end
 
@@ -290,10 +290,11 @@ always_comb begin : next_csr_value_logic
 
     // dcsr
     next_dcsr = dcsr;
-    if (instruction_valid && write_enable && (address == 12'h7b0)) begin
+    next_dcsr[1:0] = 2'b11; // M-mode only privilege
+    if (~stall && write_enable && (address == 12'h7b0)) begin
         next_dcsr = write_back_to_csr;
     end
-    if (jump_to_debug || jump_to_debug_exception) begin
+    if ((jump_to_debug || jump_to_debug_exception) && !(debug_mode && exception_cause == 31'd3)) begin
         // set cause when we are about to jump to debug mode
 
         /* Explains why Debug Mode was entered.
@@ -319,7 +320,7 @@ always_comb begin : next_csr_value_logic
         // cause support.
 
         if (breakpoint_detected) begin
-            next_dcsr[8:6] = 2;
+            next_dcsr[8:6] = 1;
         end else if (debug_exception_detected) begin
             next_dcsr[8:6] = 1;
         end else if (0) begin 
@@ -333,7 +334,7 @@ always_comb begin : next_csr_value_logic
 
     // dpc
     next_dpc = dpc;
-    if (instruction_valid && jump_to_debug && ~debug_exception_detected) begin 
+    if (jump_to_debug && ~debug_exception_detected && ~debug_mode && ~stall) begin 
         // Note: if we jump back because of an ebreak, dpc shall not change
         if(~single_step) begin
             next_dpc = current_core_pc;
@@ -341,7 +342,7 @@ always_comb begin : next_csr_value_logic
             next_dpc = anticipated_core_pc;
         end
     end
-    if (instruction_valid && write_enable && (address == 12'h7b1) && debug_mode) begin
+    if (~stall && write_enable && (address == 12'h7b1) && debug_mode) begin
         // TODO : the core should trap if this is accessed outside of debug more
         // (in general I did not implement illegal accesses at all, which are also todo)
         next_dpc = write_back_to_csr;
@@ -350,13 +351,13 @@ always_comb begin : next_csr_value_logic
 
     // dscratch0
     next_dscratch0 = dscratch0;
-    if (instruction_valid && write_enable && (address == 12'h7b2)) begin
+    if (~stall && write_enable && (address == 12'h7b2)) begin
         next_dscratch0 = write_back_to_csr;
     end
 
     // dscratch1
     next_dscratch1 = dscratch1;
-    if (instruction_valid && write_enable && (address == 12'h7b3)) begin
+    if (~stall && write_enable && (address == 12'h7b3)) begin
         next_dscratch1 = write_back_to_csr;
     end
 
@@ -366,7 +367,7 @@ always_comb begin : next_csr_value_logic
     if(flush_cache_flag) begin
         next_flush_cache = 32'd0; // if we sent the flush flag, reset on the next cycle
     end
-    else if (instruction_valid && write_enable && (address == 12'h7C0))begin
+    else if (~stall && write_enable && (address == 12'h7C0))begin
         next_flush_cache = write_back_to_csr;
     end
     else begin
@@ -377,22 +378,22 @@ always_comb begin : next_csr_value_logic
     // cachable base and limit CSR
 
     next_data_non_cachable_base = data_non_cachable_base;
-    if (instruction_valid && write_enable && (address == 12'h7C1)) begin
+    if (~stall && write_enable && (address == 12'h7C1)) begin
         next_data_non_cachable_base = write_back_to_csr;
     end
 
     next_data_non_cachable_limit = data_non_cachable_limit;
-    if (instruction_valid && write_enable && (address == 12'h7C2)) begin
+    if (~stall && write_enable && (address == 12'h7C2)) begin
         next_data_non_cachable_limit = write_back_to_csr;
     end
 
     next_instr_non_cachable_base = instr_non_cachable_base;
-    if (instruction_valid && write_enable && (address == 12'h7C3)) begin
+    if (~stall && write_enable && (address == 12'h7C3)) begin
         next_instr_non_cachable_base = write_back_to_csr;
     end
 
     next_instr_non_cachable_limit = instr_non_cachable_limit;
-    if (instruction_valid && write_enable && (address == 12'h7C4)) begin
+    if (~stall && write_enable && (address == 12'h7C4)) begin
         next_instr_non_cachable_limit = write_back_to_csr;
     end
 end
@@ -473,20 +474,31 @@ always_comb begin : control_assignments
     // Exception in debug mode goto debug' excpetion handler.
     // In debug mode, an expected ebreak (exc. cause = 3) will re-enter debug (not goto debug exception handler)
     // If dscr's ebreak<m|u|s> is set (bits 12,13 or 15), the csr_file file flag this as a jump to debug as this is a GDB breakpoint outside debug mode.
-    //
-    // Note : i know the logic below is a mess but I had to tinker around, feel free to simplify but youll have to TEST debug features MANUALLY
-    // and back it up for the chages to ba accepted. 
-    debug_exception_detected = exception & debug_mode & instruction_valid;
+    debug_exception_detected = exception && debug_mode && instruction_valid;
+    jump_to_debug_exception = debug_exception_detected && (exception_cause != 31'd3) && ~stall;
     breakpoint_detected = exception && |(dcsr[15:12]) && (exception_cause == 31'd3) && ~debug_mode;
 
-    jump_to_debug = (~trap_taken & debug_req & ~debug_mode & instruction_valid) | (debug_exception_detected & (exception_cause == 31'd3)) | (single_step && ~debug_mode && instruction_valid) | breakpoint_detected;
-    jump_to_debug_exception = debug_exception_detected & (exception_cause != 31'd3);
+    // Jumping to debug ROM's entry logic
+    // Note : when jump_to_debug is asseted, the debug cause is set in dcsr above
+    jump_to_debug = 0;
+    if(~stall && ~d_ret)begin
+        // If we get a regular plain debug req
+        if(debug_req && ~debug_mode)
+            jump_to_debug = 1;
+        // If an ebreak is called when in debug mode (reading ROM)
+        if(debug_exception_detected & (exception_cause == 31'd3))
+            jump_to_debug = 1;
+        // When single stepping flag is active in dcsr
+        if(single_step && ~debug_mode)
+            jump_to_debug = 1;
+        // When encontering a breakpoint;
+        if(breakpoint_detected)
+            jump_to_debug = 1;
+    end
 
     // Trap logic
-    // We cannot start a trap if we are debuging or about to enter debug mode !
-    // e.g. jump_to_debug resulting from a debug request 
-    // will always have a priority !
-    trap = (((| (mie & mip)) && mstatus[3]) || exception) & ~trap_taken & ~debug_mode & ~jump_to_debug;
+    // Debug has priority but trap still gets asserted to continue normal flow outside of debug mode
+    trap = (((| (mie & mip)) && mstatus[3]) || exception) & ~trap_taken & ~debug_mode;
 end
 
 endmodule

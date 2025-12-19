@@ -120,12 +120,12 @@ always_comb begin : pc_select
 
     // compute the PC we should have in a "normal", flow
     case (pc_source)
-        SOURCE_PC_PLUS_4 : pc_anticipated = pc_plus_four;
-        SOURCE_PC_SECOND_ADD : pc_anticipated = second_add_result;
-        SOURCE_PC_MTVEC : pc_anticipated = csr_mtvec;
-        SOURCE_PC_MEPC : pc_anticipated = csr_mepc;
-        SOURCE_PC_DPC : pc_anticipated = csr_dpc;
-        default : pc_anticipated = pc_plus_four;
+        SOURCE_PC_PLUS_4 :      pc_anticipated = pc_plus_four;
+        SOURCE_PC_SECOND_ADD :  pc_anticipated = second_add_result;
+        SOURCE_PC_MTVEC :       pc_anticipated = csr_mtvec;
+        SOURCE_PC_MEPC :        pc_anticipated = csr_mepc;
+        SOURCE_PC_DPC :         pc_anticipated = csr_dpc;
+        default :               pc_anticipated = pc_plus_four;
     endcase
 
     if(stall) begin

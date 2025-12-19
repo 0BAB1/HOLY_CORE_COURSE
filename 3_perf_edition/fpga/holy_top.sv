@@ -104,11 +104,7 @@ module holy_top #(
     output logic [31:0] pc_next,
     output logic [31:0] instruction,
     output logic i_cache_stall,
-    output logic [3:0] i_cache_state,
-    output logic [3:0] i_cache_next_state,
     output logic d_cache_stall,
-    output serving_state_t debug_serving,
-    output serving_state_t debug_next_serving,
 
     // testbench specific debug stuff
     input logic tb_debug_req
@@ -175,11 +171,7 @@ holy_core #(
     .debug_pc_next(pc_next),
     .debug_instruction(instruction),
     .debug_i_cache_stall(i_cache_stall),
-    .debug_d_cache_stall(d_cache_stall),
-    .debug_i_cache_state(i_cache_state),
-    .debug_i_next_cache_state(i_cache_next_state),
-    .debug_serving(debug_serving),
-    .debug_next_serving(debug_next_serving)
+    .debug_d_cache_stall(d_cache_stall)
 );
 /* verilator lint_on PINMISSING */
 

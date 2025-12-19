@@ -32,6 +32,7 @@ add_files -norecurse {
     ./3_perf_edition/src/signext.sv
     ./3_perf_edition/src/load_store_decoder.sv
     ./3_perf_edition/src/csr_file.sv
+    ./3_perf_edition/src/mul_div_unit.sv
     ./3_perf_edition/tb/holy_core/axi_if_convert.sv
     ./3_perf_edition/fpga/boot_rom.sv
     ./3_perf_edition/fpga/ROM/boot_rom.v

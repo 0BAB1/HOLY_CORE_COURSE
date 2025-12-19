@@ -30,6 +30,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
+from cocotb.handle import Force, Release
 
 # WARNING : Passing test on async clocks does not mean CDC timing sync is met !
 CPU_PERIOD = 10
@@ -74,109 +75,42 @@ async def cpu_insrt_test(dut):
 
     # Init the memories with the program data. Both are sceptible to be queried so we init both.
     # On a real SoC, a single memory will be able to answer bot axi and axi lite interfaces
-    hex_path = "./doom_no_bss_with_cache.hex"
-    #hex_path = "./hello_world.hex"
+    hex_path = "./cache_stress_test.hex"
     await init_memory(axi_ram_slave, hex_path, 0x80000000)
     await init_memory(axi_lite_ram_slave, hex_path, 0x80000000)
 
-    while dut.core.stall.value == 1:
+    # wait until we almost fectch jump to main instr
+    while not dut.core.pc.value == 0x80000048:
         await RisingEdge(dut.clk)
+
+    # before doing that, we setas single step mode
+    dut.core.holy_csr_file.dcsr.value = int(dut.core.holy_csr_file.dcsr.value) | (1 << 2)
+    await RisingEdge(dut.clk)
+    while dut.core.stall.value:
+        await RisingEdge(dut.clk)
+    dut.core.holy_csr_file.dcsr.value = int(dut.core.holy_csr_file.dcsr.value) & ~(1 << 2)
+    dut.core.holy_csr_file.d_ret.setimmediatevalue(1)
+    dut.core.holy_csr_file.d_ret.value = 1
+    dut.core.control_unit.d_ret.setimmediatevalue(1)
+    await RisingEdge(dut.clk)
+    dut.core.holy_csr_file.d_ret.value = Release()
+
+    for _ in range(1000):
+        await RisingEdge(dut.clk)
+    return
 
     num_cycles = 0
-    num_instr = 0
-    num_i_stall = 0
-    num_d_stall = 0
-    num_d_stall_on_real_data = 0
-    num_branches = 0
-    num_jumps = 0
-    num_branches_taken = 0
 
-    for _ in range(NUM_CYCLES) :
+    while dut.core.exception.value == 0 and not (int(dut.core.pc.value) >= 0x8003cfd4 and int(dut.core.pc.value) <= 0x003d0a4):
         await RisingEdge(dut.clk)
         num_cycles += 1
-
-        if dut.core.trap.value or dut.core.exception.value == 1:
-            dut._log.critical("Unexpected exception !")
-            for _2 in range(500):
-                await RisingEdge(dut.clk)
-            return
 
         if num_cycles % 5000 == 0:
             print("===============")
             print("cycles : ", num_cycles)
-            print("instr : ", num_instr)
-            print("i stall : ", num_i_stall)
-            print("d stall : ", num_d_stall)
-            print("real d stall : ", num_d_stall_on_real_data)
-            print("b : ", num_branches)
-            print("taken b : ", num_branches_taken)
-            print("j : ", num_jumps)
+            print("pc : ", dut.core.pc.value)
 
-        # Stalls
-        if dut.core.i_cache_stall.value == 1:
-            num_i_stall += 1
+        if int(dut.core.pc.value )>= 0x8003cfd4 and int(dut.core.pc.value) <= 0x003d0a4 : break
 
-        if dut.core.d_cache_stall.value == 1:
-            num_d_stall += 1
-            if int(dut.core.alu_result.value) > int(0x80000000):
-                num_d_stall_on_real_data += 1
-
-        # Get instruction bits
-        instr = dut.core.instruction.value & 0xFFFFFFFF
-        opcode = instr & 0x7F
-
-        # Count BRANCH instructions (opcode = 1100011 = 0x63)
-        if opcode == 0x63 and dut.core.stall.value != 1:
-            num_branches += 1
-
-        # Count JAL (0x6F)
-        if opcode == 0x6F:
-            num_jumps += 1   # treat as branch-type instr
-
-        # Count JALR (0x67)
-        if opcode == 0x67:
-            num_jumps += 1   # treat as branch-type instr
-
-        # Detect TAKEN (control-stage) branch/jump
-        if dut.core.control_unit.assert_branch.value == 1:
-            num_branches_taken += 1
-
-        # Count executed instructions (only if not stalled)
-        if dut.core.stall.value == 0:
-            num_instr += 1
-
+    print("OVER!")
     await ClockCycles(dut.clk, 1000)
-
-    dut._log.critical("=========================================")
-    dut._log.critical("        HOLY-CORE RISC-V REPORT")
-    dut._log.critical("=========================================")
-    dut._log.critical(f"Cycles                        : {num_cycles}")
-    dut._log.critical(f"Instructions executed         : {num_instr}")
-    dut._log.critical(f"I-cache stalls                : {num_i_stall}")
-    dut._log.critical(f"D-cache stalls (all)          : {num_d_stall}")
-    dut._log.critical(f"D-cache stalls (real data)    : {num_d_stall_on_real_data}")
-    dut._log.critical(f"Branch instructions           : {num_branches}")
-    dut._log.critical(f"Jump instructions             : {num_jumps}")
-    dut._log.critical(f"Branches/jumps actually taken : {num_branches_taken}")
-
-    # Derived metrics
-    if num_instr > 0:
-        cpi = num_cycles / num_instr
-        ipc = num_instr / num_cycles
-        dut._log.critical(f"CPI                           : {cpi:.3f}")
-        dut._log.critical(f"IPC                           : {ipc:.3f}")
-    else:
-        dut._log.critical("CPI / IPC                      : N/A (0 instructions)")
-
-    # Optional percentages
-    if num_cycles > 0:
-        dut._log.critical(f"I-cache stall %                : {num_i_stall / num_cycles * 100:.2f}%")
-        dut._log.critical(f"D-cache stall % (all)          : {num_d_stall / num_cycles * 100:.2f}%")
-        dut._log.critical(f"D-cache stall % (real data)    : {num_d_stall_on_real_data / num_cycles * 100:.2f}%")
-
-    dut._log.critical("=========================================")
-
-        
-
-
-    return

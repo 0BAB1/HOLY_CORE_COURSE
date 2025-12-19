@@ -11,10 +11,12 @@
 
 # disable all logs for heavy simulations
 export COCOTB_LOG_LEVEL=CRITICAL
+export COCOTB_LOG_LEVEL=INFO
 SIM ?= verilator
 TOPLEVEL_LANG ?= verilog
-EXTRA_ARGS += --trace --trace-structs --sv -Wno-fatal
-WAVES ?= 1
+WAVES = 1
+EXTRA_ARGS += --trace --trace-fst --trace-structs 
+EXTRA_ARGS += --sv -O3 -Wno-fatal
 
 TOPLEVEL = holy_test_harness
 MODULE   = test_holy_core

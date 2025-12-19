@@ -1180,6 +1180,9 @@ async def cpu_insrt_test(dut):
         # save the last known pc to later check is dpc saves it well
         pc_save = dut.core.pc.value
         await RisingEdge(dut.clk)
+    
+    dut.core.debug_req.value = 0
+    await Timer(1, units="ns")
 
     # wait for ebreak
     while not binary_to_hex(dut.core.instruction.value) == "00100073":
@@ -1234,7 +1237,7 @@ async def cpu_insrt_test(dut):
     dut.core.debug_req.value = 1
     await NextInstr(dut)
     dut.core.debug_req.value = 0
-
+    
     while dut.core.stall.value == 1:
         await RisingEdge(dut.clk)
 
@@ -1245,6 +1248,12 @@ async def cpu_insrt_test(dut):
         await RisingEdge(dut.clk)
     
 
+    # we await the 1st dret from the set_step section
+    # this dret jumps to dpc which has been set to a cachable range
+    # altering instruction (set_i_cache) to monitor behavior
+    while not dut.core.instruction.value == 0x7b200073:
+        await Timer(1, units="ns")
+        
     await NextInstr(dut) # execute dret from the "set step" section
 
     # check if we exited debug mode

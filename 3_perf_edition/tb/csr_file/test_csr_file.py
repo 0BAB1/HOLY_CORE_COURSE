@@ -419,6 +419,7 @@ async def test_debug_behavior(dut):
     # if concurent debug req & IRQ, we go into debug
     dut.debug_req.value = 1
     dut.soft_itr.value = 1
+    dut.d_ret.value = 0
     await Timer(2, units="ns")
 
     assert dut.trap.value == 0
@@ -434,20 +435,25 @@ async def test_debug_behavior(dut):
     dut.d_ret.value = 1
     dut.debug_req.value = 0
     await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
     assert dut.debug_mode.value == 0
 
     # if concurent debug req & Exception, we go into debug
-
+    dut.current_core_pc.value = 0xABC
     dut.debug_req.value = 1
     dut.soft_itr.value = 0
     dut.exception.value = 1
+    dut.d_ret.value = 0
     await Timer(2, units="ns")
 
-    assert dut.trap.value == 0
+    # trap still asseted, the core enters a "trap flow" and debugger still gets the hand
+    assert dut.trap.value == 1
     assert dut.jump_to_debug.value == 1
     assert dut.jump_to_debug_exception.value == 0
     await RisingEdge(dut.clk)
     await Timer(2, units="ns")
+    assert dut.trap.value == 0
+    assert dut.mepc.value == 0xABC
     assert dut.debug_mode.value == 1
 
     # leave debug mode
@@ -459,11 +465,11 @@ async def test_debug_behavior(dut):
     dut.exception.value = 0
     dut.soft_itr.value = 0
     await RisingEdge(dut.clk)
+    await Timer(2, units="ns")
     assert dut.debug_mode.value == 0
     dut.d_ret.value = 0
 
     # stalling (no valid instruction) delays the jump to debug signals until stalling is no more
-
     dut.debug_req.value = 1
     dut.stall.value = 1
     dut.instruction_valid.value = 0
@@ -472,9 +478,20 @@ async def test_debug_behavior(dut):
     assert dut.jump_to_debug.value == 0
     assert dut.jump_to_debug_exception.value == 0
     await RisingEdge(dut.clk)
-    await Timer(2, units="ns")
+    await Timer(1, units="ns")
     assert dut.debug_mode.value == 0
 
+    # instruction is marked as non valid BUT still stalling (e.g. data is being fetched)
+    dut.instruction_valid.value = 0
+    dut.stall.value = 1
+    dut.debug_req.value = 1
+    await Timer(1, units="ns")
+
+    assert dut.debug_mode.value == 0
+    assert dut.jump_to_debug.value == 0
+    assert dut.jump_to_debug_exception.value == 0
+
+    # and now, all green flags (i vali and not stall) do enter dbug
     dut.instruction_valid.value = 1
     dut.stall.value = 0
     dut.debug_req.value = 1
@@ -488,7 +505,7 @@ async def test_debug_behavior(dut):
     await RisingEdge(dut.clk)
     await Timer(2, units="ns")
 
-    # If we are trapping, debug mode will have to wait for trap to be handled
+    # If we are trapping, debug mode can still be entered
     dut.exception.value = 1
     await RisingEdge(dut.clk)
     await Timer(2, units="ns")
@@ -498,21 +515,49 @@ async def test_debug_behavior(dut):
     dut.debug_req.value = 1
     await Timer(1, units="ns")
 
-    assert dut.jump_to_debug.value == 0
-    # clear test signals...
+    assert dut.jump_to_debug.value == 1
+    # cancel req so we stay in non debug mode
     dut.debug_req.value = 0
+    await Timer(1, units="ns")
+
+    assert dut.debug_mode.value == 0
+
+    # ebreak (breakpoint setup) when trapping should also allow debug mode entry
+    dut.exception.value = 1
+    dut.exception_cause.value = 3 # ebreak
+    dut.dcsr.value = dut.dcsr.value | 1 << 15 # set ebreakm
+    await Timer(1, units="ns")
+    assert dut.jump_to_debug.value == 1
+
+    # enter debug mode with
+    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
+    assert dut.debug_mode.value == 1
     dut.exception.value = 0
+
+    # When stalling for many cycles (eg a jump causing a cache miss)
+    # after transitionning to debug mode, we should keep a steady state
+    dut.stall.value = 1
+    dut.instruction_valid.value = 0
+    for _ in range(100):
+        await RisingEdge(dut.clk)
+
+    assert dut.debug_mode.value == 1
+
+    # leave debug mode
+    dut.stall.value = 0
+    dut.instruction_valid.value = 1
+    dut.d_ret.value = 1
+    await RisingEdge(dut.clk)
+    await Timer(1, units="ns")
+    dut.d_ret.value = 0
 
     # ==================================
     # single step behavior tests
 
     dut.anticipated_core_pc.value = 0xDEADBEEF
-
-    # leave debug mode and set step bit inf dcsr
-    await RisingEdge(dut.clk)
     dut.dcsr.value = Force(dut.dcsr.value | (1 << 2))
     await Timer(1, units="ns")
-    assert dut.debug_mode.value == 0
 
     # CSR BEHAVIORAL ASSETIONS when we set step
     assert dut.single_step.value == 1
@@ -521,6 +566,7 @@ async def test_debug_behavior(dut):
     assert dut.jump_to_debug_exception.value == 0
     assert dut.debug_mode.value == 0
 
+    # ENTER BACK DEBUG AFTER STEP
     await RisingEdge(dut.clk)
     await Timer(1, units="ns")
     # we should be back in the debug mode now
@@ -528,18 +574,37 @@ async def test_debug_behavior(dut):
 
     # Wait a few clock cycles, make sure dcsr cause and dpc stays the same
     dut.anticipated_core_pc.value = 0xAEAEAEAE
-    for _ in range(10):
+    dut.current_core_pc.value = 0xAEAEAEAE
+    for _ in range(100):
+        await RisingEdge(dut.clk)
+        assert dut.dpc.value == 0xDEADBEEF
+        assert (dut.dcsr.value >> 6 & 0b111) == 4
+
+    # do the same by touching stall and valid
+    dut.instruction_valid.value = 0
+    dut.stall.value = 1
+    for _ in range(100):
         await RisingEdge(dut.clk)
         assert dut.dpc.value == 0xDEADBEEF
         assert (dut.dcsr.value >> 6 & 0b111) == 4
 
     # The debugger now set dcsr step to 0, we reverify that dcsr cause and dpc stays the same
     dut.dcsr.value = Force(dut.dcsr.value & ~(1 << 2))
+    dut.instruction_valid.value = 1
+    dut.stall.value = 0
     await Timer(1, units="ns")
     assert dut.single_step.value == 0
 
-    for _ in range(10):
+    for _ in range(100):
         await RisingEdge(dut.clk)
+        assert (dut.dcsr.value >> 6 & 0b111) == 4
+
+    # same with stall and instrction valid down
+    dut.instruction_valid.value = 0
+    dut.stall.value = 1
+    for _ in range(100):
+        await RisingEdge(dut.clk)
+        assert dut.dpc.value == 0xDEADBEEF
         assert (dut.dcsr.value >> 6 & 0b111) == 4
 
     dut.dcsr.value = Release()

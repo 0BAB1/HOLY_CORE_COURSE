@@ -430,11 +430,9 @@ always_comb begin : pc_source_select
         pc_source = SOURCE_PC_MEPC;
     end else if (d_ret) begin
         pc_source = SOURCE_PC_DPC;
-    end
-    else if (op == OPCODE_B_TYPE && assert_branch) begin
+    end else if (op == OPCODE_B_TYPE && assert_branch) begin
         pc_source = SOURCE_PC_SECOND_ADD;
-    end
-    else if (jump) begin
+    end else if (jump) begin
         pc_source = SOURCE_PC_SECOND_ADD;
     end
 end
