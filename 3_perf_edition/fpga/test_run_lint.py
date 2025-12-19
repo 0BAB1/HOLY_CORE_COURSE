@@ -79,29 +79,9 @@ async def cpu_insrt_test(dut):
     await init_memory(axi_ram_slave, hex_path, 0x80000000)
     await init_memory(axi_lite_ram_slave, hex_path, 0x80000000)
 
-    # wait until we almost fectch jump to main instr
-    while not dut.core.pc.value == 0x80000048:
-        await RisingEdge(dut.clk)
-
-    # before doing that, we setas single step mode
-    dut.core.holy_csr_file.dcsr.value = int(dut.core.holy_csr_file.dcsr.value) | (1 << 2)
-    await RisingEdge(dut.clk)
-    while dut.core.stall.value:
-        await RisingEdge(dut.clk)
-    dut.core.holy_csr_file.dcsr.value = int(dut.core.holy_csr_file.dcsr.value) & ~(1 << 2)
-    dut.core.holy_csr_file.d_ret.setimmediatevalue(1)
-    dut.core.holy_csr_file.d_ret.value = 1
-    dut.core.control_unit.d_ret.setimmediatevalue(1)
-    await RisingEdge(dut.clk)
-    dut.core.holy_csr_file.d_ret.value = Release()
-
-    for _ in range(1000):
-        await RisingEdge(dut.clk)
-    return
-
     num_cycles = 0
 
-    while dut.core.exception.value == 0 and not (int(dut.core.pc.value) >= 0x8003cfd4 and int(dut.core.pc.value) <= 0x003d0a4):
+    while dut.core.exception.value == 0 and (dut.core.instruction.value != 0xffdff06f):
         await RisingEdge(dut.clk)
         num_cycles += 1
 
@@ -110,7 +90,5 @@ async def cpu_insrt_test(dut):
             print("cycles : ", num_cycles)
             print("pc : ", dut.core.pc.value)
 
-        if int(dut.core.pc.value )>= 0x8003cfd4 and int(dut.core.pc.value) <= 0x003d0a4 : break
-
     print("OVER!")
-    await ClockCycles(dut.clk, 1000)
+    await ClockCycles(dut.clk, 500)

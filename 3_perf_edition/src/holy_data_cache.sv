@@ -73,8 +73,7 @@ module holy_data_cache #(
     // missed request.
     logic                           pending_read, next_pending_read;
 
-    // On read HIT, make 100% sure we remember DA WAE
-    // This is just safety but DOOm is bugging so we tryna make this air tight
+    // Hit latches are redundant, but kept because... yeah idk
     logic pending_hit_way, next_pending_hit_way;
 
     assign read_valid = (state == READ_OK);
@@ -357,12 +356,12 @@ module holy_data_cache #(
                 bram_re_way0 = ~flush_way;
                 bram_re_way1 = flush_way;
             end else begin
+                // BUG FIX : only update readout when the slave is ready
                 bram_set_addr = pending_set;
                 bram_word_addr = word_ptr;
-                bram_re_way0 = ~current_way;
-                bram_re_way1 = current_way;
+                bram_re_way0 = axi.wready ? ~current_way : 0;
+                bram_re_way1 = axi.wready ? current_way : 0;
             end
-
         end
         
         // Fulfill pending write after cache line fill

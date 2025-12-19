@@ -16,6 +16,8 @@ check and rework vivado tcl setup
 add a cache invalider that simply set all valid bits to 0 in D$ (maybe I$ as well ? in theory useful but in practice completely useless)
   - this would allow to deactivate cache and then reactivate it + set all data as stale as it (the data) changed while deactivated redering cached data non valid.
 
+in fpga for debugging : sepate a SIM ROM from actual ROM.
+
 # DOING
 
 Add M extension support
