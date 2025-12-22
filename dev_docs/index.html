@@ -427,6 +427,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#alu-mdu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ALU &amp; MDU
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#control" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -859,6 +870,17 @@
     <span class="md-ellipsis">
       
         Stalling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alu-mdu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ALU &amp; MDU
       
     </span>
   </a>
@@ -1431,13 +1453,22 @@
 </table>
 <p>The handshake delay can vary greatly depending on whether the cache missed or got a HIT.</p>
 <h3 id="stalling">Stalling</h3>
-<p>The main stall signal depend on <code>i_cache_stall || d_cache_stall</code>, which both depends on their respective handshake state.</p>
+<p>The main stall signal depend on <code>i_cache_stall || d_cache_stall || alu_stall</code>, which all depend on their respective handshake state.</p>
 <div class="admonition example">
 <p class="admonition-title">Example</p>
 <p>If the control signal that we read from memory (via <code>mem_read_enable</code>) but the <code>data_read_valid</code> is low (or we did not acknowledged it via <code>data_read_ack</code>, then we stall to "wait for the data request to be done", same for writing requests (with <code>mem_write_enable</code>, <code>data_req_ready</code> and <code>data_req_valid</code>)) and same for instruction read requests.</p>
 </div>
 <p>The stalling signal is <strong>central</strong> to this cpu, it is the only way (as there is no frontend to decide how to feed the hardware with instruction) to <strong>stop the execution flow</strong> in order to wait for something to be done. </p>
 <p>The <code>stall</code> signal is also used by rising edge sensitive module (alongside <code>instruction_valid</code>) to avoid writing data that is not valid yet because we'd have to wait for it to arrive.</p>
+<h3 id="alu-mdu">ALU &amp; MDU</h3>
+<p>The HOLY_CORE supports M extension. For potential future evolutions of the core, the ALU and the Mul / Div Unit (MDU) are separated and requests are simply routed to on or another depending on the control signals.</p>
+<p><strong>The ALU</strong> executes all the base RV32I operations in 1 cycle using pure comb logic, shift operations are executed in 1 cycle as well. The ALU also output flags during comparisons, used by the control unit to determine branch conditions.</p>
+<p><strong>The MDU</strong> can execute MULs and DIVs. On FPGA, MUL are executed on DSP slices which takes no resources and can be executed in 1 cycle at virtually no cost</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There still is a 1 cycle delay in MUL operations for the read valid flag to go high (state machine transition induced delay) and allow DSP synth.</p>
+</div>
+<p>DIVs however, take 32 clock cycles by shifting the divisor and comparing it to the dividen to extract result and remainder. During this process, the core is stalled.</p>
 <h3 id="control">Control</h3>
 <p>The control modules acts as an instruction decoder and determines different control signals all over the data path (e.g. the <code>pc_source</code>).</p>
 <p>The control Unit also has the possibility to raise <a href="/data.md/#mcause-values-and-mtval-contents">exceptions and to set a cause</a>.</p>
@@ -1491,8 +1522,9 @@
 </ul>
 <p>But there are a couple of specificities in the hardware implementation :</p>
 <ul>
-<li>Debug requests have a priority over all traps</li>
+<li>Debug requests don't interfere with trap handling flow.</li>
 <li><code>ebreak</code> can jump to debug (instead of trap handler), considered as a software breakpoint depending on <code>dcsr[15:12]</code> values</li>
+<li>A <code>step</code> flag can be step by the debugger in <code>dcsr[2]</code>, which immidiatly asserts <code>jump_to_debug</code>, effectively giving control back to the debugger once a single instruction is executed.</li>
 <li>Exceptions in debug mode do not trap but jump to the debug module's exception handler.</li>
 </ul>
 <h3 id="register-file">Register File</h3>
@@ -1693,6 +1725,8 @@ _start:
             </div>
           
           
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
         
@@ -1725,7 +1759,7 @@ _start:
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.tabs.link"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
