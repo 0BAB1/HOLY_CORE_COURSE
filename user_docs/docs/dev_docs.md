@@ -140,7 +140,7 @@ The handshake delay can vary greatly depending on whether the cache missed or go
 
 ### Stalling
 
-The main stall signal depend on `i_cache_stall || d_cache_stall`, which both depends on their respective handshake state.
+The main stall signal depend on `i_cache_stall || d_cache_stall || alu_stall`, which all depend on their respective handshake state.
 
 !!! Example
     If the control signal that we read from memory (via `mem_read_enable`) but the `data_read_valid` is low (or we did not acknowledged it via `data_read_ack`, then we stall to "wait for the data request to be done", same for writing requests (with `mem_write_enable`, `data_req_ready` and `data_req_valid`)) and same for instruction read requests.
@@ -148,6 +148,19 @@ The main stall signal depend on `i_cache_stall || d_cache_stall`, which both dep
 The stalling signal is **central** to this cpu, it is the only way (as there is no frontend to decide how to feed the hardware with instruction) to **stop the execution flow** in order to wait for something to be done. 
 
 The `stall` signal is also used by rising edge sensitive module (alongside `instruction_valid`) to avoid writing data that is not valid yet because we'd have to wait for it to arrive.
+
+### ALU & MDU
+
+The HOLY_CORE supports M extension. For potential future evolutions of the core, the ALU and the Mul / Div Unit (MDU) are separated and requests are simply routed to on or another depending on the control signals.
+
+**The ALU** executes all the base RV32I operations in 1 cycle using pure comb logic, shift operations are executed in 1 cycle as well. The ALU also output flags during comparisons, used by the control unit to determine branch conditions.
+
+**The MDU** can execute MULs and DIVs. On FPGA, MUL are executed on DSP slices which takes no resources and can be executed in 1 cycle at virtually no cost
+
+!!! Note
+    There still is a 1 cycle delay in MUL operations for the read valid flag to go high (state machine transition induced delay) and allow DSP synth.
+
+DIVs however, take 32 clock cycles by shifting the divisor and comparing it to the dividen to extract result and remainder. During this process, the core is stalled.
 
 ### Control
 
@@ -213,8 +226,9 @@ We can find similar elements:
 
 But there are a couple of specificities in the hardware implementation :
 
-- Debug requests have a priority over all traps
+- Debug requests don't interfere with trap handling flow.
 - `ebreak` can jump to debug (instead of trap handler), considered as a software breakpoint depending on `dcsr[15:12]` values
+- A `step` flag can be step by the debugger in `dcsr[2]`, which immidiatly asserts `jump_to_debug`, effectively giving control back to the debugger once a single instruction is executed.
 - Exceptions in debug mode do not trap but jump to the debug module's exception handler.
 
 ### Register File

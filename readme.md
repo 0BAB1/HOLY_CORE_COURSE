@@ -1,195 +1,122 @@
-# HOLY CORE COURSE PROJECT
+# HOLY CORE PROJECT
 
 ![banner](./user_docs/docs/images/banner.png)
 
-An open-source core **for learning purposes**. Learn to build your own 32 bits RISC-V core with detailed tutorials as a reference.
+**Build your own 32-bit RISC-V CPU from scratch.** An open-source core with detailed tutorials — because learning hardware shouldn't feel like black magic.
 
-The specificity of this project is that everything is documented in accute details, keaving you with easy to follow documents and scheme to make the learning process as simple as possible.
+<!-- "For God is not a God of confusion but of peace."
+— 1 Corinthians 14:33 -->
+<!-- Aftersome reflexion, I'm commenting this citation out of respect to the teachinf of the holy catholic church. This project is filled with references but is not a substitute to the church's preaching... -->
 
-RISC-V is open source, but the digital design field is more about giving headaches than real solutions for people looking to learn new stuff. Engineers **LOVE** making everything overcomplicated. This course aims at showing than anyone can do it, with just some will power, patience and an FPGA (not mandatory).
+> And yes, the HOLY CORE runs **DOOM**!
 
-"For God is not a God of confusion but of peace."
-— 1 Corinthians 14:33
+## 🧙‍♂️ Choose Your Path
 
-> And yes, This CPU runs "DOOM".
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## Start Building
+### 📚 I want to **LEARN**
+*Follow the tutorials step-by-step*
 
-This project is a course you can follow to build the HOLY CORE and everything that comes with it, and the final product of your work will feature :
+Perfect if you want to understand how CPUs work by building the HOLY CORE yourself.
 
-- A **single cycle** RV32I Zicsr (holy) Core
-- Privileged specs support (Interrupts & Exceptions)
-- A customizable cache system
-- A small SoC & Some Software
+**Start here →** [Setup Guide](./setup.md)
 
-> You will find quickstart guides in the code case to help you out using the core without having to build it from scratch.
+Then follow the course:
+1. [Single Cycle Edition](./0_single_cycle_edition/single_cycle_edition.md)
+2. [FPGA Edition](./1_fpga_edition/fpga_edition.md)
+3. [SoC & Software Edition](https://babinriby.gumroad.com/l/holy_core) *(PDF)*
 
-The course is divided in multiple blocks to learn different aspects of digital design. The table below indicates availability of these learning blocks.
+</td>
+<td width="50%" valign="top">
 
-| Block Name              | Status |
-| ----------              | ------ |
-| Single cycle edition    | FINISHED |
-| FPGA edition            | FINISHED |
-| SoC & Software Edition  | FINISHED |
-| Performance Edition     | ON MY TODO LIST |
-| OS edition              | ON MY TODO LIST |
+### 🚀 I want to **USE**
+*Get the core running quickly*
 
-The code will always be **open-source**. I do give the option to donate money for nicer and reworked PDF versions. Link : [support using PDF Versions](https://babinriby.gumroad.com/l/holy_core)
+Perfect if you already know what you're doing and just want to test/extend the core.
 
-> Side note: please checkout the end of this document regarding the future of this situation.
+**Start here →** [Quickstart](https://0bab1.github.io/HOLY_CORE_COURSE/#quickstart)
 
-## The tutorials (WHERE DO I START)
+Full reference docs:
+- [📖 Documentation](https://0bab1.github.io/HOLY_CORE_COURSE/)
 
-Before diving into the tutorials, it is **mandatory** to setup your environment correctly first **using the guidelines listed in the setup manual** (@ the root of the tutorials repo : `setup.md`)
+</td>
+</tr>
+</table>
 
-Once the setup is done you can start working on the *single cycle edition* tutorial.
+## 🎓 What You'll Build
 
-1. [Setup your project](./setup.md)
-2. [Build a basic single core](./0_single_cycle_edition/single_cycle_edition.md)
-3. [Add memory and GPIO interfacing (Cache + AXI) / Use Vivado to impl on FPGA / Run real software](./1_fpga_edition/fpga_edition.md)
-4. [Make the core RISC-V compliant and create a real SoC + Privileged Specs support (only available as PDF for now)](https://babinriby.gumroad.com/l/holy_core)
+By the end of this course, you'll have:
 
-Happy learning !
+| Feature | Description |
+|---------|-------------|
+| 🧠 **RV32I Zicsr Core** | Full integer instruction set + CSR support |
+| ⚡ **Interrupts & Exceptions** | Privileged spec compliant |
+| 💾 **Cache System** | Learn advanced statemachine and AXI protocols by build configurable instruction & data caches |
+| 🔌 **Complete SoC** | UART, GPIO, etc Running on your FPGA |
+| 🎮 **Real Software** | C programs, bare-metal, etc |
 
+## 📖 Course Overview
 
-## Course summary
+### 🟢 Single Cycle Edition
+> *Learn the fundamentals*
 
-What can you learn from the different course blocks ?
+Build the full RV32I instruction set from scratch in SystemVerilog. Test everything with cocotb.
 
-### Single cycle edition
+**You'll learn:** ALU design, register files, control logic, instruction decoding, basic verification.
 
-Learn to implement the full RV32I instruction set from scratch.
+### 🟢 FPGA Edition  
+> *Meet the real world*
 
-**Goal :** Get a RISC-V program to run ont the core through simulation. The core is 100% custom logic, from scratch.
+Add memory interfaces (AXI), design a cache system, and deploy on actual FPGA hardware.
 
-- Build the different logic blocks and assemble them to implement your first instruction : ```lw```
-- Improve the design to implement more and more instructions
-- Build simple test benches to test your logic and learn a basic design/test workflow.
+**You'll learn:** Memory hierarchies, bus protocols, hardware/software co-design.
 
-You will build the logic blocks yourself in **systemVerilog** and test them using **cocotb**. You can follow along the tutorial for reference but as long as the logic works, you can do you own logic and tinker around !
+### 🟡 SoC & Software Edition *(Contributors Only)*
+> *Make it useful*
 
-### FPGA Edition
+Pass RISC-V compliance tests, add interrupts, write C code, build driver libraries.
 
-Take a deep dive into memory.
+**You'll learn:** Privileged architecture, interrupt handling, embedded C development.
 
-**Goal :** Implement the core on FPGA and leverage systemVerilog capabilities to :
+### 🔴 Performance Edition *(Coming Soon)*
+> *Maximum FPS on DOOM*
 
-- Add interface to interact with the "outside" world
-- Design a basic AXI cache
-- Configure the cache using custom CSRs
-- Interact with I/Os
+### 🔴 OS Edition *(Coming Soon)*
+> *Run a real operating system*
 
-### Software edition
+## 📊 Status
 
-Remember : a CPU is meant to run software !
+| Edition | Status |
+|---------|--------|
+| Single Cycle | ✅ Complete |
+| FPGA | ✅ Complete |
+| SoC & Software | ✅ Complete |
+| Performance | 🔜 DOING |
+| OS | 🔴 Idk |
 
-**Goal :** Make software develpoment easier and run bare metal application smoothly & reliably.
+## Support the Project
 
-- Test and debug the *HOLY CORE* complioance to actual RISC-V specs
-- Enable & use C programming
-- Add interrupts
-- Develop basic C utilities librairies
+The code is **100% open-source** and always will be.
 
-### Other Editions
+If you want to support the project and get nicely formatted PDF versions of the tutorials:
 
-Other editions are coming soon ! Stay tuned !
+**→ [Get the PDF Course](https://babinriby.gumroad.com/l/holy_core)**
 
-## Core Resources Utilization
 
-The core (without cache) utilize 4k LUTs and 5.5K FFs. The entire SoC utilize 20K LUTs as vivado's interconnect IPs are very large...
+## 🤝 Contributing
 
-Last update: 22nd of june 2025 on a zybo Z7-20.
+Contributions welcome! Typo fixes, documentation improvements, bug reports — all appreciated.
 
-## Quickstart
+> ⚠️ Large architectural PRs have low chances of being merged. Open an issue first to discuss.
 
-### Simulation
+**Community Spotlight:** Check out [VERY HOLY CORE](https://github.com/jbeaurivage/very-holy-core) by @jbeaurivage — a Veryl rewrite of the HOLY_CORE! *Impressive, Very nice.*
 
-You can run a pre-made simulation of the holy core running using the following open-source stack:
+## 📜 A Note on AI & Content
 
-- Cocotb
-- Verilator
-- GtkWave for waveforms
+Please don't scrape this content to train AI models or rebrand it for LinkedIn clout. Thanks. 🙏
 
-That's it ! there is not container for tesbenches yet, you'll have to install these tools. More details in [the setup guide](./setup.md).
-
-To run the core a a test program of you choice (in assembly) go in `./2_soc_software_edition/fpga` and run `make`. This will run a simulation running the init boot ROM on the *HOLY_CORE*.
-
-To modify the boot ROM, go in `2_soc_software_edition/fpga/ROM/rom.S` and write your program there.
-
-Once your proram is written, run `make` in the `ROM/` folder in order to generate a hardcoded verilog ROM of you prgram. You can the `cd` back to `./2_soc_software_edition/fpga` and run `make` again to simulate it.
-
-> [!NOTE]
-> To run the basic testbenches used during the design process as a quick reference, go in `<edition>/tb` and run `pytest test_runner.py`, this will run all the quick refence tesbenches on each module, including a simple *HOLY CORE* test harness with a simple test program.
-
-> [!NOTE]
-> To verify the core, go in `./2_soc_software_edition/riscof` where more details await. A docker container is available for quick setup.
-
-### FPGA
-
-The only supported way to build a bitstream is Vivado (for now). The *HOLY CORE* examples SoC & Software also rely on the Xilinx block design & IP to function on FPGA.
-
-> The `2_soc_software_edition/fpga/holy_top` module contains all you need for the core to functions, vivado is only used to add some peripherals, e.g. UART. You are welcome to add you own SoCs in `fpga/<your_platform_of_choice>`
-
-Here are the supported boards for now:
-
-| **Board** | **Status**      |
-| --------- | --------------- |
-| Zybo Z720 | ⚠️ Needs update |
-| Basys3    | ⚠️ Needs update |
-| Arty S7   | ✅ All good      |
-
-Go in `2_soc_software_edition/fpga/`, select your board folder and run (for example, with the artyS7-50 board):
-
-```sh
-vivado -source 2_soc_software_edition/fpga/arty_S7/holy_vivado_setup.tcl
-```
-
-It will create the block design start making the bitstream right aways. One it's done, flash the FPGA, press `reset` on the board (peripherals reset) and release CPU reset (which is `SW2` on the arty, refer to the constraints file for different boards).
-
-The core will start at PC = 0x0, where the ROM will start being executed. By default, it simply blinks an LED in an infinite loop.
-
-To load more complex program, either modify the ROM (via the same technique as in the Simulation quickstart above) or open a terminal and run:
-
-```sh
-openocd -f ./2_soc_software_edition/fpga/arty_S7/holy_core_openocd.cfg 
-```
-
-> **Note:** you need a USB-JTAG dongle to do perform this. I use the HS2 rev. A. from Digilent. If you don't have it or a different one, open an issue so we can make a cfg file toghether for your use case.
-
-Then, you'll be able to use **gdb** to debug, allowing you to load a different program (mist link at base adress 0x80000000). You can directly load an example program to ttest it out:
-
-```sh
-riscv64-unknown-elf-gdb ./2_soc_software_edition/example_programs/ping_pong/ping_pong.elf
-
-(gdb)target remote :3333
-
-Remote debugging using :3333
-0x800004a4 in main ()
-
-(gdb) load
-
-Loading section .text, size 0x72c lma 0x80000000
-Loading section .rodata, size 0x10f lma 0x8000072c
-Loading section .rodata.str1.4, size 0x3 lma 0x8000083c
-Start address 0x80000000, load size 2110
-Transfer rate: 294 KB/sec, 703 bytes/write.
-
-(gdb) c
-Continuing.
-```
-
-And voila ! your program running on the *HOLY CORE*. You can also use GDB extensively to debug your program if needed.
-
-![interrupt based sell test program](./user_docs/docs/images/holy_shell.png)
-
-## OPEN SOURCE and CONTRIBUTIONS
-
-Contributions are welcome ! (e.g. fixing typos, modifying schemes or fixing bugs).
-
-Just know that very large PRs have low chances of being merged, keep it simple.
-
-**Special mention** to this Veryl rewrite of the `HOLY CORE` called `VERY HOLY CORE` by @jbeaurivage : [Link to VERY HOLY CORE repo](https://github.com/jbeaurivage/very-holy-core).
-
-## A word on the course (AKA me being a grumpy dude, as always)
-
-Please don't steal content to train some AI or to rebrand it to make a linkedin post.
+<p align="center">
+  <i>Happy learning! 🎓</i>
+</p>

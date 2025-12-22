@@ -41,7 +41,7 @@ The project comes with a `fpga/holy_top.sv` file. This main wrapper provides all
 - A 32-bit RISC-V CPU
 - 100% RISC-V compliant (according to the RISCOF framework)
 - A single cycle CPU, so simple in its architecture that even I wonder how it even runs any program at all without breaking.
-- Supports base ISA + privileged ISA (RV32I_Zicsr Privileged)
+- Supports base ISA + M extension + privileged ISA (RV32I_Zicsr Privileged)
 - Machine mode only
 
 ### Project Folder Structure
@@ -56,7 +56,7 @@ HOLY CORE COURSE
 │   ├── ...
 ├── 1_fpga_edition                  Not suitable for real use
 │   ├── ...
-├── 2_soc_software_edition          Contains bugs on advanced programs
+├── <latest_edition>          Contains bugs on advanced programs
 │   ├── ...
 ├── 3_perf_edition
 │   ├── Dockerfile                  Helper to quickly run RISCOF tests
@@ -84,9 +84,165 @@ HOLY CORE COURSE
 
 It depends on what you want to know.
 
-If you want to know how to get the HOLY CORE platform running on your FPGA, without caring about the actual usage yet, go to the [Practical FPGA Usage Guidelines](#fpga-usage-guidelines) section.
+- If you want a really quick guide to just build a bitstream in vivado / run basic simulation, go to the [quickstart guide](#quickstart).
+- If you have the holy core platform up and running and just want to know how to use it for your projects, start with [Using the Holy Core Platform](#holy-core-platform)
+- If you want to know how to build a HOLY CORE based SoC ang get it running on your own FPGA platform, without caring about the actual software usage (yet), go to the [Practical FPGA Usage Guidelines](#fpga-usage-guidelines) section.
 
-If you have the holy core platform up and running and just want to know how to make it run some program, start with [Using the Holy Core Platform](#holy-core-platform).
+## Quickstart
+
+!!! Note
+    Get the *HOLY CORE* running in simulation or on FPGA hardware. This part targets people who have the **exact** right setup and just want a quick demo running before moving on to actually using the core.
+
+### Quick Reference
+
+| Task                          | Command                                                      |
+|-------------------------------|--------------------------------------------------------------|
+| Run simulation                | `cd <latest_edition>/fpga && make`                     |
+| Rebuild ROM                   | `cd <latest_edition>/fpga/ROM && make`                 |
+| Run unit tests                | `cd <edition>/tb && pytest test_runner.py`                   |
+| Generate bitstream            | `vivado -source .../arty_S7/holy_vivado_setup.tcl`           |
+| Start debug server            | `openocd -f .../arty_S7/holy_core_openocd.cfg`               |
+| Load program via GDB          | `riscv64-unknown-elf-gdb <elf>` → `target remote :3333` → `load` |
+
+### Prerequisites
+
+Before you begin, make sure you have the appropriate tools installed depending on your target.
+
+#### Simulation
+
+- [Cocotb](https://docs.cocotb.org/) — Python-based hardware verification framework
+- [Verilator](https://verilator.org/) — open-source Verilog simulator
+- [GTKWave](http://gtkwave.sourceforge.net/) — waveform viewer (optional, for debugging, you can use your favorite tool here)
+
+#### FPGA
+
+To use the *HOLY_CORE* on FPGA quickly, you need Vivado (Xilinx toolchain), required for quick bitstream generation using the TCL script.
+
+The base SoC comes with a simple ROM that blinks an LED, to load other programs, you'll need to debug using the associated tools:
+
+- OpenOCD — for JTAG debugging
+- RISC-V GCC toolchain (`riscv64-unknown-elf-gcc`)
+- A USB-JTAG adapter (e.g., Digilent HS2) for loading programs via GDB
+
+!!! info "Full Setup Instructions"
+    See the [Setup Manual/Prerequisites](https://github.com/0BAB1/HOLY_CORE_COURSE/blob/master/setup.md) for detailed installation steps.
+
+### Simulation Quickstart
+
+#### Running the Default Simulation
+
+From the repository root:
+
+```bash
+cd <latest_edition>/fpga
+make
+```
+
+This compiles the boot ROM and runs the HOLY_CORE in simulation using Verilator and Cocotb.
+
+#### Writing Your Own Test Program
+
+1. **Edit the boot ROM assembly:**
+
+    ```bash
+    vim <latest_edition>/fpga/ROM/rom.S
+    ```
+
+2. **Recompile the ROM:**
+
+    ```bash
+    cd <latest_edition>/fpga/ROM
+    make
+    ```
+
+3. **Run the simulation:**
+
+    ```bash
+    cd ..
+    make
+    ```
+
+#### Running Unit Tests
+
+To run the module-level testbenches:
+
+```bash
+cd <edition>/tb
+pytest test_runner.py
+```
+
+This executes quick reference tests on individual modules, including a basic HOLY_CORE integration test.
+
+#### Running RISCOF Compliance Tests
+
+For full ISA compliance verification:
+
+```bash
+cd <latest_edition>/riscof
+```
+
+!!! tip "Docker Available"
+    A Docker container is provided for easy RISCOF setup. See the README in that directory for details.
+
+### FPGA Quickstart
+
+#### Supported Boards
+
+| Board     | Status                                  |
+|-----------|-----------------------------------------|
+| Arty S7   | :material-check-circle: Fully supported |
+| Zybo Z720 | :material-alert: Needs update           |
+| Basys3    | :material-alert: Needs update           |
+
+!!! note "Portability"
+    The `<latest_edition>/fpga/holy_top.sv` module is vendor-agnostic. Vivado is only used to add peripherals (UART, etc.). You can create your own SoC in `fpga/<your_platform>/`. More infos in the more [in depth guide](#integration-in-an-soc-guidelines)
+
+#### Step 1 — Generate the Bitstream
+
+```bash
+vivado -source <latest_edition>/fpga/arty_S7/holy_vivado_setup.tcl
+```
+
+Vivado will create the block design and start synthesis/implementation automatically.
+
+#### Step 2 — Flash and Boot
+
+1. Program the FPGA with the generated bitstream
+2. Press the **reset** button (resets peripherals)
+3. Release the CPU reset switch (`SW2` on Arty S7 — check your board's constraints file)
+
+The CPU starts execution at `PC = 0x0`, running the boot ROM. By default, this blinks an LED in a loop.
+
+#### Step 3 — Load Custom Programs via JTAG
+
+To run more complex software, use OpenOCD and GDB.
+
+**Start the debug server:**
+
+```bash
+openocd -f <latest_edition>/fpga/arty_S7/holy_core_openocd.cfg
+```
+
+!!! warning "JTAG Adapter Required"
+    This requires a USB-JTAG adapter. The config is tested with **Digilent HS2 rev. A**.
+    
+    If you have a different adapter, [open an issue](https://github.com/your-repo/holy-core/issues) and we'll help you create a config file.
+
+**Connect with GDB and load a program:**
+
+```bash
+riscv64-unknown-elf-gdb <latest_edition>/example_programs/ping_pong/ping_pong.elf
+```
+
+```gdb
+(gdb) target remote :3333
+(gdb) load
+(gdb) continue
+```
+
+The program is loaded at base address `0x80000000` and execution begins:
+
+![Interrupt-based shell test program](images/holy_shell.png)
 
 ## Holy Core Platform
 
@@ -419,13 +575,13 @@ If your synthesis tool does not provide any AXI LITE interconnect solutions, you
 
 ### Integration in an SoC Guidelines
 
-This part aims at giving a quick easy to follow guide to get a basic demo running as quickly as possible.
+This part aims at giving a quick easy to follow guide to get a basic demo running as quickly as possible on you own FPGA platform.
 
 You'll need to connect the following top pins like so:
 
 | Port | What to do? | 
 |------|-----------|
-| `clk` | **30MHz clock** generated by whatever clocking solution (max is 32MHz, safe is 25MHz) | 
+| `clk` | **25MHz clock** generated by whatever clocking solution (max is 30MHz, safe is 25MHz) | 
 | `rst_n` | Active low push button, preferably coming from a reset controller (should wait for `periph_rst_n` to be fully reset) |
 | `periph_rst_n` | Active low switch, preferably coming from a reset controller |
 | `irq_in` | Nothing / GND for basic applications |
@@ -518,6 +674,31 @@ The best way to load some other program if you didn't add any bootloading soluti
 In the `holy_core.sv` top module, the debug module is a bus master by default and has the power of accessing your SoC through the `AXI_LITE` external interface, including your memory solution (e.g. BRAM, DRAM controller, etc). [GDB and OpenOCD](#on-chip-debugging-solutions) will work as expected and will allow you to freely control the execution flow.
 
 Adding a better bootloading solution is on my todo list.
+
+
+## Help & Misc
+
+<div class="grid cards" markdown>
+
+-   :material-book-open-variant:{ .lg .middle } **Documentation**
+
+    ---
+
+    A problem in the docs ? Open an [issue](https://github.com/0BAB1/HOLY_CORE_COURSE/issues).
+
+-   :material-bug:{ .lg .middle } **Issues & Questions**
+
+    ---
+
+    Having troubles you can't fix ? [Open an issue](https://github.com/your-repo/holy-core/issues) on GitHub.
+
+-   :material-source-pull:{ .lg .middle } **Contributions**
+
+    ---
+
+    PRs are welcome! This is true for this docs, [adding tcl scripts]() or [contributing to the RTL, but make sure you check the guidelines](dev_docs/#rtl-contributions-guidelines).
+
+</div>
 
 ## Acknowledgements
 

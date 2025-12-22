@@ -1,6 +1,8 @@
 site_name: Holy Core - Documentation
 theme:
   name: material
+  features:
+    - content.tabs.link
   custom_dir: docs
 extra_css:
   - styles/custom.css
@@ -8,3 +10,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
