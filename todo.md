@@ -2,14 +2,11 @@
 
 Make a specialize ReadOnly no cache for instructions (save couple hundred LUTs)
 
-In datapath, harmonize notation (especially across caches signals)
 
 Add litex support for better SoC flexibility and portability.
   - or manually add board supports + start supporting other vendors (latice, altera, gowin...) but that's a big budget tbh.
 
 Get rid of unecessry second adder logic, i.e. make this whole thing more readable and intuitive.
-
-Rename LS decoder input to 2 bits wide offset instead of full blown alu restult
 
 check and rework vivado tcl setup
 
@@ -20,14 +17,20 @@ in fpga for debugging : sepate a SIM ROM from actual ROM.
 
 # DOING
 
+Start writing perf edition
+
+Datapath major work for perf edition : Pipeline the CORE
+- In datapath, harmonize notation (especially across caches signals)
+- Rename LS decoder input to 2 bits wide offset instead of full blown alu restult
+
+# DONE
+
 Add M extension support
   - update readme
   - update doc
   - make new course edition perf_edition.md
 
 Remove / cleanup debug probe (datapath and fpga top wapper)
-
-# DONE
 
 Make part 3 CI actually test everything
 

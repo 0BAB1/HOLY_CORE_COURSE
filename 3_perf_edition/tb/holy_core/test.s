@@ -147,6 +147,11 @@ _start:
     # BGE TEST START
     bge_test:
     bge x8, x17, bge_addi # not taken
+    # bug fix 12/2025
+    li t0, 0x0c6
+    bgez t0, bge_test_2 # should branch !
+    j dummy_destination # if not, flow is broken here
+    bge_test_2:
     bge x8, x8, bltu_test # taken
     bge_addi:
     addi x8, x0, 12
@@ -343,6 +348,11 @@ set_i_cache:
 ###################### TEST FUNCTIONS & HANDLERS ##########################
 ###########################################################################
 ###########################################################################
+
+# some dummy code
+dummy_destination:
+    nop
+    j .
 
 #########################
 # Trap handler

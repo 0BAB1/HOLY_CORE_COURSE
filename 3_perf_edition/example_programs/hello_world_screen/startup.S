@@ -11,6 +11,7 @@ _start:
     li t1, 0xFFFFFFFF
     csrrw x0, 0x7C1, t0
     csrrw x0, 0x7C2, t1
+    li t1, 0x80000000
     csrrw x0, 0x7C3, t0
     csrrw x0, 0x7C4, t1
 

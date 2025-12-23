@@ -3,7 +3,7 @@ OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
 
 # Compilation flags
-CFLAGS = -march=rv32im -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -I../hc_lib/include
+CFLAGS = -march=rv32im -mabi=ilp32 -mstrict-align -nostdlib -Wall -Wextra -I../hc_lib/include -g
 LDFLAGS = -T ./linker.ld -nostdlib -L ../hc_lib -lholycore
 
 # ===== User specifies app directory =====

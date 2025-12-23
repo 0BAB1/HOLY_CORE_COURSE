@@ -64,7 +64,8 @@ void trap_handler() {
  * Helper Functions
  * ============================================================================= */
 static void delay_ms(uint32_t ms) {
-    for (volatile uint32_t i = 0; i < ms; i++);
+    for (volatile uint32_t i = 0; i < (ms); i++);
+    return;
 }
 
 static void spi_send(uint8_t data) {
@@ -103,7 +104,7 @@ void lcd_init(void) {
     GPIO2_DATA &= ~PIN_RESET;       /* RESET low */
     delay_ms(1000);
     GPIO2_DATA |= PIN_RESET;        /* RESET high */
-    delay_ms(12000);
+    delay_ms(1000);
     
     /* SPI init */
     SPI_SOFT_RESET = 0x0000000A;
@@ -113,11 +114,11 @@ void lcd_init(void) {
     
     /* Software reset */
     lcd_cmd(ILI9341_SWRESET);
-    delay_ms(15000);
+    delay_ms(1000);
     
     /* Sleep out */
     lcd_cmd(ILI9341_SLPOUT);
-    delay_ms(15000);
+    delay_ms(1000);
     
     /* Pixel format: 16-bit */
     lcd_cmd(ILI9341_COLMOD);
@@ -129,7 +130,7 @@ void lcd_init(void) {
     
     /* Display ON */
     lcd_cmd(ILI9341_DISPON);
-    delay_ms(10000);
+    delay_ms(1000);
 }
 
 void lcd_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {

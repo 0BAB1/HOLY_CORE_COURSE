@@ -12,7 +12,7 @@
 # disable all logs for heavy simulations
 export COCOTB_LOG_LEVEL=CRITICAL
 # export COCOTB_LOG_LEVEL=INFO
-export COCOTB_LOG_LEVEL=DEBUG
+# export COCOTB_LOG_LEVEL=DEBUG
 SIM ?= verilator
 TOPLEVEL_LANG ?= verilog
 WAVES = 1

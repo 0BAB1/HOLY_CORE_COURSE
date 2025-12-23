@@ -582,22 +582,30 @@ async def cpu_insrt_test(dut):
     assert binary_to_hex(dut.core.regfile.registers[8].value) == "FFEADBEE"
 
     ##################
-    # bge x8 x17 0x8     
-    # bge x8 x8 0x8      
-    # addi x8 x0 0xC   
+    # BGE TEST
+    # bge_test:
+    # bge x8, x17, bge_addi # not taken
+    # # bug fix 12/2025
+    # li t0, 0x0c6
+    # bgez t0, bge_test_2 # should branch !
+    # j dummy_destination # if not, flow is broken here
+    # bge_test_2:
+    # bge x8, x8, bltu_test # taken
+    # bge_addi:
+    # addi x8, x0, 12
     ##################
     print("\n\nTESTING BGE\n\n")
 
     # execute, branch should NOT be taken !
     await NextInstr(dut) # bge x8 x17 0x8 
-    while(dut.core.stall.value == 1) :
-        await RisingEdge(dut.clk)
-    assert binary_to_hex(dut.core.instruction.value) == "00845463"
+    await NextInstr(dut) # li t0, 0x0c6
+    assert dut.core.regfile.registers[5].value == 0xc6
 
-    # execute, branch SHOULD be taken !
-    await NextInstr(dut) # bge x8 x8 0x8 
-    while(dut.core.stall.value == 1) :
-        await RisingEdge(dut.clk)
+    # This branch SHOULD NOT be taken !
+    await NextInstr(dut) # bgez t0, dummy_destination (not taken)
+
+    # This branch SHOULD be taken !
+    await NextInstr(dut) # bge x8 x8 0x8
     assert not binary_to_hex(dut.core.instruction.value) == "00C00413"
     # We verify x8 value was not altered by addi instruction, because it was never meant tyo be executed (sad)
     assert binary_to_hex(dut.core.regfile.registers[8].value) == "FFEADBEE"
