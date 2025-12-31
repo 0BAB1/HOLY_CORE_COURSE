@@ -174,7 +174,7 @@ from cocotb.triggers import RisingEdge, Timer
 @cocotb.test()
 async def memory_data_test(dut):
     # Start a 10 ns clock
-    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     await RisingEdge(dut.clk)
 
     # Reset
