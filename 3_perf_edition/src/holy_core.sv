@@ -176,7 +176,7 @@ holy_instr_cache instr_cache (
     .req_valid(~instr_non_cachable),
     .req_ready(),
     .read_valid(instr_cachable_read_valid),
-    .read_ack(instr_read_ack),
+    .read_ack(instr_read_ack && ~instr_non_cachable),
 
     // M_AXI EXERNAL REQ IF
     .axi(axi_instr),
@@ -193,7 +193,7 @@ holy_no_cache instr_no_cache (
     .write_data('0),
     .byte_enable('0),
     // handshake
-    .req_valid(instr_non_cachable),
+    .req_valid(instr_non_cachable && instr_non_cachable),
     .req_ready(),
     .req_write('0),
     .read_valid(instr_non_cachable_read_valid),
