@@ -104,8 +104,8 @@ async def cpu_insrt_test(dut):
     await init_memory(axi_lite_ram_slave, hex_path, 0x80000000)
 
     # actual test program execution
-    STOP_PC = 0xFFFFFFFF
-    THRESHOLD = 100_000
+    STOP_PC = 0x8000010c
+    THRESHOLD = 30_000_000
     i = 0
 
     while not dut.core.pc.value.integer == STOP_PC or i >= THRESHOLD:
@@ -114,11 +114,6 @@ async def cpu_insrt_test(dut):
         await Timer(1, units="ns") # let signals info propagate in sim
         if i%1000 == 0:
             print(f'PC : {hex(dut.core.pc.value.integer)} / CYCLE : {i}')
-
-        ##########################################################
-        # SPIKE LIKE LOGS (inspired by jeras' work, link below)
-        # https://github.com/jeras/rp32/blob/master/hdl/tbn/riscof/r5p_degu_trace_logger.sv
-        ##########################################################
 
         # if we're about to execute the instruction, we can log.
         if dut.core.stall.value == 0:
@@ -185,4 +180,4 @@ async def cpu_insrt_test(dut):
         await RisingEdge(dut.clk)
 
     print("OVER!")
-    await ClockCycles(dut.clk, 2000)
+    await ClockCycles(dut.clk, 200)

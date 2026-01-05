@@ -176,7 +176,7 @@ holy_instr_cache instr_cache (
     .req_valid(~instr_non_cachable),
     .req_ready(),
     .read_valid(instr_cachable_read_valid),
-    .read_ack(instr_read_ack && ~instr_non_cachable),
+    .read_ack(instr_read_ack),
 
     // M_AXI EXERNAL REQ IF
     .axi(axi_instr),
@@ -193,7 +193,7 @@ holy_no_cache instr_no_cache (
     .write_data('0),
     .byte_enable('0),
     // handshake
-    .req_valid(instr_non_cachable && instr_non_cachable),
+    .req_valid(instr_non_cachable),
     .req_ready(),
     .req_write('0),
     .read_valid(instr_non_cachable_read_valid),
@@ -488,7 +488,7 @@ alu alu_inst(
 logic   alu_stall;
 logic   mdu_res_valid;
 logic   mdu_res_ack;
-assign  mdu_res_ack = mdu_res_valid && ~i_cache_stall && ~d_cache_stall;
+assign  mdu_res_ack = mdu_res_valid && ~i_cache_stall;
 
 logic   is_mul_div;
 assign  is_mul_div = alu_control >= ALU_MUL && alu_control != ALU_ERROR; // this assignment is NOT stable (todo)!!!
@@ -573,7 +573,7 @@ assign data_req_complete = (data_read_valid && data_read_ack) || (data_req_valid
 
 assign data_req_valid = ~i_cache_stall && (mem_write_enable || mem_read_enable);
 assign data_req_write = mem_write_enable;
-assign data_read_ack = 1'b1; // Always ack reads immediately
+assign data_read_ack = data_req_valid && mem_read_enable && data_read_valid; // Always ack reads immediately
 
 // Generate the stalling signal based on handshake state
 always_comb begin

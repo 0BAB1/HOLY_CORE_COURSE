@@ -230,9 +230,13 @@ always_comb begin : next_csr_value_logic
     end
 
     //mscratch
+    // TEMPORARY DEBUG : it will contain the curently fetch intruction.
+    // if you see this message, its because i forgor to put it back to normal, which is bad.
     next_mscratch = mscratch;
     if (~stall && write_enable && (address == 12'h340)) begin
         next_mscratch = write_back_to_csr;
+    end else if (~debug_mode) begin
+        next_mscratch = current_core_fetch_instr;
     end
 
     //misa 

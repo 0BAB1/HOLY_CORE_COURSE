@@ -70,7 +70,58 @@ static void delay_ms(uint32_t ms) {
 
 static void spi_send(uint8_t data) {
     while (SPI_STATUS & SPI_SR_TX_FULL);
-    SPI_TX = data;
+    SPI_TX = data; // with i$, this specif transfer does not look like its happenning
+    // but why ?
+    // well, many reasons but most likely
+    // -> GPIO setting are invalid
+        // manual Write to SPI TX does nothing and SPI TX stays at 0 but this is not completely unexpected
+        // GPIO2 DATA (DS) seems okay and same for SS.
+        // maybe investigate more around other more global pins but his part sounds all good.
+    // -> address is corrupted or etched instruction is corupted
+        // Check using mscratch as debug window on real fetched instr !
+        // Checked : NONE IS CORREUPTED !
+        // the write DO happen as expected !
+        // but it looks like the IP is not registering it correctly... or we DO go too fast indeed clock wise ? but the non cache works ?
+    
+        // Trying <it 5MHz clock (bare minimum I can do..)
+
+    // in the meantime, ill test if the data is actully GETTING to the IP by using debug system bus:
+    // of course, nothing happens, but what do we need to make that happen ?
+    // SS low : OK
+    // DC = 0 (command) : ok AND is it setup to be driven ?
+    // we see that state control is 0 for both reset and DC pin.
+    // expected value would be 0 as this means its configured as output...
+    // fuck...
+    // so... the IP is faautly then ? imma check out the config
+
+    // before messing around config, ill test it with a very slow SPI clock (5M) with sysclock still at 25M
+    // did not halp... But i found something interresting.
+    // by MANUALLY SENDING all lcd init data (at a breakpoint set RIGHT HERE to have the right), I get the correct ILI9341_DISPON behavior
+    // that leads me to think the init config is going wrong *above* this point..
+    // Maybe it was due to delays, I multiplied them by 20, nothing happenned (delay become clear to the eye so going even further is not smart).
+    // ill keep the 20 fold for now to be sure dealays are still wide durng setup
+
+    // to check: does all the setup happen correctly ? check em 1 by 1, pinpoint which fails and then figure out why I guess (but 1st: lunch break !)...
+    // okay, big issue. a4 (data sent to spi_tx) gets hardstuck to 0xfffffffe instead of performing the actual load !
+    // this seems to be contant accross all setup spi sends (from lcd cmd)
+    // persists after reset ! and lbu a0 -17(s0) is failing as data @s0-17 is the valid data we're looking for !!!! note :mscratch shows ecreak but this is not reliable...
+    // just checking if non cached is behaving correctly there...
+
+    // well... yes indeed ! we do have a bug as without i$
+        // we have valid a4 with correct setup value
+        // AND MSCRATCH shows actual value ! maning it WAS reliable and it shows us the core is not fetching right !
+        // this cues us towards a good old hardware edge case bug !
+
+    // Now, I will try to recreate it in sim, bug is supposed to be that instead of LBU, ebreak is fteched...
+    // but we shall note this is VEERY sepcific as we are using the DM !!!
+    // So i'll try to stop at pc = 0x80000110 where LBU is happening. 
+
+    // note : a4 = fe bg persists across reset AND reprogramation of the board !!! which is good news
+    // for sim reproduction of the bug...
+
+    // it turns out single stepping prevents registers from updating... that sucks 
+    // (BUG TODO)
+
 }
 
 static void spi_wait(void) {
@@ -78,9 +129,21 @@ static void spi_wait(void) {
 }
 
 static void lcd_cmd(uint8_t cmd) {
+    // ce process fail misérablement avec un I$
+    // deux solution : un bug hardware (que j'ai cgaerché pendant 1 semaine avant les vacances !!! (chiant))
+    // ou alors on va trop vite avec un I$ pour le SPI...
+    // note a moi meme, : je teste avec 20MHz au compteur SPI et je regarde le comportement...
+    // come back : with 20MHz, problem is the exact same... which sucks bad and is logical as a check is performed before feeding data
+
+    // soft debug : je vais utiliser cette fonction ci dessous pour isoler le probleme précis et... ce qui change au final
+
+    // ===============
     GPIO2_DATA &= ~PIN_DC;          /* DC = 0 (command) */
+    // NO I$ : 0x10010008:	0x000003fe
     SPI_SS = 0xFFFFFFFE;            /* CS low */
-    spi_send(cmd);
+    // NO I$ : 0x10030070:	0x00000000
+    spi_send(cmd); // prlbem in here !
+    // NO I$ : cmd = good value and sent correctly !
     spi_wait();
     SPI_SS = 0xFFFFFFFF;            /* CS high */
 }
@@ -122,11 +185,15 @@ void lcd_init(void) {
     
     /* Pixel format: 16-bit */
     lcd_cmd(ILI9341_COLMOD);
+    delay_ms(1000);
     lcd_data(0x55);
+    delay_ms(1000);
     
     /* Memory access control */
     lcd_cmd(ILI9341_MADCTL);
+    delay_ms(1000);
     lcd_data(0x48);
+    delay_ms(1000);
     
     /* Display ON */
     lcd_cmd(ILI9341_DISPON);
@@ -178,7 +245,7 @@ int main(void) {
     /* Clear screen */
     uart_puts("filling screen black\n\r");
     lcd_fill_screen(COLOR_BLACK);
-    
+
     /* Draw a red horizontal line */
     uart_puts("red line\n\r");
     lcd_fill_rect(20, 100, 200, 2, COLOR_RED);
