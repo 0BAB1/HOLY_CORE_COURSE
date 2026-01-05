@@ -111,7 +111,7 @@ If you want to support the project and get nicely formatted PDF versions of the 
 
 ## 🤝 Contributing
 
-Contributions welcome! Typo fixes, documentation improvements, bug reports are all appreciated.
+Contributions are welcome! Typo fixes, documentation improvements, bug reports are all appreciated.
 
 > [!WARNING]
 >  Large architectural PRs have low chances of being merged. Open an issue first to discuss.
