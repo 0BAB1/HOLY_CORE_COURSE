@@ -630,7 +630,7 @@ end
 always_comb begin
     case (alu_op)
         // LW, SW
-        1'b00 : alu_control = 3'b000;
+        2'b00 : alu_control = 3'b000;
         // EVERYTHING ELSE
         default: alu_control = 3'b111;
     endcase
