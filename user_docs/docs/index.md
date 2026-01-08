@@ -1,4 +1,4 @@
-# Holy Core - User Docs
+# User Docs
 
 ![banner](./images/banner2.png)
 

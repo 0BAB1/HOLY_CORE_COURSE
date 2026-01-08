@@ -15,13 +15,16 @@ add a cache invalider that simply set all valid bits to 0 in D$ (maybe I$ as wel
 
 in fpga for debugging : sepate a SIM ROM from actual ROM.
 
-# DOING
-
 Start writing perf edition
 
 Datapath major work for perf edition : Pipeline the CORE
 - In datapath, harmonize notation (especially across caches signals)
 - Rename LS decoder input to 2 bits wide offset instead of full blown alu restult
+
+single step bug: executes ebreak instead of instructio when single stepping. That's because the debuggger effectlively replaces the breapoint with a ebreak and then restores it BUT the eabreak is in I$. solving this should be easy and involves either cache invalidation on flag everything as non cachbable when any form of debugging interaction is involved (but ebrak would still be in Icache...)
+
+# DOING
+
 
 # DONE
 

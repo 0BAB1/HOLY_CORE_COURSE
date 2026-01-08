@@ -1,4 +1,4 @@
-# Holy Core - Data Sheet
+# Data Sheet
 
 This docuent aims at giving quick references on misc data and acts as a quick "cheat sheet".
 

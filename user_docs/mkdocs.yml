@@ -2,6 +2,8 @@ site_name: Holy Core - Documentation
 theme:
   name: material
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - content.tabs.link
   custom_dir: docs
 extra_css:

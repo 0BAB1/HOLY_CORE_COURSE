@@ -1,4 +1,4 @@
-# Holy Core - Dev Docs
+# Dev Docs
 
 
 Welcome to the Dev's documentation, a quick reference guide on how the *HOLY CORE*'s microarchitecture works to quickly get up to speed.
