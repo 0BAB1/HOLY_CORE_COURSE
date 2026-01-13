@@ -58,71 +58,53 @@ create_bd_design "design_1"
 create_bd_cell -type module -reference top top_0
 
 # Add IP and configure settings
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_0
-endgroup
 
 # Apply board design automation rules
-startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto"} [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto"} [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTB]
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config {Clk_master {Auto} Clk_slave {Auto} Clk_xbar {Auto} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_0/S_AXI} ddr_seg {Auto} intc_ip {New AXI SmartConnect} master_apm {0}} [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
-endgroup
 
 # Configure resets and clock interfaces
-startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:board -config {Manual_Source {New External Port (ACTIVE_HIGH)}} [get_bd_pins clk_wiz/reset]
 set_property name axi_reset [get_bd_ports reset_rtl]
 apply_bd_automation -rule xilinx.com:bd_rule:board -config {Board_Interface {sys_clock (System Clock)} Manual_Source {Auto}} [get_bd_pins clk_wiz/clk_in1]
-endgroup
 
 # Make pins external
-startgroup
 make_bd_pins_external [get_bd_pins top_0/rst_n]
 set_property name cpu_reset [get_bd_ports rst_n_0]
-endgroup
 
 # Add JTAG to AXI IP
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:jtag_axi:1.2 jtag_axi_0
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config {Clk_master {Auto} Clk_slave {/clk_wiz/clk_out1 (100 MHz)} Clk_xbar {/clk_wiz/clk_out1 (100 MHz)} Master {/jtag_axi_0/M_AXI} Slave {/axi_bram_ctrl_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}} [get_bd_intf_pins jtag_axi_0/M_AXI]
-endgroup
 
 # connect core's axi lite master to interconnect
 
-startgroup
 set_property CONFIG.NUM_SI {3} [get_bd_cells axi_smc]
-endgroup
 connect_bd_intf_net [get_bd_intf_pins top_0/m_axi_lite] [get_bd_intf_pins axi_smc/S02_AXI]
 
 # chage clock period
-startgroup
 set_property -dict [list \
   CONFIG.CLKOUT1_JITTER {143.688} \
   CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {25} \
   CONFIG.MMCM_CLKOUT0_DIVIDE_F {20.000} \
 ] [get_bd_cells clk_wiz]
-endgroup
 
 #add ILA
 
-startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Manual_Source {Auto}}  [get_bd_pins rst_clk_wiz_100M/ext_reset_in]
 apply_bd_automation -rule xilinx.com:bd_rule:debug -dict [list \
                                                           [get_bd_intf_nets top_0_m_axi] {AXI_R_ADDRESS "Data and Trigger" AXI_R_DATA "Data and Trigger" AXI_W_ADDRESS "Data and Trigger" AXI_W_DATA "Data and Trigger" AXI_W_RESPONSE "Data and Trigger" CLK_SRC "/clk_wiz/clk_out1" SYSTEM_ILA "Auto" APC_EN "0" } \
                                                          ]
-endgroup
 
 # make ILA get all probes
 # add probes
-startgroup
 set_property -dict [list \
   CONFIG.C_MON_TYPE {MIX} \
   CONFIG.C_NUM_MONITOR_SLOTS {2} \
   CONFIG.C_NUM_OF_PROBES {9} \
 ] [get_bd_cells system_ila_0]
 set_property CONFIG.C_DATA_DEPTH {2048} [get_bd_cells system_ila_0]
-endgroup
 
 
 # connect debugs
@@ -132,8 +114,6 @@ connect_bd_net [get_bd_pins top_0/instruction] [get_bd_pins system_ila_0/probe2]
 connect_bd_net [get_bd_pins top_0/i_cache_stall] [get_bd_pins system_ila_0/probe3]
 connect_bd_net [get_bd_pins top_0/d_cache_stall] [get_bd_pins system_ila_0/probe4]
 connect_bd_net [get_bd_ports cpu_reset] [get_bd_pins system_ila_0/probe5]
-connect_bd_net [get_bd_pins top_0/i_cache_state] [get_bd_pins system_ila_0/probe7]
-connect_bd_net [get_bd_pins top_0/i_cache_stall] [get_bd_pins system_ila_0/probe8]
 
 # Fix pin areset for CPU
 
@@ -142,21 +122,15 @@ connect_bd_net [get_bd_pins top_0/periph_rst_n] [get_bd_pins rst_clk_wiz_100M/pe
 #======================================
 # BRH 05/25 New SoC with UART LITE
 
-startgroup
 set_property CONFIG.NUM_SI {3} [get_bd_cells axi_smc]
-endgroup
 
 connect_bd_intf_net [get_bd_intf_pins top_0/m_axi_lite] [get_bd_intf_pins axi_smc/S02_AXI]
 connect_bd_intf_net [get_bd_intf_pins system_ila_0/SLOT_1_AXI] [get_bd_intf_pins axi_smc/S02_AXI]
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_uartlite:2.0 axi_uartlite_0
-endgroup
 set_property location {6 1695 448} [get_bd_cells axi_uartlite_0]
 
-startgroup
 set_property CONFIG.NUM_MI {3} [get_bd_cells axi_smc]
-endgroup
 
 connect_bd_intf_net [get_bd_intf_pins axi_uartlite_0/S_AXI] [get_bd_intf_pins axi_smc/M02_AXI]
 
@@ -180,29 +154,23 @@ add_files -norecurse {
 }
 regenerate_bd_layout
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 xlconcat_0
-endgroup
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_0
-endgroup
 connect_bd_net [get_bd_pins xlconstant_0/dout] [get_bd_pins xlconcat_0/In0]
-startgroup
 set_property CONFIG.CONST_VAL {0} [get_bd_cells xlconstant_0]
-endgroup
 
 # connect_bd_net [get_bd_pins axi_iic_0/gpo] [get_bd_pins xlconcat_0/In0]
-# startgroup
+#
 # set_property CONFIG.NUM_PORTS {1} [get_bd_cells xlconcat_0]
-# endgroup
+#
 # connect_bd_net [get_bd_pins xlconcat_0/dout] [get_bd_pins holy_plic_top_0/irq_in]
 # connect_bd_net [get_bd_pins holy_plic_top_0/rst_n] [get_bd_pins holy_clint_top_0/rst_n]
 # connect_bd_net [get_bd_pins holy_clint_top_0/rst_n] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
 # regenerate_bd_layout
 # delete_bd_objs [get_bd_nets axi_iic_0_gpo]
-# startgroup
-# endgroup
+#
+#
 # connect_bd_net [get_bd_pins axi_iic_0/iic2intc_irpt] [get_bd_pins xlconcat_0/In0]
 # regenerate_bd_layout
 
@@ -211,15 +179,10 @@ endgroup
 delete_bd_objs [get_bd_intf_nets axi_smc_M00_AXI] [get_bd_intf_nets axi_bram_ctrl_0_BRAM_PORTA] [get_bd_intf_nets axi_bram_ctrl_0_BRAM_PORTB] [get_bd_cells axi_bram_ctrl_0]
 delete_bd_objs [get_bd_cells axi_bram_ctrl_0_bram]
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_0
-endgroup
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_1
-endgroup
 
-startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTB]
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
@@ -227,37 +190,22 @@ apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_1/BRAM_PORTA]
 apply_bd_automation -rule xilinx.com:bd_rule:bram_cntlr -config {BRAM "Auto" }  [get_bd_intf_pins axi_bram_ctrl_1/BRAM_PORTB]
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi} Slave {/axi_bram_ctrl_1/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
-endgroup
 
 # artS S7 gpio (led)
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_gpio_0
-endgroup
 
-startgroup
 set_property CONFIG.GPIO_BOARD_INTERFACE {led_4bits} [get_bd_cells axi_gpio_0]
-endgroup
 
-startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {led_4bits ( 4 LEDs ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_gpio_0/GPIO]
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_gpio_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_gpio_0/S_AXI]
-endgroup
 
 # add support for JTAG TAP
 
-startgroup
 make_bd_pins_external  [get_bd_pins top_0/tck_i]
-endgroup
-startgroup
 make_bd_pins_external  [get_bd_pins top_0/tms_i]
-endgroup
-startgroup
 make_bd_pins_external  [get_bd_pins top_0/td_i]
-endgroup
-startgroup
 make_bd_pins_external  [get_bd_pins top_0/td_o]
-endgroup
 connect_bd_net [get_bd_pins top_0/trst_ni] [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn]
 regenerate_bd_layout
 
@@ -281,9 +229,7 @@ assign_bd_address -target_address_space /jtag_axi_0/Data [get_bd_addr_segs axi_u
 set_property offset 0x10000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_uartlite_0_Reg}]
 
 #irq config stuff
-startgroup
 set_property CONFIG.NUM_PORTS {2} [get_bd_cells xlconcat_0]
-endgroup
 connect_bd_net [get_bd_pins axi_uartlite_0/interrupt] [get_bd_pins xlconcat_0/In1]
 connect_bd_net [get_bd_pins xlconcat_0/dout] [get_bd_pins top_0/irq_in]
 
@@ -310,15 +256,12 @@ set_property file_type "Verilog Header" [get_files ./3_perf_edition/vendor/inclu
 set_property is_global_include true [get_files ./3_perf_edition/vendor/include/prim_flop_macros.sv]
 
 # ADD MIG FOR DDR
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:mig_7series:4.2 mig_7series_0
 apply_board_connection -board_interface "ddr3_sdram" -ip_intf "mig_7series_0/mig_ddr_interface" -diagram "design_1" 
-endgroup
 
 delete_bd_objs [get_bd_nets sys_clk_i_1] [get_bd_ports sys_clk_i]
 delete_bd_objs [get_bd_nets clk_ref_i_1] [get_bd_ports clk_ref_i]
 
-startgroup
 set_property -dict [list \
   CONFIG.CLKOUT1_JITTER {754.542} \
   CONFIG.CLKOUT1_PHASE_ERROR {613.025} \
@@ -337,7 +280,6 @@ set_property -dict [list \
   CONFIG.MMCM_CLKOUT2_DIVIDE {3} \
   CONFIG.NUM_OUT_CLKS {3} \
 ] [get_bd_cells clk_wiz]
-endgroup
 connect_bd_net [get_bd_pins clk_wiz/clk_100] [get_bd_pins mig_7series_0/sys_clk_i]
 connect_bd_net [get_bd_pins mig_7series_0/clk_ref_i] [get_bd_pins clk_wiz/clk_200]
 
@@ -363,9 +305,7 @@ disconnect_bd_net /rst_clk_wiz_100M_peripheral_aresetn [get_bd_pins top_0/trst_n
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {reset ( System Reset ) } Manual_Source {Auto}}  [get_bd_pins mig_7series_0/sys_rst]
 delete_bd_objs [get_bd_ports axi_reset]
 
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 util_vector_logic_0
-endgroup
 set_property -dict [list \
   CONFIG.C_OPERATION {not} \
   CONFIG.C_SIZE {1} \
@@ -378,9 +318,7 @@ disconnect_bd_net /rst_clk_wiz_100M_peripheral_aresetn [get_bd_pins axi_smc/ares
 connect_bd_net [get_bd_pins rst_clk_wiz_100M/interconnect_aresetn] [get_bd_pins axi_smc/aresetn]
 
 delete_bd_objs [get_bd_cells system_ila_1]
-startgroup
 set_property HDL_ATTRIBUTE.DEBUG false [get_bd_intf_nets { axi_uartlite_0_UART } ]
-endgroup
 
 # Use MIG to repalce BRAM
 
@@ -391,10 +329,8 @@ delete_bd_objs [get_bd_cells axi_bram_ctrl_0_bram]
 delete_bd_objs [get_bd_cells axi_bram_ctrl_1_bram]
 
 # rewire smart connect correctly
-startgroup
 set_property CONFIG.NUM_MI {3} [get_bd_cells axi_smc]
 delete_bd_objs [get_bd_intf_nets axi_smc_M03_AXI] [get_bd_intf_nets axi_smc_M04_AXI]
-endgroup
 connect_bd_intf_net [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins mig_7series_0/S_AXI]
 connect_bd_intf_net [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
 # assign addresses
@@ -407,28 +343,19 @@ set_property offset 0x10010000 [get_bd_addr_segs {jtag_axi_0/Data/SEG_axi_gpio_0
 assign_bd_address
 
 # MISC
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_1
-endgroup
 connect_bd_net [get_bd_pins xlconstant_1/dout] [get_bd_pins top_0/trst_ni]
 regenerate_bd_layout
+set_property CONFIG.C_NUM_OF_PROBES {7} [get_bd_cells system_ila_0]
 
 # Add I2C + set higher baud rate for UART
-startgroup
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_iic:2.1 axi_iic_0
-endgroup
 set_property location {7 2372 305} [get_bd_cells axi_iic_0]
-startgroup
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {i2c ( I2C on J3 ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_iic_0/IIC]
-endgroup
 delete_bd_objs [get_bd_nets xlconstant_0_dout]
 delete_bd_objs [get_bd_cells xlconstant_0]
 connect_bd_net [get_bd_pins axi_iic_0/iic2intc_irpt] [get_bd_pins xlconcat_0/In0]
-startgroup
-endgroup
-startgroup
 set_property CONFIG.C_BAUDRATE {128000} [get_bd_cells axi_uartlite_0]
-endgroup
 
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/clk_wiz/clk_out1 (25 MHz)} Clk_slave {Auto} Clk_xbar {/clk_wiz/clk_out1 (25 MHz)} Master {/top_0/m_axi_lite} Slave {/axi_iic_0/S_AXI} ddr_seg {Auto} intc_ip {/axi_smc} master_apm {0}}  [get_bd_intf_pins axi_iic_0/S_AXI]
 validate_bd_design
@@ -451,7 +378,6 @@ set_property offset 0x10030000 [get_bd_addr_segs {top_0/m_axi/SEG_axi_quad_spi_0
 assign_bd_address
 
 # add clock for QSPI (and improve old clock speed)
-startgroup
 set_property -dict [list \
   CONFIG.CLKOUT1_JITTER {729.396} \
   CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {30} \
@@ -464,26 +390,38 @@ set_property -dict [list \
   CONFIG.MMCM_CLKOUT3_DIVIDE {60} \
   CONFIG.NUM_OUT_CLKS {4} \
 ] [get_bd_cells clk_wiz]
-endgroup
 apply_bd_automation -rule xilinx.com:bd_rule:clkrst -config { Clk {/clk_wiz/clk_10 (10 MHz)} Freq {10} Ref_Clk0 {None} Ref_Clk1 {None} Ref_Clk2 {None}}  [get_bd_pins axi_quad_spi_0/ext_spi_clk]
+set_property -dict [list \
+  CONFIG.C_FIFO_DEPTH {256} \
+  CONFIG.C_SCK_RATIO {2} \
+] [get_bd_cells axi_quad_spi_0]
+delete_bd_objs [get_bd_nets clk_wiz_clk_10]
+connect_bd_net [get_bd_pins axi_quad_spi_0/ext_spi_clk] [get_bd_pins clk_wiz/clk_out1]
+
 
 # Add GPIO shield pins
-startgroup
 set_property -dict [list \
   CONFIG.C_INTERRUPT_PRESENT {1} \
   CONFIG.GPIO2_BOARD_INTERFACE {Custom} \
 ] [get_bd_cells axi_gpio_0]
-endgroup
-startgroup
-set_property CONFIG.GPIO2_BOARD_INTERFACE {dip_switches_4bits} [get_bd_cells axi_gpio_0]
-endgroup
-startgroup
-set_property CONFIG.GPIO2_BOARD_INTERFACE {Custom} [get_bd_cells axi_gpio_0]
-endgroup
+set_property CONFIG.GPIO2_BOARD_INTERFACE {shield_dp0_dp9} [get_bd_cells axi_gpio_0]
 apply_bd_automation -rule xilinx.com:bd_rule:board -config { Board_Interface {shield_dp0_dp9 ( Shield Pins 0 through 9 ) } Manual_Source {Auto}}  [get_bd_intf_pins axi_gpio_0/GPIO2]
 
-# force BRAM for D$
-set_property RAM_STYLE BLOCK [get_cells -hierarchical *cache_data_way*]
+# misc
+set_property -dict [list \
+  CONFIG.CLKOUT4_USED {false} \
+  CONFIG.MMCM_CLKOUT3_DIVIDE {1} \
+  CONFIG.NUM_OUT_CLKS {3} \
+] [get_bd_cells clk_wiz]
+delete_bd_objs [get_bd_addr_segs jtag_axi_0/Data/SEG_axi_quad_spi_0_Reg]
+assign_bd_address
+
+#clock at 25
+set_property -dict [list \
+  CONFIG.CLKOUT1_JITTER {754.542} \
+  CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {25} \
+  CONFIG.MMCM_CLKOUT0_DIVIDE_F {24.000} \
+] [get_bd_cells clk_wiz]
 
 # Validate + wrapper
 assign_bd_address
@@ -495,6 +433,9 @@ update_compile_order -fileset sources_1
 set_property top design_1_wrapper [current_fileset]
 update_compile_order -fileset sources_1
 
+regenerate_bd_layout
+
+
 # generate synth, inmpl & bitstream
-launch_runs impl_1 -to_step write_bitstream -jobs 6
-set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true [get_runs impl_1]
+# launch_runs impl_1 -to_step write_bitstream -jobs 6
+# set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true [get_runs impl_1]
