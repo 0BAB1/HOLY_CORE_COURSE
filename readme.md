@@ -82,13 +82,21 @@ Add memory interfaces (AXI), design a cache system, and deploy on actual FPGA ha
 
 Pass RISC-V compliance tests, add interrupts, write C code, build driver libraries.
 
-**You'll learn:** Privileged architecture, interrupt handling, embedded C development.
+Note that for now, it's only available here for the early supporters of the project or advanced people looking to take it a step further verification wise. See `## Support the Project` section.
 
-### 🔴 Performance Edition *(Coming Soon)*
-> *Maximum FPS on DOOM*
+**You'll learn:** Core verification, privileged architecture, interrupt handling, embedded C development, debug support.
+
+### 🟡 Performance Edition *(Coming Soon)*
+> [!TIP]
+> *Maximise DOOM fps and overall perfs*
+
+This edition is not over yet but the early work is available for contributors. See `## Support the Project` section.
 
 ### 🔴 OS Edition *(Coming Soon)*
 > *Run a real operating system*
+
+### 🔴 Tapeout Edition *(Coming Soon + I'm too broke)*
+> *Tapeout the HOLYCORE, one day maybe...*
 
 ## 📊 Status
 
