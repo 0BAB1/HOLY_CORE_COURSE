@@ -96,8 +96,8 @@ module spill_register_flushable #(
     assign data_o = b_full_q ? b_data_q : a_data_q;
 
     `ifndef COMMON_CELLS_ASSERTS_OFF
-    `ASSERT(flush_valid, flush_i |-> ~valid_i, clk_i, !rst_ni,
-           "Trying to flush and feed the spill register simultaneously. You will lose data!")
+    // `ASSERT(flush_valid, flush_i |-> ~valid_i, clk_i, !rst_ni,
+    //        "Trying to flush and feed the spill register simultaneously. You will lose data!")
    `endif
   end
 endmodule

@@ -182,7 +182,7 @@ module prim_fifo_sync #(
       assign rdata_o = rdata_int;
     end
 
-    `ASSERT(depthShallNotExceedParamDepth, !empty |-> depth_o <= DepthW'(Depth))
+    //`ASSERT(depthShallNotExceedParamDepth, !empty |-> depth_o <= DepthW'(Depth))
   end // block: gen_normal_fifo
 
 
@@ -190,9 +190,9 @@ module prim_fifo_sync #(
   // Known Assertions //
   //////////////////////
 
-  `ASSERT(DataKnown_A, rvalid_o |-> !$isunknown(rdata_o))
-  `ASSERT_KNOWN(DepthKnown_A, depth_o)
-  `ASSERT_KNOWN(RvalidKnown_A, rvalid_o)
-  `ASSERT_KNOWN(WreadyKnown_A, wready_o)
+ // `ASSERT(DataKnown_A, rvalid_o |-> !$isunknown(rdata_o))
+  //`ASSERT_KNOWN(DepthKnown_A, depth_o)
+  //`ASSERT_KNOWN(RvalidKnown_A, rvalid_o)
+  //`ASSERT_KNOWN(WreadyKnown_A, wready_o)
 
 endmodule

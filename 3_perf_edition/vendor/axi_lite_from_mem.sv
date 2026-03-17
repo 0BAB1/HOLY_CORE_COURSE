@@ -89,7 +89,7 @@ module axi_lite_from_mem #(
   /// AXI4-Lite master port, response input.
   input axi_rsp_t axi_rsp_i
 );
-  `include "common_cells/registers.svh"
+  `include "registers.svh"
 
   // Response FIFO control signals.
   logic fifo_full, fifo_empty;
