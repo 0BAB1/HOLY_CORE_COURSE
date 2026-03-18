@@ -41,7 +41,7 @@ jobs:
           cd verilator
           git pull
           git tag
-          git checkout stable
+          git checkout v5.038
           autoconf
           ./configure
           make -j `nproc`
