@@ -19,7 +19,7 @@ HEX  := $(APP_DIR)/$(APP).hex
 DUMP := $(APP_DIR)/dump.txt
 
 # Source files (per app)
-SRCS := $(APP_DIR)/startup.S $(APP_DIR)/main.c
+SRCS := $(wildcard $(APP_DIR)/*.c) $(wildcard $(APP_DIR)/*.S)
 OBJS := $(SRCS:.c=.o)
 OBJS := $(OBJS:.S=.o)
 
