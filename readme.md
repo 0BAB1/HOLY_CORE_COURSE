@@ -124,7 +124,10 @@ Contributions are welcome! Typo fixes, documentation improvements, bug reports a
 > [!WARNING]
 >  Large architectural PRs have low chances of being merged. Open an issue first to discuss.
 
-**Community Spotlight:** Check out [VERY HOLY CORE](https://github.com/jbeaurivage/very-holy-core) by @jbeaurivage: a Veryl rewrite of the HOLY_CORE! *Impressive, Very nice.*
+## 💪 Community Spotlight
+
+- Check out [VERY HOLY CORE](https://github.com/jbeaurivage/very-holy-core) by @jbeaurivage: a Veryl rewrite of the HOLY_CORE! *Impressive, Very nice.*
+- The HOLY CORE has been used **and cited** in a research paper ! [link](https://github.com/Peak-Embedded-Projects/RISCV-Research-Project/tree/main). Its simple yet verified design is useful to reasearchers looking to better isolate problems in complex systems !
 
 ## 📜 A Note on AI & Content
 
