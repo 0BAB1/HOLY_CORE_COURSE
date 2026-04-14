@@ -20,9 +20,10 @@ import holy_core_pkg::*;
 
 logic [1:0] offset;
 
-assign offset = alu_result_address[1:0];
-
 always_comb begin
+
+    offset = alu_result_address[1:0];
+
     case (f3)
         F3_BYTE, F3_BYTE_U : begin // SB, LB, LBU
             case (offset)
