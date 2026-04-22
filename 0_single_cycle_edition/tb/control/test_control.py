@@ -7,9 +7,8 @@ from cocotb.triggers import Timer
 import random
 from cocotb.binary import BinaryValue
 
-@cocotb.coroutine
 async def set_unknown(dut):
-    # Set all input to unknown before each test
+    # Set all inputs to unknown before each test
     await Timer(1, units="ns")
     dut.op.value = BinaryValue("XXXXXXX")
     dut.func3.value = BinaryValue("XXX")
