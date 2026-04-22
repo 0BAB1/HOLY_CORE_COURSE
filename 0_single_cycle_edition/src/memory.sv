@@ -38,9 +38,6 @@ always @(posedge clk) begin
         for (int i = 0; i < WORDS; i++) begin
             mem[i] <= 32'd0;
         end
-        for (int i = 0; i < WORDS; i++) begin
-            mem[i] <= 32'd0;
-        end
     end else begin
         if(write_enable) begin
             if (address[1:0] != 2'b00) begin
