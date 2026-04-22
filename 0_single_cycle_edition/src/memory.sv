@@ -44,7 +44,7 @@ always @(posedge clk) begin
     end else begin
         if(write_enable) begin
             if (address[1:0] != 2'b00) begin
-                $display("Misaligned write at address %h", address);
+                $fatal("STOPPING SIMULATION: Misaligned write at address %h. HINT: Check your code.", address);
             end else begin
                 // use byte-enable to selectively write bytes
                 for (int i = 0; i < 4; i++) begin
