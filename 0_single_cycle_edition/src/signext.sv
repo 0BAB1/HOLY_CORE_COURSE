@@ -9,11 +9,8 @@
 `timescale 1ns/1ps
 
 module signext (
-    // IN
-    input logic [24:0] raw_src,
-    input logic [2:0] imm_source,
-
-    // OUT (immediate)
+    input  logic [24:0] raw_src,
+    input  logic [2:0]  imm_source,
     output logic [31:0] immediate
 );
 
