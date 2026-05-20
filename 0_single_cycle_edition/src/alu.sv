@@ -9,14 +9,12 @@
 `timescale 1ns/1ps
 
 module alu (
-    // IN
-    input logic [3:0] alu_control,
-    input logic [31:0] src1,
-    input logic [31:0] src2,
-    // OUT
+    input  logic [3:0]  alu_control,
+    input  logic [31:0] src1,
+    input  logic [31:0] src2,
     output logic [31:0] alu_result,
-    output logic zero,
-    output logic last_bit
+    output logic        zero,
+    output logic        last_bit
 );
 
 import holy_core_pkg::*;

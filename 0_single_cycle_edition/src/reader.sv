@@ -10,12 +10,11 @@
 `timescale 1ns/1ps
 
 module reader (
-    input logic [31:0] mem_data,
-    input logic [3:0] be_mask,
-    input logic [2:0] f3,
-
+    input  logic [31:0] mem_data,
+    input  logic [3:0]  be_mask,
+    input  logic [2:0]  f3,
     output logic [31:0] wb_data,
-    output logic valid
+    output logic        valid
 ); 
 
 import holy_core_pkg::*;
