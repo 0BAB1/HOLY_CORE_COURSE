@@ -324,15 +324,9 @@ async def srli_control_test(dut):
         dut.func7.value = random_func7
         await Timer(1, units="ns")
 
-        # Logic block controls
-        assert dut.alu_control.value == "0110"
-        assert dut.imm_source.value == "000"
+        # No state change should occur, rest is not relevant
         assert dut.mem_write.value == "0"
         assert dut.reg_write.value == "0"
-        # Datapath mux sources
-        assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "00"
-        assert dut.pc_source.value == "0"
 
 @cocotb.test()
 async def srai_control_test(dut):
@@ -367,15 +361,9 @@ async def srai_control_test(dut):
         dut.func7.value = random_func7
         await Timer(1, units="ns")
 
-        # Logic block controls
-        assert dut.alu_control.value == "1001"
-        assert dut.imm_source.value == "000"
+        # No state change should occur, rest is not relevant
         assert dut.mem_write.value == "0"
         assert dut.reg_write.value == "0"
-        # Datapath mux sources
-        assert dut.alu_source.value == "1"
-        assert dut.write_back_source.value == "00"
-        assert dut.pc_source.value == "0"
 
 @cocotb.test()
 async def sub_control_test(dut):

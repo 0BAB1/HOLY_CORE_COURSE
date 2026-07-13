@@ -35,6 +35,18 @@ logic branch;
 logic jump;
 
 always_comb begin
+
+    // Default assignments to prevent latch inference.
+    reg_write = 1'b0;
+    mem_write = 1'b0;
+    alu_op = 2'b00;
+    alu_source = 1'b0;
+    imm_source = 3'b000;
+    write_back_source = 2'b00;
+    second_add_source = 2'b00;
+    branch = 1'b0;
+    jump = 1'b0;
+
     case (op)
         // I-type
         OPCODE_I_TYPE_LOAD : begin
@@ -135,14 +147,7 @@ always_comb begin
             endcase
         end
         // EVERYTHING ELSE
-        default: begin
-            // Don't touch the CPU nor MEMORY state
-            reg_write = 1'b0;
-            mem_write = 1'b0;
-            jump = 1'b0;
-            branch = 1'b0;
-            $display("Unknown/Unsupported OP CODE !");
-        end
+        default: $display("Unknown/Unsupported OP CODE !");
     endcase
 end
 
@@ -151,6 +156,10 @@ end
 */
 
 always_comb begin
+
+    // Default to ADD, prevents latch inference and avoids undefined alu_control value.
+    alu_control = ALU_ADD;
+
     case (alu_op)
         // LW, SW
         ALU_OP_LOAD_STORE : alu_control = ALU_ADD;
@@ -194,15 +203,15 @@ always_comb begin
         ALU_OP_BRANCHES : begin
             case (func3)
                 // BEQ, BNE
-                F3_BEQ, F3_BNE : alu_control = 4'b0001;
+                F3_BEQ, F3_BNE : alu_control = ALU_SUB;
                 // BLT, BGE
-                F3_BLT, F3_BGE : alu_control = 4'b0101;
+                F3_BLT, F3_BGE : alu_control = ALU_SLT;
                 // BLTU, BGEU
-                F3_BLTU, F3_BGEU : alu_control = 4'b0111;
-                default : alu_control = 4'b1111;
+                F3_BLTU, F3_BGEU : alu_control = ALU_SLTU;
+                default : ;
             endcase
         end
-        default : alu_control = 4'b1111;
+        default : ;
     endcase
 end
 

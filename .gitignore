@@ -42,3 +42,4 @@ doom-*
 3_perf_edition/litex_holy_core/
 log.*
 logs.*
+.venv
