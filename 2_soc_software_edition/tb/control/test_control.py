@@ -10,18 +10,16 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import Timer, RisingEdge
 import random
-from cocotb.binary import BinaryValue
 
-@cocotb.coroutine
 async def set_unknown(dut):
-    # Set all input to unknown before each test
+    # Set all inputs to all 1s
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
     await Timer(1, units="ns")
-    dut.op.value = BinaryValue("XXXXXXX")
-    dut.func3.value = BinaryValue("XXX")
-    dut.func7.value = BinaryValue("XXXXXXX")
-    dut.alu_zero.value = BinaryValue("X")
-    dut.alu_last_bit.value = BinaryValue("X")
+    dut.op.value = 0b1111111
+    dut.func3.value = 0b111
+    dut.func7.value = 0b1111111
+    dut.alu_zero.value = 0b1
+    dut.alu_last_bit.value = 0b1
 
     # declare incomming instruction as valid
     dut.instr_cache_valid.value = 1

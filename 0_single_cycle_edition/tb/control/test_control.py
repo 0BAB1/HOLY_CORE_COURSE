@@ -5,16 +5,15 @@
 import cocotb
 from cocotb.triggers import Timer
 import random
-from cocotb.binary import BinaryValue
 
 async def set_unknown(dut):
-    # Set all inputs to unknown before each test
+    # Set all inputs to all 1s
     await Timer(1, units="ns")
-    dut.op.value = BinaryValue("XXXXXXX")
-    dut.func3.value = BinaryValue("XXX")
-    dut.func7.value = BinaryValue("XXXXXXX")
-    dut.alu_zero.value = BinaryValue("X")
-    dut.alu_last_bit.value = BinaryValue("X")
+    dut.op.value = 0b1111111
+    dut.func3.value = 0b111
+    dut.func7.value = 0b1111111
+    dut.alu_zero.value = 0b1
+    dut.alu_last_bit.value = 0b1
     await Timer(1, units="ns")
 
 @cocotb.test()

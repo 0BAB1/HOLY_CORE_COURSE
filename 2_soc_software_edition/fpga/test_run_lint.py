@@ -35,7 +35,6 @@ from cocotbext.axi import AxiBus, AxiRam, AxiLiteBus, AxiLiteRam
 CPU_PERIOD = 10
 NUM_CYCLES = 10_000
 
-@cocotb.coroutine
 async def cpu_reset(dut):
     # Init and reset
     dut.rst_n.value = 0
@@ -46,12 +45,10 @@ async def cpu_reset(dut):
     dut.periph_rst_n.value = 1
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
 
-@cocotb.coroutine
 async def inst_clocks(dut):
     """this instantiates the axi environement & clocks"""
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
 
-@cocotb.coroutine
 async def init_memory(axi_ram : AxiRam, hexfile, base_addr):
     addr_offset = 0
     with open(hexfile, "r") as file:

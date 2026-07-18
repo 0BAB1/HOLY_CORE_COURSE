@@ -54,7 +54,6 @@ def dump_cache(cache_data, line) -> int :
         print(hex(int(str(cache_data.value[32*line:(32*line)+31]),2)))
         
 
-@cocotb.coroutine
 async def reset(dut):
     await RisingEdge(dut.clk)
     dut.rst_n.value = 0

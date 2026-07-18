@@ -46,7 +46,6 @@ def read_cache(cache_data, line) :
     l = 127 - line
     return (int(str(cache_data.value[32*l:(32*l)+31]),2))
 
-@cocotb.coroutine
 async def cpu_reset(dut):
     # Init and reset
     dut.rst_n.value = 0
@@ -57,13 +56,11 @@ async def cpu_reset(dut):
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
     await RisingEdge(dut.aclk)     # Wait for a clock edge after reset
 
-@cocotb.coroutine
 async def inst_clocks(dut):
     """this instantiates the axi environement & clocks"""
     cocotb.start_soon(Clock(dut.aclk, AXI_PERIOD, units="ns").start())
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
 
-@cocotb.coroutine
 async def init_memory(axi_ram : AxiRam, hexfile, base_addr):
     addr_offset = 0
     with open(hexfile, "r") as file:
