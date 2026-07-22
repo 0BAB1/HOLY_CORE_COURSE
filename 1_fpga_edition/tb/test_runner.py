@@ -12,7 +12,7 @@
 import os
 from pathlib import Path
 
-from cocotb.runner import get_runner
+from cocotb_tools.runner import get_runner
 
 def generic_tb_runner(design_name, specific_top_level=None, additional_sources=[""]):
     sim = os.getenv("SIM", "verilator")

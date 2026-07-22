@@ -36,8 +36,9 @@ def generate_random_bytes(length):
 
 def read_cache(cache_data, line) :
     """To read cache_data, because the packed array makes it an array of bits... Fuck vivado, I mean it"""
-    l = 127 - line
-    return (int(str(cache_data.value[32*l:(32*l)+31]),2))
+    # l = 127 - line
+    l = line
+    return (int(str(cache_data.value[(32*l)+31 : 32*l]),2))
 
 def dump_cache(cache_data, line) -> int :
     if line == "*" :
@@ -213,7 +214,7 @@ async def main_test(dut):
             # Check againts our memory golden ref
             dut.cpu_address.value = addr
             await Timer(1, units="ps")
-            assert dut.cache_system.cache_stall == 0b0
+            assert dut.cache_system.cache_stall.value == 0b0
             assert dut.cache_system.read_data.value == int.from_bytes(mem_golden_ref[int(addr/4)], byteorder='little')
             assert dut.cache_system.set_ptr.value == 0
 
@@ -227,7 +228,7 @@ async def main_test(dut):
         dut.cpu_address.value = addr
         await Timer(1, units="ps") # let the new address propagate ...
 
-        assert dut.cache_system.cache_stall == 0b1
+        assert dut.cache_system.cache_stall.value == 0b1
         assert dut.cache_system.next_state.value == SENDING_READ_REQ
 
         # ==================================
@@ -634,9 +635,9 @@ async def main_test(dut):
         await Timer(1, units="ns")
 
         # assuming memory is ready... req is ack and we switch to recieving the data
-        assert dut.axi_lite_arready == 0b1
-        assert dut.axi_lite_arvalid == 0b1
-        assert dut.axi_lite_araddr == addr
+        assert dut.axi_lite_arready.value == 0b1
+        assert dut.axi_lite_arvalid.value == 0b1
+        assert dut.axi_lite_araddr.value == addr
         assert dut.cache_system.state.value == LITE_SENDING_READ_REQ
         assert dut.cache_system.next_state.value == LITE_RECEIVING_READ_DATA
 

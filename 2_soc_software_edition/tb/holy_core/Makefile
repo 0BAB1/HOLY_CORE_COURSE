@@ -127,7 +127,6 @@ dump: $(OUT_ELF)
 ##################################
 
 clean:
-	rm -f $(OUT_ELF) $(OUT_BIN) $(OUT_HEX) $(OUT_DIS)
-	$(MAKE) -f $(shell cocotb-config --makefiles)/Makefile.sim clean
+	rm -f $(OUT_ELF) $(OUT_BIN) $(OUT_HEX) $(OUT_DIS) ./sim_build
 
 .PHONY: sim clean

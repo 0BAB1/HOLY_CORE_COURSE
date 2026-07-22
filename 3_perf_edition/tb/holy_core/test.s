@@ -328,7 +328,8 @@ wait_for_debug_mode:
     la t0, debug_rom 
     la t1, debug_exception
     nop
-    # tb will send a debug request, effectively jumping
+    # tb will send a debug request AT THIS EXACT NOP,
+    # effectively jumping
     # to our own "debug ROM" for total control over the test
     # -> debug rom which is defined below in this file
     li t3, 0x2
@@ -435,11 +436,11 @@ m_ret: # return form trap routine
 #########################
 
 debug_rom:
-    # simple jump to emulate real entry
+    # simple jump to emulate "real" entry
     j debug_rom_entry
     nop
 debug_rom_entry:
-    # in real debug rom, there is a fence at entry
+    # in real debug rom, there is a f ence at entry
     fence
     # if dscratch0 == 1 (we already did first d_ret test)
     # we want to skip to the single step debug test
@@ -448,9 +449,9 @@ debug_rom_entry:
     beq t2, t3, single_step_test
     nop
     nop
-    # we first make an ebreak test
+    # we first make an e break test
     # which should return to the "normal" park loop
-    # and then we'll branch to test dret bhavior
+    # a nd then we'll branch to test dret bhavior
     beq x0, x5, d_ret
     addi x5, x0, 0x0
     ebreak

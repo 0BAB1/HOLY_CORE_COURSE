@@ -427,7 +427,6 @@ assign m_axi_rready = m_axi.rready;
 // AXI LITE XBAR OUT <=> EXTERNALS
 //===================================
 
-assign m_axi_lite_awaddr = m_axi_lite_xbar_out[0].aw_addr;
 // AW channel
 assign m_axi_lite_awaddr = m_axi_lite_xbar_out[0].aw_addr;
 assign m_axi_lite_awvalid = m_axi_lite_xbar_out[0].aw_valid;

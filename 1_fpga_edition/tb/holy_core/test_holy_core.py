@@ -43,8 +43,9 @@ def hex_to_bin(hex_str):
 
 def read_cache(cache_data, line) :
     """To read cache_data, because the packed array makes it an array of bits..."""
-    l = 127 - line
-    return (int(str(cache_data.value[32*l:(32*l)+31]),2))
+    #l = 127 - line
+    l = line
+    return (int(str(cache_data.value[(32*l)+31 : 32*l]),2))
 
 async def cpu_reset(dut):
     # Init and reset

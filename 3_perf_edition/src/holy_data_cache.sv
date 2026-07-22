@@ -434,10 +434,18 @@ module holy_data_cache #(
         end else begin
             // DEFAULT REG LATCHES
             // cache metadata
-            cache_tags  <= next_cache_tags;
-            cache_valid <= next_cache_valid;
-            cache_dirty <= next_cache_dirty;
-            lru_bits    <= next_lru_bits;
+            for (int w = 0; w < NUM_WAYS; w++) begin
+                for (int s = 0; s < NUM_SETS; s++) begin
+                    cache_tags[w][s]  <= next_cache_tags[w][s];
+                    cache_valid[w][s] <= next_cache_valid[w][s];
+                    cache_dirty[w][s] <= next_cache_dirty[w][s];
+                end
+            end
+
+            for (int s = 0; s < NUM_SETS; s++) begin
+                lru_bits[s] <= next_lru_bits[s];
+            end
+
             
             csr_flushing <= next_csr_flushing;
             csr_flushing_done <= next_csr_flushing_done;
