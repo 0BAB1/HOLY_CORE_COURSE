@@ -12,7 +12,7 @@ from copy import deepcopy
 @cocotb.test()
 async def test_csr_file(dut):
     # Start a 10 ns clock
-    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
 
     # map each address to a register
     def get_csr_value(addr):
@@ -44,7 +44,7 @@ async def test_csr_file(dut):
         dut.address.value = addr
         dut.f3.value = 0b001
         await RisingEdge(dut.clk)
-        await Timer(2, units="ns")
+        await Timer(2, unit="ns")
         assert get_csr_value(addr) == 0xDEADBEEF
         assert dut.read_data.value == 0xDEADBEEF
 
@@ -60,18 +60,18 @@ async def test_csr_file(dut):
         dut.write_enable.value = 0b1
         for _ in range(1000):
             await RisingEdge(dut.clk) #await antoher cycle to let flush cache reset if high
-            await Timer(1, units="ns")
+            await Timer(1, unit="ns")
 
-            init_csr_value = deepcopy(get_csr_value(addr))
+            init_csr_value = int(deepcopy(get_csr_value(addr)))
             wd = random.randint(0, 0xFFFFFFFF)
             f3 = random.randint(0b000, 0b111)
             dut.write_data.value = wd
             dut.f3.value = f3
 
             await RisingEdge(dut.clk)
-            await Timer(2, units="ns")
+            await Timer(2, unit="ns")
             if f3 == 0b000 or f3 == 0b100:
-                assert dut.read_data == 0
+                assert dut.read_data.value == 0
             elif f3 == 0b001 or f3 == 0b101:
                 assert (
                     dut.read_data.value
@@ -104,7 +104,7 @@ async def test_csr_file(dut):
         dut.rst_n.value = 1
 
         dut.write_enable.value = 0
-        await Timer(1, units="ns")
+        await Timer(1, unit="ns")
 
     # ======================================
     # test registers behavior
@@ -124,7 +124,7 @@ async def test_csr_file(dut):
     dut.address.value = 0x7C0
     dut.f3.value = 0b001
     await RisingEdge(dut.clk)
-    await Timer(2, units="ns")
+    await Timer(2, unit="ns")
     assert dut.flush_cache.value == 0xFFFFFFFE
     assert dut.flush_cache_flag.value == 0b0
 
@@ -134,13 +134,13 @@ async def test_csr_file(dut):
     dut.address.value = 0x7C0
     dut.f3.value = 0b001
     await RisingEdge(dut.clk)
-    await Timer(2, units="ns")
+    await Timer(2, unit="ns")
     assert dut.flush_cache_flag.value == 0b1
     assert dut.flush_cache.value == 0x00000001
 
     # should go back to 0 after a single cycle
     await RisingEdge(dut.clk)
-    await Timer(2, units="ns")
+    await Timer(2, unit="ns")
     assert dut.flush_cache_flag.value == 0b0
     assert dut.flush_cache.value == 0x00000000
     dut.write_enable.value = 0
@@ -161,7 +161,7 @@ async def test_csr_file(dut):
     dut.write_data.value = 0xAEAEAEAE
     dut.f3.value = 0b001
     await RisingEdge(dut.clk)
-    await Timer(2, units="ns")
+    await Timer(2, unit="ns")
     # check the output towards cache indicates good value
     assert dut.non_cachable_base_addr.value == 0xAEAEAEAE
 
@@ -175,6 +175,6 @@ async def test_csr_file(dut):
     dut.write_data.value = 0xAEAEAEAE
     dut.f3.value = 0b001
     await RisingEdge(dut.clk)
-    await Timer(2, units="ns")
+    await Timer(2, unit="ns")
     # check the output towards cache indicates good value
     assert dut.non_cachable_limit_addr.value == 0xAEAEAEAE

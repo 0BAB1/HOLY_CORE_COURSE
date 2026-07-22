@@ -60,7 +60,6 @@ def read_cache(cache_data, line) :
     l = 127 - line
     return (int(str(cache_data.value[32*l:(32*l)+31]),2))
 
-@cocotb.coroutine
 async def cpu_reset(dut):
     # Init and reset
     dut.rst_n.value = 0
@@ -69,12 +68,10 @@ async def cpu_reset(dut):
     dut.rst_n.value = 1           # De-assert reset
     await RisingEdge(dut.clk)     # Wait for a clock edge after reset
 
-@cocotb.coroutine
 async def inst_clocks(dut):
     """this instantiates the axi environement & clocks"""
     cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
 
-@cocotb.coroutine
 async def init_memory(axi_ram : AxiRam, hexfile, base_addr):
     addr_offset = 0
     with open(hexfile, "r") as file:
@@ -999,7 +996,7 @@ async def cpu_insrt_test(dut):
         await RisingEdge(dut.clk)
 
     # Introduce an external itr request in the PLIC
-    dut.irq_in[0].value = 1
+    dut.irq_in.value = int(dut.irq_in.value) | 1
 
     # wait until plic asserts that interrupt
     while not dut.core.ext_itr.value == 1:
@@ -1009,7 +1006,7 @@ async def cpu_insrt_test(dut):
     while not binary_to_hex(dut.core.instruction.value) == "30200073":
         # NOP is our placeholder to deassert the interrupt request
         if binary_to_hex(dut.core.instruction.value) == "00000013":
-            dut.irq_in[0].value = 0
+            dut.irq_in.value = 0
         await RisingEdge(dut.clk)
     
     # check that the interrupt is cleared
@@ -1122,9 +1119,9 @@ async def cpu_insrt_test(dut):
     while dut.core.stall.value == 1:
         await RisingEdge(dut.clk)
 
-    assert (dut.core.holy_csr_file.dcsr.value >> 2 & 0b1) != 1
+    assert int(dut.core.holy_csr_file.dcsr.value) >> 2 & 0b1 != 1
 
-    while dut.core.holy_csr_file.dcsr.value >> 2 & 0b1 != 1:
+    while int(dut.core.holy_csr_file.dcsr.value) >> 2 & 0b1 != 1:
         # we wait for step flag in dcsr to be set
         await RisingEdge(dut.clk)
     
@@ -1132,12 +1129,12 @@ async def cpu_insrt_test(dut):
     await NextInstr(dut) # execute dret from the "set step" section
 
     # check if we exited debug mode
-    assert dut.core.holy_csr_file.debug_mode == 0
+    assert int(dut.core.holy_csr_file.debug_mode) == 0
 
     await NextInstr(dut) # execute EXACTLY 1 instruction
 
     # we should be back to debug mode
-    assert dut.core.holy_csr_file.debug_mode == 1
+    assert int(dut.core.holy_csr_file.debug_mode) == 1
 
     # ====
     # 2
@@ -1146,7 +1143,7 @@ async def cpu_insrt_test(dut):
     # back to debug mode after the single step
     # the program shall clear the step flag
 
-    while dut.core.holy_csr_file.dcsr.value >> 2 & 0b1 != 0:
+    while int(dut.core.holy_csr_file.dcsr.value) >> 2 & 0b1 != 0:
         # we wait for step to be cleared
         await RisingEdge(dut.clk)
 

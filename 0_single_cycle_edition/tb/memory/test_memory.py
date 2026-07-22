@@ -9,7 +9,6 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 
-@cocotb.coroutine
 async def reset(dut):
     await RisingEdge(dut.clk)
     dut.rst_n.value = 0
@@ -70,7 +69,7 @@ async def memory_data_test(dut):
     # WRITE TEST #2
     # ==============
 
-    for i in range(40,4):
+    for i in range(0,40,4):
         dut.address.value = i
         dut.write_data.value = i
         dut.write_enable.value = 1
@@ -81,7 +80,7 @@ async def memory_data_test(dut):
     # ==============
 
     dut.write_enable.value = 0
-    for i in range(40,4):
+    for i in range(0,40,4):
         dut.address.value = i
         await RisingEdge(dut.clk)
         expected_value = i
@@ -113,4 +112,6 @@ async def memory_data_test(dut):
 
             # Verify by reading back
             await RisingEdge(dut.clk)
+            value = dut.read_data.value
             
+            assert value == (data & mask), f"Expected {hex(data & mask)}, got {hex(value)} at address {address}"

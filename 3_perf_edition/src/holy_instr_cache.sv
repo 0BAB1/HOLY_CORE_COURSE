@@ -213,10 +213,19 @@ module holy_instr_cache #(
             pending_tag         <= '0;
 
         end else begin
-            // Metadata updates
-            cache_tags  <= next_cache_tags;
-            cache_valid <= next_cache_valid;
-            lru_bits    <= next_lru_bits;
+            // metadata updates
+            for (int w = 0; w < NUM_WAYS; w++) begin
+                for (int s = 0; s < NUM_SETS; s++) begin
+                    cache_tags[w][s]  <= next_cache_tags[w][s];
+                    cache_valid[w][s] <= next_cache_valid[w][s];
+                end
+            end
+
+
+            for (int s = 0; s < NUM_SETS; s++) begin
+                lru_bits[s] <= next_lru_bits[s];
+            end
+
 
             // Pending request latches
             pending_addr        <= next_pending_addr;
@@ -224,7 +233,6 @@ module holy_instr_cache #(
             pending_word_offset <= next_pending_word_offset;
             pending_tag         <= next_pending_tag;
 
-            // Update LRU on read hit (when request is accepted)
             if (hit && req_accepted && state == IDLE) begin
                 lru_bits[req_set] <= ~hit_way_select;
             end

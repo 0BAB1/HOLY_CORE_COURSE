@@ -20,7 +20,6 @@ def hex_to_bin(hex_str):
     bin_str = bin_str.zfill(32)
     return bin_str.upper()
 
-@cocotb.coroutine
 async def cpu_reset(dut):
     # Init and reset
     dut.rst_n.value = 0

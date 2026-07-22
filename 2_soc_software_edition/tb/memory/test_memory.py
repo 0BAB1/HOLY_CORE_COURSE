@@ -8,7 +8,6 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 
-@cocotb.coroutine
 async def reset(dut):
     await RisingEdge(dut.clk)
     dut.rst_n.value = 0

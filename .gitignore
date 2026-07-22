@@ -16,6 +16,7 @@ gpio.o
 .Xil
 HOLY_SOC
 *str
+*.xml
 *.ila
 riscv-arch-test
 # config.ini

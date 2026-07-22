@@ -54,7 +54,6 @@ def dump_cache(cache_data, line) -> int :
         print(hex(int(str(cache_data.value[32*line:(32*line)+31]),2)))
         
 
-@cocotb.coroutine
 async def reset(dut):
     await RisingEdge(dut.clk)
     dut.rst_n.value = 0
@@ -235,9 +234,9 @@ async def main_test(dut):
         await Timer(1, units="ns")
 
         # assuming memory is ready... req is ack and we switch to recieving the data
-        assert dut.axi_lite_arready == 0b1
-        assert dut.axi_lite_arvalid == 0b1
-        assert dut.axi_lite_araddr == addr
+        assert dut.axi_lite_arready.value == 0b1
+        assert dut.axi_lite_arvalid.value == 0b1
+        assert dut.axi_lite_araddr.value == addr
         assert dut.cache_system.state.value == LITE_SENDING_READ_REQ
         assert dut.cache_system.next_state.value == LITE_RECEIVING_READ_DATA
 
