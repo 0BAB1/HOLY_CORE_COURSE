@@ -62,8 +62,13 @@ memory #(
     // Memory inputs
     .clk(clk),
     .address(pc),
+
+    // A 32-bit instruction is always fetched as a word.
+    .align_mask(2'b11),
+
     .write_data(32'b0),
     .write_enable(1'b0),
+    .read_enable(1'b1),
     .rst_n(1'b1),
     .byte_enable(4'b0000),
 
@@ -89,6 +94,7 @@ wire alu_last_bit;
 wire [3:0] alu_control;
 wire [2:0] imm_source;
 wire mem_write;
+wire mem_read_enable;
 wire reg_write;
 // out muxes wires
 wire alu_source;
@@ -107,6 +113,7 @@ control control_unit(
     .alu_control(alu_control),
     .imm_source(imm_source),
     .mem_write(mem_write),
+    .mem_read_enable(mem_read_enable),
     .reg_write(reg_write),
     // muxes out
     .alu_source(alu_source),
@@ -208,6 +215,7 @@ alu alu_inst(
 * LOAD/STORE DECODER
 */
 
+logic [1:0] mem_align_mask;
 wire [3:0] mem_byte_enable;
 wire [31:0] mem_write_data;
 
@@ -215,6 +223,7 @@ load_store_decoder ls_decode(
     .alu_result_address(alu_result),
     .reg_read(read_reg2),
     .f3(f3),
+    .align_mask(mem_align_mask),
     .byte_enable(mem_byte_enable),
     .data(mem_write_data)
 );
@@ -230,9 +239,11 @@ memory #(
 ) data_memory (
     // Memory inputs
     .clk(clk),
-    .address({alu_result[31:2], 2'b00}),
+    .address(alu_result),
+    .align_mask(mem_align_mask),
     .write_data(mem_write_data),
     .write_enable(mem_write),
+    .read_enable(mem_read_enable),
     .byte_enable(mem_byte_enable),
     .rst_n(1'b1),
 
@@ -254,5 +265,5 @@ reader reader_inst(
     .wb_data(mem_read_write_back_data),
     .valid(mem_read_write_back_valid)
 );
-    
+
 endmodule

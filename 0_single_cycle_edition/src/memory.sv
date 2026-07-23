@@ -15,9 +15,11 @@ module memory #(
 ) (
     input  logic        clk,
     input  logic [31:0] address,
+    input  logic [1:0]  align_mask,
     input  logic [31:0] write_data,
     input  logic [3:0]  byte_enable,
     input  logic        write_enable,
+    input  logic        read_enable,
     input  logic        rst_n,
     output logic [31:0] read_data
 );
@@ -39,7 +41,7 @@ always @(posedge clk) begin
         end
     end else begin
         if(write_enable) begin
-            if (address[1:0] != 2'b00) begin
+            if ((address[1:0] & align_mask) != 2'b00) begin
                 $fatal(1, "STOPPING SIMULATION: Misaligned write at address %h. HINT: Check your code.", address);
             end else begin
                 // use byte-enable to selectively write bytes
@@ -57,12 +59,14 @@ end
 
 always_comb begin
     read_data = 32'h00000000;
-    if (address[1:0] != 2'b00) begin
-        $fatal(1, "STOPPING SIMULATION: Misaligned read at address %h. HINT: Check your code.", address);
-    end else begin
-        /* verilator lint_off WIDTHTRUNC */
-        read_data = mem[address[31:2]];
-        /* verilator lint_on WIDTHTRUNC */
+    if (read_enable) begin
+        if (rst_n && ((address[1:0] & align_mask) != 2'b00)) begin
+            $fatal(1, "STOPPING SIMULATION: Misaligned read at address %h. HINT: Check your code.", address);
+        end else begin
+            /* verilator lint_off WIDTHTRUNC */
+            read_data = mem[address[31:2]];
+            /* verilator lint_on WIDTHTRUNC */
+        end
     end
 end
 

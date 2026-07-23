@@ -17,6 +17,7 @@ module control (
     output logic [3:0] alu_control,
     output logic [2:0] imm_source,
     output logic       mem_write,
+    output logic       mem_read_enable,
     output logic       reg_write,
     output logic       alu_source,
     output logic [1:0] write_back_source,
@@ -39,6 +40,7 @@ always_comb begin
     // Default assignments to prevent latch inference.
     reg_write = 1'b0;
     mem_write = 1'b0;
+    mem_read_enable = 1'b0;
     alu_op = 2'b00;
     alu_source = 1'b0;
     imm_source = 3'b000;
@@ -53,6 +55,7 @@ always_comb begin
             reg_write = 1'b1;
             imm_source = 3'b000;
             mem_write = 1'b0;
+            mem_read_enable = 1'b1;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
             write_back_source =2'b01; //memory_read

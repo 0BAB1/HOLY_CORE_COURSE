@@ -13,6 +13,8 @@ async def reset(dut):
     await RisingEdge(dut.clk)
     dut.rst_n.value = 0
     dut.write_enable.value = 0
+    dut.read_enable.value = 1
+    dut.align_mask.value = 0b00
     dut.address.value = 0
     dut.write_data.value = 0
     await RisingEdge(dut.clk)
