@@ -57,7 +57,7 @@ end
 
 always_comb begin
     read_data = 32'h00000000;
-    if (address[1:0] != 2'b00) begin
+    if (rst_n && (address[1:0] != 2'b00)) begin
         $fatal(1, "STOPPING SIMULATION: Misaligned read at address %h. HINT: Check your code.", address);
     end else begin
         /* verilator lint_off WIDTHTRUNC */
