@@ -22,8 +22,13 @@ async def reset(dut):
     print("reset done !")
 
     # Assert all is 0 after reset
-    for address in range(dut.WORDS.value):
-        dut.address.value = address
+    for word_index in range(dut.WORDS.value):
+
+        # Make the address aligned by using a word index to map to the addresses permitted by the
+        # byte-addressable word-aligned memory array (only the addresses that are multiples of four
+        # are valid).
+        dut.address.value = word_index << 2
+
         await Timer(1, units="ns")
         # just 32 zeroes, you can also use int()
         assert dut.read_data.value == "00000000000000000000000000000000"

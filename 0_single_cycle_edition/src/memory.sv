@@ -10,8 +10,8 @@
 `timescale 1ns/1ps
 
 module memory #(
-    parameter WORDS = 128,
-    parameter mem_init = ""
+    parameter int WORDS = 128,
+    parameter string mem_init = ""
 ) (
     input  logic        clk,
     input  logic [31:0] address,
@@ -23,7 +23,7 @@ module memory #(
 );
 
 // Memory array (32-bit words)
-reg [31:0] mem [0:WORDS-1];
+reg [31:0] mem [WORDS];
 
 initial begin
     if (mem_init != "") begin
@@ -40,7 +40,7 @@ always @(posedge clk) begin
     end else begin
         if(write_enable) begin
             if (address[1:0] != 2'b00) begin
-                $fatal("STOPPING SIMULATION: Misaligned write at address %h. HINT: Check your code.", address);
+                $fatal(1, "STOPPING SIMULATION: Misaligned write at address %h. HINT: Check your code.", address);
             end else begin
                 // use byte-enable to selectively write bytes
                 for (int i = 0; i < 4; i++) begin
@@ -56,9 +56,14 @@ always @(posedge clk) begin
 end
 
 always_comb begin
-    /* verilator lint_off WIDTHTRUNC */
-    read_data = mem[address[31:2]];
-    /* verilator lint_on WIDTHTRUNC */
+    read_data = 32'h00000000;
+    if (address[1:0] != 2'b00) begin
+        $fatal(1, "STOPPING SIMULATION: Misaligned read at address %h. HINT: Check your code.", address);
+    end else begin
+        /* verilator lint_off WIDTHTRUNC */
+        read_data = mem[address[31:2]];
+        /* verilator lint_on WIDTHTRUNC */
+    end
 end
 
 endmodule
