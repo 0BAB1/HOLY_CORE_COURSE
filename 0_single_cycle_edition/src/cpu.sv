@@ -230,7 +230,7 @@ memory #(
 ) data_memory (
     // Memory inputs
     .clk(clk),
-    .address({alu_result[31:2], 2'b00}),
+    .address(alu_result),
     .write_data(mem_write_data),
     .write_enable(mem_write),
     .byte_enable(mem_byte_enable),
@@ -254,5 +254,5 @@ reader reader_inst(
     .wb_data(mem_read_write_back_data),
     .valid(mem_read_write_back_valid)
 );
-    
+
 endmodule
