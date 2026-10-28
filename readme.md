@@ -2,14 +2,14 @@
 
 ![banner](./user_docs/docs/images/banner.png)
 
-**Build your own 32-bit RISC-V CPU from scratch.** An open-source core with detailed tutorials — because learning hardware shouldn't feel like black magic.
+**Build your own 32-bit RISC-V CPU from scratch.** An FREE and open-source core with detailed tutorials. Some advanced material are indeed only accessible by paying (advanced verification, debug specs, traps, ...) but frankly, you have a loooot to dig and learn before getting there ;)
 
-<!-- "For God is not a God of confusion but of peace."
-— 1 Corinthians 14:33 -->
-<!-- Aftersome reflexion, I'm commenting this citation out of respect to the teachinf of the holy catholic church. This project is filled with references but is not a substitute to the church's preaching... -->
+Wheteher you want to learn how to build your core using **REAL HANDWRITTEN** material or just have a simple and straightforward RV core to use in you projects, you are at the **right place**.
+
+<!-- SIDE NOTE / DISCLAIMER This project is filled with catholic references. Because why not ;) BUT is not a substitute to the catholic church's preaching.-->
 
 > [!NOTE]
-> And yes, the HOLY CORE runs [**DOOM**](https://github.com/0BAB1/HOLY_CORE_DOOM) ;)
+> The **HOLY CORE** is a **handwritten** project.I'd say more than 90-95% of the code was written by hand. This is important as this is **NOT** antoher linkedin slop project or education slop. So hop on an adventure to learn from real people how to build your own CPU! And yes, the HOLY CORE runs [**DOOM**](https://github.com/0BAB1/HOLY_CORE_DOOM) ;)
 
 ## 🧙‍♂️ Choose Your Path
 
@@ -52,11 +52,11 @@ By the end of this course, you'll have:
 
 | Feature | Description |
 |---------|-------------|
-| 🧠 **RV32I Zicsr Core** | Full integer instruction set + CSR support |
-| ⚡ **Interrupts & Exceptions** | Privileged spec compliant |
-| 💾 **Cache System** | Learn advanced statemachine and AXI protocols by build configurable instruction & data caches |
-| 🔌 **Complete SoC** | UART, GPIO, etc Running on your FPGA |
-| 🎮 **Real Software** | C programs, bare-metal, etc |
+| **RV32I Zicsr Core** | Full integer instruction set + CSR support |
+| **Interrupts & Exceptions** | Privileged specs compliant |
+| **Cache System** | Learn advanced state machines and AXI protocols by building configurable instruction & data caches |
+| **Complete SoC** | UART, GPIO, etc Running on your FPGA, advanced tutorials even make you run DOOM ! |
+| **Real Software** | C programs and bare-metal assembly thanks to the RISC-V open specs ! |
 
 ## 📖 Course Overview
 
@@ -66,7 +66,7 @@ By the end of this course, you'll have:
 
 Build the full RV32I instruction set from scratch in SystemVerilog. Test everything with cocotb.
 
-**You'll learn:** ALU design, register files, control logic, instruction decoding, basic verification.
+**You'll learn:** ALU design, register files, control logic, instruction decoding, (very) basic verification.
 
 ### 🟢 FPGA Edition  
 > [!TIP]
@@ -74,7 +74,10 @@ Build the full RV32I instruction set from scratch in SystemVerilog. Test everyth
 
 Add memory interfaces (AXI), design a cache system, and deploy on actual FPGA hardware.
 
-**You'll learn:** Memory hierarchies, bus protocols, hardware/software co-design.
+**You'll learn:** basic bug bug packed caches, bus protocols, FPGA implementation challenges.
+
+> [!WARNING]
+> *Note* : caches in this edition are pretty bad. I added them back then to have a basic interface woth the SoC that also explores cache and AXI basic but it is packed with bugs and extremely unefficient. You may skip it or explore your own solution there.
 
 ### 🟡 SoC & Software Edition *(Contributors Only)*
 > [!TIP]
@@ -86,27 +89,29 @@ Note that for now, it's only available here for the early supporters of the proj
 
 **You'll learn:** Core verification, privileged architecture, interrupt handling, embedded C development, debug support.
 
-### 🟡 Performance Edition *(Coming Soon)*
+### 🟡 Performance Edition *(Contributors Only)*
 > [!TIP]
 > *Maximise DOOM fps and overall perfs*
 
-This edition is not over yet but the early work is available for contributors. See `## Support the Project` section.
+This edition is out for contributors. See `## Support the Project` section.
 
-### 🔴 OS Edition *(Coming Soon)*
-> *Run a real operating system*
+Note it may recieve further improvements later, especially if I need to pipeline the core.
 
 ### 🔴 Tapeout Edition *(Coming Soon + I'm too broke)*
 > *Tapeout the HOLYCORE, one day maybe...*
+
+But before doing that, I really need to better the core architecture to make the most of each piece of hardware, right now, it's not really efficient.
+
+A 2-3 stage pipeline with some double issue capabilities + some OoO execution while performing memory operations (which can cost time, especially on uncached / caches misses) would not hurt. If not, simplifying the design to use less 
 
 ## 📊 Status
 
 | Edition | Status |
 |---------|--------|
-| Single Cycle | ✅ Complete |
-| FPGA | ✅ Complete |
-| SoC & Software | ✅ Complete |
-| Performance | 🔜 DOING |
-| OS | 🔴 Idk |
+| Single Cycle : base core | ✅ Complete |
+| FPGA : implement and run on FPGA (but with lots of bugs) | ✅ Complete |
+| SoC & Software : less bugs, full SoC, CSR and privileges support, traps, verification and C programs ! | ✅ Complete |
+| Performance : Improve caches performances, fix caches bugs (lots of them lol) | ✅ Complete but can be improved |
 
 ## Support the Project
 
