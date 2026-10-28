@@ -154,7 +154,7 @@ if __name__ == "__main__":
     test_alu()
     test_control()
     test_holy_core()
-    """test_memory()"""
+    #test_memory()
     test_regfile()
     test_signext()
     test_load_store_decoder()

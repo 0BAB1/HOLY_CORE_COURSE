@@ -45,6 +45,22 @@ async def NextInstr(dut):
     while dut.core.pc.value == start_pc or dut.core.stall.value == 1:
         await Timer(1, units="ns")
 
+async def wait_dcache_flush_done(dut):
+    """Wait for the D$ flush to start and complete (flush duration depends on # of dirty lines)"""
+    flushing = dut.core.gen_data_cache.data_cache.csr_flushing
+    for _ in range(DEADLOCK_MAX):
+        if flushing.value == 1:
+            break
+        await RisingEdge(dut.clk)
+    for _ in range(DEADLOCK_MAX):
+        if flushing.value == 0:
+            break
+        await RisingEdge(dut.clk)
+    assert flushing.value == 0, "D$ flush did not complete"
+    # let the last AXI write response settle in the RAM model
+    for _ in range(10):
+        await RisingEdge(dut.clk)
+
 def binary_to_hex(bin_str):
     # Convert binary string to hexadecimal
     hex_str = hex(int(str(bin_str), 2))[2:]
@@ -1152,8 +1168,7 @@ async def cpu_insrt_test(dut):
     while not dut.core.instruction.value == 0x7c00d073:
         await RisingEdge(dut.clk)
     
-    for _ in range(200):
-        await RisingEdge(dut.clk)
+    await wait_dcache_flush_done(dut)
 
     # Read checksums from 0x1200
     write_checksum = int.from_bytes(axi_ram_slave.read(0x1200, 4), byteorder="little")
@@ -1186,8 +1201,7 @@ async def cpu_insrt_test(dut):
     while not dut.core.instruction.value == 0x7c00d073:
         await RisingEdge(dut.clk)
     
-    for _ in range(200):
-        await RisingEdge(dut.clk)
+    await wait_dcache_flush_done(dut)
 
     # Read checksums from 0x1200
     interleave_checksum = int.from_bytes(axi_ram_slave.read(0x1200, 4), byteorder="little")
@@ -1216,8 +1230,7 @@ async def cpu_insrt_test(dut):
     while not dut.core.instruction.value == 0x7c00d073:
         await RisingEdge(dut.clk)
     
-    for _ in range(200):
-        await RisingEdge(dut.clk)
+    await wait_dcache_flush_done(dut)
 
     # Read checksums from 0x1800
     write_checksum = int.from_bytes(axi_ram_slave.read(0x1800, 4), byteorder="little")
