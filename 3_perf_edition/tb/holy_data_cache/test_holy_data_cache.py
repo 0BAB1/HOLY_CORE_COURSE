@@ -1477,3 +1477,241 @@ async def test_write_miss_address_change(dut):
     
     assert errors == 0, f"Write miss address change test failed with {errors} errors"
     dut._log.info("✓ Write miss address change test PASSED")
+
+
+# =============================================================================
+# TEST 6 (added oct 2026): Asked AI to pick up some gaps in the test and it dod find some,
+# this test is a summary of those gaps tested.
+# I shall specify this code is not handwritten and heavily vide coded
+#
+# The motivation behind this is that I want to tidy up the cache bugs which
+# was a very difficult module to write, harder than the core tbh when you are learning
+# And it takes a looot of time to fix bug by hands. Becaus I was working on the drone project
+# I needed a quick way to fix a simple bug and more importantly check the module againt more test cases.
+# Tbh this AI stuff is so good that I ffel like I won't ever have to write a cache again.
+# At this point, I'm just thankful I ever got t learn all that, but today, it feels unrelevant to write stuff by hand
+# especially when, like me, you moved on a while ago from a specific piece of code
+# and would take 1-2 days to pik it back up and fix the bugs, days which I don't have
+# Anyway...
+# =============================================================================
+
+# =============================================================================
+# ADDITIONAL CLAUDE CHECKS  (paste at the end of the existing testbench)
+#
+# Everything runs with RANDOM AXI BACK-PRESSURE on all 5 channels.
+#   1. Hits make no AXI traffic        5. Clean line + RAM changed behind:
+#   2. LRU eviction by AXI counts         flush must not overwrite RAM
+#   3. Flush writes ONLY dirty lines    6. Full dirty flush under back-pressure
+#   4. Second flush writes nothing      7. Delayed read_ack keeps data stable
+#                                       8. Reset invalidates the cache
+# =============================================================================
+
+from cocotb.triggers import ReadOnly
+
+
+def _rand_pause(p=0.3):
+    """Pause generator for cocotbext-axi: True = stall this cycle."""
+    while True:
+        yield random.random() < p
+
+
+class _AxiCounter:
+    """Counts completed AR and AW handshakes (one per burst)."""
+
+    def __init__(self, dut):
+        self.dut = dut
+        self.ar = 0
+        self.aw = 0
+        cocotb.start_soon(self._run())
+
+    async def _run(self):
+        dut = self.dut
+        while True:
+            await RisingEdge(dut.clk)
+            await ReadOnly()
+            if dut.axi_arvalid.value == 1 and dut.axi_arready.value == 1:
+                self.ar += 1
+            if dut.axi_awvalid.value == 1 and dut.axi_awready.value == 1:
+                self.aw += 1
+
+
+async def _cpu_read_slow_ack(dut, address, max_delay=8):
+    """Read, hold read_ack low 1..max_delay cycles, check data stays stable."""
+    dut.cpu_address.value = address
+    dut.cpu_req_valid.value = 1
+    dut.cpu_req_write.value = 0
+    dut.cpu_byte_enable.value = 0xF
+    dut.cpu_read_ack.value = 0
+
+    await RisingEdge(dut.clk)
+    while dut.cpu_req_ready.value == 0:
+        await RisingEdge(dut.clk)
+    dut.cpu_req_valid.value = 0
+
+    while dut.cpu_read_valid.value == 0:
+        await RisingEdge(dut.clk)
+    first = int(dut.cpu_read_data.value)
+
+    for _ in range(random.randint(1, max_delay)):
+        await RisingEdge(dut.clk)
+        assert dut.cpu_read_valid.value == 1, "read_valid dropped before read_ack"
+        assert int(dut.cpu_read_data.value) == first, "read_data changed while waiting for ack"
+
+    dut.cpu_read_ack.value = 1
+    await RisingEdge(dut.clk)
+    dut.cpu_read_ack.value = 0
+    await RisingEdge(dut.clk)
+    return first
+
+
+def _flush_invalidate_param(dut):
+    """FLUSH_INVALIDATE if the simulator exposes it, else None."""
+    try:
+        return int(dut.cache_system.FLUSH_INVALIDATE.value)
+    except Exception:
+        return None
+
+
+@cocotb.test()
+async def test_additional_claude_checks(dut):
+    """Back-pressure, hit/miss counts, flush semantics, delayed ack, reset."""
+    log = dut._log
+    log.info("=" * 70)
+    log.info("TEST: ADDITIONAL CLAUDE CHECKS (random AXI back-pressure)")
+    log.info("=" * 70)
+
+    MEM = 2**16
+    cocotb.start_soon(Clock(dut.clk, CPU_PERIOD, units="ns").start())
+    axi_ram = AxiRam(AxiBus.from_prefix(dut, "axi"), dut.clk, dut.rst_n,
+                     size=MEM, reset_active_level=False)
+
+    for ch in (axi_ram.write_if.aw_channel, axi_ram.write_if.w_channel,
+               axi_ram.write_if.b_channel,  axi_ram.read_if.ar_channel,
+               axi_ram.read_if.r_channel):
+        ch.set_pause_generator(_rand_pause(0.3))
+
+    cnt = _AxiCounter(dut)
+
+    init = bytes(random.getrandbits(8) for _ in range(MEM))
+    axi_ram.write(0, init)
+    golden = [bytes_to_int(init[a:a + 4]) for a in range(0, MEM, 4)]
+
+    def g(addr):          return golden[addr >> 2]
+    def set_g(addr, val): golden[addr >> 2] = val
+    def ram(addr):        return bytes_to_int(axi_ram.read(addr, 4))
+
+    await reset(dut)
+
+    # 1. Hits produce no AXI traffic --------------------------------------
+    log.info("[1] 1 miss + 15 hits in one line -> exactly 1 AXI read burst")
+    base = 0x0100
+    ar0 = cnt.ar
+    assert await cpu_read(dut, base) == g(base)
+    assert cnt.ar - ar0 == 1, f"first read should be 1 line fill, got {cnt.ar - ar0}"
+    ar1 = cnt.ar
+    for i in range(1, 16):
+        a = base + 4 * i
+        assert await cpu_read(dut, a) == g(a), f"hit data mismatch at 0x{a:04X}"
+    assert cnt.ar == ar1, f"hits caused {cnt.ar - ar1} AXI reads (cache not caching?)"
+    log.info("    OK")
+
+    # 2. LRU eviction by AXI counts ---------------------------------------
+    log.info("[2] LRU: A, B, A, C (evicts B) -> A hits, B misses")
+    await reset(dut)
+    A, B, C = 0x0000, 0x0200, 0x0400
+    for a in (A, B, A, C):
+        assert await cpu_read(dut, a) == g(a)
+    ar0 = cnt.ar
+    assert await cpu_read(dut, A) == g(A)
+    assert cnt.ar == ar0, "A should still be cached"
+    assert await cpu_read(dut, B) == g(B)
+    assert cnt.ar == ar0 + 1, "B should have been evicted"
+    log.info("    OK")
+
+    # 3. Flush writes back ONLY dirty lines -------------------------------
+    log.info("[3] 3 dirty + 3 clean lines -> flush = exactly 3 write bursts")
+    await reset(dut)
+    dirty_lines = [0x1000, 0x1040, 0x1080]
+    clean_lines = [0x20C0, 0x2100, 0x2140]
+    for a in dirty_lines:
+        v = random.getrandbits(32)
+        await cpu_write(dut, a, v)
+        set_g(a, v)
+    for a in clean_lines:
+        assert await cpu_read(dut, a) == g(a)
+    aw0 = cnt.aw
+    await flush_cache(dut)
+    assert cnt.aw - aw0 == 3, f"flush wrote {cnt.aw - aw0} lines, expected 3"
+    for a in dirty_lines + clean_lines:
+        assert ram(a) == g(a), f"RAM mismatch at 0x{a:04X} after flush"
+    log.info("    OK")
+
+    # 4. Second flush writes nothing --------------------------------------
+    log.info("[4] immediate second flush -> 0 write bursts")
+    aw0 = cnt.aw
+    await flush_cache(dut)
+    assert cnt.aw == aw0, f"second flush wrote {cnt.aw - aw0} lines"
+    log.info("    OK")
+
+    # 5. Clean line + RAM changed behind the cache ------------------------
+    log.info("[5] clean line, RAM changed behind cache, flush must not overwrite")
+    await reset(dut)
+    X = 0x3000
+    assert await cpu_read(dut, X) == g(X)
+    newv = g(X) ^ 0xFFFFFFFF
+    axi_ram.write(X, int_to_bytes(newv))
+    set_g(X, newv)
+    await flush_cache(dut)
+    assert ram(X) == newv, "flush wrote a CLEAN line back over newer RAM content"
+    fi = _flush_invalidate_param(dut)
+    if fi == 1:
+        ar0 = cnt.ar
+        assert await cpu_read(dut, X) == newv, "after invalidating flush, read must see RAM"
+        assert cnt.ar == ar0 + 1, "after invalidating flush, read must miss"
+        log.info("    FLUSH_INVALIDATE=1 verified")
+    else:
+        log.info(f"    FLUSH_INVALIDATE={fi}: invalidate sub-check skipped")
+    log.info("    OK")
+
+    # 6. Whole cache dirty, flush under back-pressure ---------------------
+    log.info("[6] 16 fully dirty lines, flush, compare 256 words")
+    await reset(dut)
+    lines = [0x4000 + s * 0x40 for s in range(8)] + [0x4200 + s * 0x40 for s in range(8)]
+    for la in lines:
+        for w in range(16):
+            a = la + 4 * w
+            v = random.getrandbits(32)
+            await cpu_write(dut, a, v)
+            set_g(a, v)
+    aw0 = cnt.aw
+    await flush_cache(dut)
+    assert cnt.aw - aw0 == 16, f"expected 16 write-back bursts, got {cnt.aw - aw0}"
+    bad = [la + 4 * w for la in lines for w in range(16) if ram(la + 4 * w) != g(la + 4 * w)]
+    assert not bad, f"{len(bad)} words corrupted by flush, first at 0x{bad[0]:04X}"
+    log.info("    OK")
+
+    # 7. Delayed read_ack -------------------------------------------------
+    log.info("[7] 100 reads with read_ack delayed 1..8 cycles")
+    await reset(dut)
+    for _ in range(100):
+        a = random.randint(0, (MEM // 4) - 1) * 4
+        assert await _cpu_read_slow_ack(dut, a) == g(a), f"slow-ack mismatch at 0x{a:04X}"
+    dut.cpu_read_ack.value = 1
+    log.info("    OK")
+
+    # 8. Reset invalidates the cache --------------------------------------
+    log.info("[8] cached line, RAM changed behind, reset -> read sees new RAM")
+    Y = 0x5000
+    assert await cpu_read(dut, Y) == g(Y)
+    newv = g(Y) ^ 0x5A5A5A5A
+    axi_ram.write(Y, int_to_bytes(newv))
+    set_g(Y, newv)
+    await reset(dut)
+    ar0 = cnt.ar
+    assert await cpu_read(dut, Y) == newv, "after reset the cache returned stale data"
+    assert cnt.ar == ar0 + 1, "after reset the first read must miss"
+    log.info("    OK")
+
+    log.info("=" * 70)
+    log.info("ALL ADDITIONAL CLAUDE CHECKS PASSED")
+    log.info("=" * 70)

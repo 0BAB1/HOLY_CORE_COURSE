@@ -1,3 +1,11 @@
+set_property ALLOW_COMBINATORIAL_LOOPS true [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/d_cache_stall]
+set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *arbitre*]
+set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *instr_cache*]
+set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *data_cache*]
+set_property DONT_TOUCH true [get_cells -hierarchical *instr_cache*]
+set_property DONT_TOUCH true [get_cells -hierarchical *axi_instr*]
+set_property DONT_TOUCH true [get_cells -hierarchical *arbitre*]
+set_property RAM_STYLE BLOCK [get_cells -hierarchical *cache_data_way*]
 # CONSTRAINT FILE FOR TARGET BOARD : ARTY S7-50 ONLY
 
 # SW3
@@ -25,7 +33,16 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_rtl_txd]
 # set_property PACKAGE_PIN J14 [get_ports iic_rtl_scl_io]
 # set_property IOSTANDARD LVCMOS33 [get_ports iic_rtl_scl_io]
 
+#JC1
+set_property PACKAGE_PIN U15 [get_ports i2c_1_scl_io]
+set_property IOSTANDARD LVCMOS33 [get_ports i2c_1_scl_io]
+
+#JC2
+set_property PACKAGE_PIN V16 [get_ports i2c_1_sda_io]
+set_property IOSTANDARD LVCMOS33 [get_ports i2c_1_sda_io]
+
 # JTAG tap constraints
+# On the S7-50, it corresponds to
 
 set_property PACKAGE_PIN V15 [get_ports tms_i_0]
 set_property IOSTANDARD LVCMOS33 [get_ports tms_i_0]
@@ -39,31 +56,17 @@ set_property IOSTANDARD LVCMOS33 [get_ports td_o_0]
 set_property PACKAGE_PIN T12 [get_ports tck_i_0]
 set_property IOSTANDARD LVCMOS33 [get_ports tck_i_0]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0_IBUF]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0_IBUF_BUFG]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets tck_i_0]
 
 # we allow this loops (involving stall) as the control signals aare logically mutually exclusive
 # it should go away when pipelining / introducing better handshakes.
-set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets design_1_i/top_0/inst/wrapped/core/holy_csr_file/d_cache_stall]
-set_property ALLOW_COMBINATORIAL_LOOPS true [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/d_cache_stall]
-set_property ALLOW_COMBINATORIAL_LOOPS true [get_nets design_1_i/top_0/inst/wrapped/core/gen_data_cache.data_no_cache/stall]
 
 
 # battle against stupid vivado optimsations:
-set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *arbitre*]
-set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *instr_cache*]
-set_property KEEP_HIERARCHY TRUE [get_cells -hierarchical *data_cache*]
-set_property DONT_TOUCH true [get_cells -hierarchical *instr_cache*]
-set_property DONT_TOUCH true [get_cells -hierarchical *axi_instr*]
-set_property DONT_TOUCH true [get_cells -hierarchical *arbitre*]
-set_property DONT_TOUCH true [get_nets m_axi_*]
-set_property KEEP_HIERARCHY yes [get_cells wrapped]
 
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property CONFIG_MODE SPIx4 [current_design]
 
-set_property RAM_STYLE BLOCK [get_cells -hierarchical *cache_data_way*]
-set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
-set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
-set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
-connect_debug_port dbg_hub/clk [get_nets clk]
+

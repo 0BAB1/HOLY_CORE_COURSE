@@ -1,6 +1,13 @@
 # Holy Core Example Programs
 
-In this folder, you can experiment with pre-written exmaple programs.
+In this folder, you can experiment with pre-written example programs.
+
+## Pre-requisite
+
+Build the *holy core library*. This library contains very basic drivers, mainly to print through UART and define the SoC layout.
+All the other drivers related thing are up to you to code.
+
+Build the *holy core library* by going into the `hc_lib/` folder and running `make`.
 
 ## Usage
 

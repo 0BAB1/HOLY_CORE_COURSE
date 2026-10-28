@@ -14,6 +14,19 @@
 *
 *   Created 11/25
 *   Refactored: Separated ways into distinct 2D BRAMs for proper inference
+*
+*   10/26 - Flush fixes:
+*     1. Flush write-back now gates the BRAM read on axi.wready, like the
+*        normal eviction path (data was shifted / corrupted under AXI
+*        back-pressure).
+*     2. Flush only writes back lines that are VALID AND DIRTY (clean lines
+*        were written back too, overwriting RAM changed behind the cache,
+*        e.g. by a debugger load).
+*     3. A flushed line is marked clean (dirty = 0) once its write response
+*        is OK. With FLUSH_INVALIDATE = 1, the whole cache is also
+*        invalidated when the flush completes.
+*     4. Flush sequencing rewritten: every line is handled, then FLUSH_NEXT
+*        advances or finishes (the last line could be written back twice).
 */
 
 import holy_core_pkg::*;
@@ -21,6 +34,9 @@ import holy_core_pkg::*;
 module holy_data_cache #(
     parameter WORDS_PER_LINE = 16,
     parameter NUM_SETS = 8,
+    // 0: flush = write back dirty lines, keep them valid (now clean)
+    // 1: flush = write back dirty lines, then invalidate the whole cache
+    parameter bit FLUSH_INVALIDATE = 1'b1,
     // MODIFYING THE FOLLOWING IS NOT SUPPORTED. 
     parameter NUM_WAYS = 2 
 )(
@@ -133,9 +149,6 @@ module holy_data_cache #(
     // Cache storage: 2 separate BRAMs, one per way
     // Each BRAM: NUM_SETS × WORDS_PER_LINE words
 
-    // (* ram_style = "block" *) logic [31:0] cache_data_way0 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
-    // (* ram_style = "block" *) logic [31:0] cache_data_way1 [NUM_SETS-1:0][WORDS_PER_LINE-1:0];
-
     // Way 0 BRAM
     cache_bram_way #(
     .NUM_SETS(NUM_SETS),
@@ -219,45 +232,7 @@ module holy_data_cache #(
     logic next_cache_dirty  [NUM_WAYS-1:0][NUM_SETS-1:0];
     logic next_lru_bits     [NUM_SETS-1:0];
 
-    // =======================
-    // BRAM R/W LOGIC - ACTIVE HIGH ENABLE, ACTIVE ON POSEDGE CLK
-    // =======================
-    
-    // always_ff @(posedge clk) begin
-    //     if (~rst_n) begin
-    //         bram_write_complete <= 0;
-    //     end else begin
-    //         bram_write_complete <= next_bram_write_complete;
-    //     end
-
-    //     // WRITE WAY 0
-    //     if (bram_we_way0) begin
-    //         if (bram_be[0]) cache_data_way0[bram_set_addr][bram_word_addr][ 7: 0] <= bram_wdata[ 7: 0];
-    //         if (bram_be[1]) cache_data_way0[bram_set_addr][bram_word_addr][15: 8] <= bram_wdata[15: 8];
-    //         if (bram_be[2]) cache_data_way0[bram_set_addr][bram_word_addr][23:16] <= bram_wdata[23:16];
-    //         if (bram_be[3]) cache_data_way0[bram_set_addr][bram_word_addr][31:24] <= bram_wdata[31:24];
-    //     end
-
-    //     // WRITE WAY 1
-    //     if (bram_we_way1) begin
-    //         if (bram_be[0]) cache_data_way1[bram_set_addr][bram_word_addr][ 7: 0] <= bram_wdata[ 7: 0];
-    //         if (bram_be[1]) cache_data_way1[bram_set_addr][bram_word_addr][15: 8] <= bram_wdata[15: 8];
-    //         if (bram_be[2]) cache_data_way1[bram_set_addr][bram_word_addr][23:16] <= bram_wdata[23:16];
-    //         if (bram_be[3]) cache_data_way1[bram_set_addr][bram_word_addr][31:24] <= bram_wdata[31:24];
-    //     end
-
-    //     // READ Way 0 BRAM
-    //     if (bram_re_way0) begin
-    //         bram_rdata <= cache_data_way0[bram_set_addr][bram_word_addr];
-    //     end
-        
-    //     // READ Way 1 BRAM
-    //     if (bram_re_way1) begin
-    //         bram_rdata <= cache_data_way1[bram_set_addr][bram_word_addr];
-    //     end
-    // end
-
-    // bram_write_complete registers (keep these)
+    // bram_write_complete registers
     always_ff @(posedge clk) begin
         if (~rst_n) begin
             bram_write_complete <= 0;
@@ -348,19 +323,21 @@ module holy_data_cache #(
 
         //---------------------------
         // AXI write back : we need to read data from BRAM to send it !
+        // The BRAM read is 1 cycle late vs word_ptr: only advance the readout
+        // when the slave accepts the current word (both paths).
         //---------------------------
         else if (state == SENDING_WRITE_DATA) begin
             if (csr_flushing) begin
+                // FIX : same back-pressure gating as the eviction path
                 bram_set_addr = flush_set;
                 bram_word_addr = word_ptr;
-                bram_re_way0 = ~flush_way;
-                bram_re_way1 = flush_way;
+                bram_re_way0 = axi.wready ? ~flush_way : 1'b0;
+                bram_re_way1 = axi.wready ?  flush_way : 1'b0;
             end else begin
-                // BUG FIX : only update readout when the slave is ready
                 bram_set_addr = pending_set;
                 bram_word_addr = word_ptr;
-                bram_re_way0 = axi.wready ? ~current_way : 0;
-                bram_re_way1 = axi.wready ? current_way : 0;
+                bram_re_way0 = axi.wready ? ~current_way : 1'b0;
+                bram_re_way1 = axi.wready ?  current_way : 1'b0;
             end
         end
         
@@ -552,18 +529,16 @@ module holy_data_cache #(
         case (state)
             IDLE: begin
                 // INIT FLUSHING PROCEDURE
+                // Walk every (way, set) starting at (0, 0). Only VALID AND DIRTY
+                // lines are written back; FLUSH_NEXT advances over the others.
                 if (csr_flush_order && ~csr_flushing_done) begin
                     next_csr_flushing = 1'b1;
-                    next_flush_set = 0;
-                    next_flush_way = 0;
+                    next_flush_set = '0;
+                    next_flush_way = '0;
 
-                    if(cache_valid[0][0]) begin
-                        // if the first set is valid, we flush it
-                        // and start the flushing state loop
+                    if (cache_valid[0][0] && cache_dirty[0][0]) begin
                         next_state = SENDING_WRITE_REQ;
                     end else begin
-                        // if not, we go to FLUSH NEXT STATE which
-                        // will skip the WRITE requests until it finds a valid set.
                         next_state = FLUSH_NEXT;
                     end
                 end
@@ -594,7 +569,6 @@ module holy_data_cache #(
                 
                 // ACCEPT HIT (READ)
                 else if (hit && ~req_write && req_accepted) begin
-                    // Cache miss on accepted request - determine victim way
                     next_state = READ_OK;
                     next_pending_hit_way = hit_way_select;
                 end
@@ -640,36 +614,10 @@ module holy_data_cache #(
             WAITING_WRITE_RES: begin
                 if (axi.bvalid && (axi.bresp == 2'b00)) begin
                     if (csr_flushing) begin
-                        
-                        // Flushing implies flushing all sets from all ways
-                        // so we increment flush set / way pointers
-                        if (flush_set == LAST_SET[SET_INDEX_BITS-1:0]) begin
-                            // last set of this way
-                            if (flush_way == 1'b1) begin
-                                next_state = IDLE;
-                                next_csr_flushing = '0;
-                                next_csr_flushing_done = 1'b1;
-                            end else begin
-                                next_flush_way = flush_way + 1'b1;
-                                next_flush_set = '0;
-                                next_current_way = flush_way + 1'b1;
-
-                                if (cache_valid[next_flush_way][next_flush_set]) begin
-                                    next_state = SENDING_WRITE_REQ;
-                                end else begin
-                                    next_state = FLUSH_NEXT;
-                                end
-                            end
-                        end else begin
-                            // next set in same way
-                            next_flush_set = flush_set + 1'b1;
-                            if (cache_valid[next_flush_way][next_flush_set]) begin
-                                next_state = SENDING_WRITE_REQ;
-                            end else begin
-                                next_state = FLUSH_NEXT;
-                            end
-                        end
-
+                        // RAM now holds this line: it is clean.
+                        // FLUSH_NEXT moves to the next line or ends the flush.
+                        next_cache_dirty[flush_way][flush_set] = 1'b0;
+                        next_state = FLUSH_NEXT;
                     end else begin
                         // Normal write-back complete, now fetch the data
                         next_state = SENDING_READ_REQ;
@@ -683,26 +631,39 @@ module holy_data_cache #(
             end
 
             FLUSH_NEXT: begin
-                // advance to next set / way OR end the procedure
-                if (flush_set == LAST_SET[SET_INDEX_BITS-1:0]) begin
-                    if (flush_way == 1'b1) begin
-                        // Flush over
-                        next_state = IDLE;
-                        next_csr_flushing = '0;
-                        next_csr_flushing_done = 1'b1;
-                    end else begin
-                        next_flush_way = flush_way + 1'b1;
-                        next_flush_set = '0;
+                // The line at (flush_way, flush_set) is done (written back or
+                // did not need it). Finish, or advance and decide for the next.
+                if ((flush_way == 1'b1) && (flush_set == LAST_SET[SET_INDEX_BITS-1:0])) begin
+                    // Last line of the last way: flush over
+                    next_state = IDLE;
+                    next_csr_flushing = 1'b0;
+                    next_csr_flushing_done = 1'b1;
+
+                    // Optional: drop every line (all dirty data is in RAM now)
+                    if (FLUSH_INVALIDATE) begin
+                        for (int w = 0; w < NUM_WAYS; w++) begin
+                            for (int s = 0; s < NUM_SETS; s++) begin
+                                next_cache_valid[w][s] = 1'b0;
+                                next_cache_dirty[w][s] = 1'b0;
+                            end
+                        end
                     end
                 end else begin
-                    next_flush_set = flush_set + 1'b1;
-                end
-                
-                // Check if next set needs flushing
-                if (cache_valid[next_flush_way][next_flush_set]) begin
-                    next_state = SENDING_WRITE_REQ;
-                end else if ((flush_way != 1'b1) && (flush_set) != LAST_SET[SET_INDEX_BITS-1:0]) begin
-                    next_state = FLUSH_NEXT;
+                    // Advance the (way, set) pointer
+                    if (flush_set == LAST_SET[SET_INDEX_BITS-1:0]) begin
+                        next_flush_way = flush_way + 1'b1;
+                        next_flush_set = '0;
+                    end else begin
+                        next_flush_set = flush_set + 1'b1;
+                    end
+
+                    // Write the next line back only if it is valid AND dirty
+                    if (cache_valid[next_flush_way][next_flush_set] &&
+                        cache_dirty[next_flush_way][next_flush_set]) begin
+                        next_state = SENDING_WRITE_REQ;
+                    end else begin
+                        next_state = FLUSH_NEXT;
+                    end
                 end
             end
 

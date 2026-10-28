@@ -39,6 +39,7 @@ add_files -norecurse {
 }
 
 add_files [glob ./3_perf_edition/vendor/*.sv]
+add_files [glob ./3_perf_edition/vendor/*.svh]
 add_files [glob ./3_perf_edition/vendor/pulp-riscv-dbg/debug_rom/*.sv]
 add_files [glob ./3_perf_edition/vendor/pulp-riscv-dbg/src/*.sv]
 

@@ -25,6 +25,8 @@ _start:
 #     # for FPGA : Infinite leds (debug mode is used to
 #     # load and execute real program).
 #     # ==============================================
+#
+# TODO : de-activate interrupts by defaults !
 
     lui t0, 0x10010      # t0 = 0x10010000 (LED MMIO base)
     li t1, 1             # t1 = 1 (LED on)

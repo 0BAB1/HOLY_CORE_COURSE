@@ -1,6 +1,6 @@
 # HOLY CORE LIBRARY
 
-This folder contains holy core's utilities to do basic stuff like printing or reading sensors connected to the SoC.
+This folder contains holy core's utilities drivers to do the very basic stuff. Mainly printing through UART and defining the current SoC depending on what you put on the FPGA.
 
 You will need to build by simply running `make`.
 
