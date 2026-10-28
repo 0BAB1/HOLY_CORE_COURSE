@@ -1160,7 +1160,7 @@ async def signext_s_type_test(dut):
     for _ in range(100):
         # TEST POSITIVE IMM
         await Timer(100, units="ns")
-        imm = random.randint(0,0b01111111111) 
+        imm = random.randint(0,0b011111111111) 
         imm_11_5 = imm >> 5
         imm_4_0 = imm & 0b000000011111
         raw_data = (imm_11_5 << 18) | (imm_4_0) # the 25 bits of data
@@ -2752,7 +2752,7 @@ always_comb begin
                             raw_src[13],
                             raw_src[23:14],
                             1'b0};
-        default: immediate = 12'b0;
+        default: immediate = 32'b0;
     endcase
 end
     
@@ -3129,7 +3129,7 @@ Here is what I am basing my signals on (from Harris' *DDCA Risc-V edition* Book)
         alu_source = 1'b1; //imm
         mem_write = 1'b0;
         alu_op = 2'b10;
-        write_back_source = 1'b00; //alu_result
+        write_back_source = 2'b00; //alu_result
         branch = 1'b0;
         jump = 1'b0;
     end
@@ -3301,7 +3301,7 @@ always_comb begin
                             1'b0};
         // For U-Types
         3'b100 : immediate = {raw_src[24:5],12'b000000000000};
-        default: immediate = 12'b0;
+        default: immediate = 32'b0;
     endcase
 end
 
