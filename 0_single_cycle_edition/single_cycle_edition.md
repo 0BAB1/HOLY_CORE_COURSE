@@ -218,7 +218,7 @@ async def memory_data_test(dut):
         assert dut.read_data.value == data
 
     # Test: Write to multiple addresses, then read back
-    for i in range(40,4):
+    for i in range(0,40,4):
         dut.address.value = i
         dut.write_data.value = i + 100
         dut.write_enable.value = 1
@@ -226,7 +226,7 @@ async def memory_data_test(dut):
 
     # Disable write, then read back values to check
     dut.write_enable.value = 0
-    for i in range(40,4):
+    for i in range(0,40,4):
         dut.address.value = i
         await RisingEdge(dut.clk)
         expected_value = i + 100
@@ -346,7 +346,7 @@ async def random_write_read_test(dut):
         # perform a random write
         dut.address3.value = address3
         dut.write_enable.value = 1
-        dut.write_data = write_value
+        dut.write_data.value = write_value
         await RisingEdge(dut.clk)
         dut.write_enable.value = 0
         theorical_regs[address3] = write_value
@@ -356,10 +356,10 @@ async def random_write_read_test(dut):
     await Timer(1, units="ns")
     dut.address3.value = 0
     dut.write_enable.value = 1
-    dut.write_data = 0xAEAEAEAE
+    dut.write_data.value = 0xAEAEAEAE
     await RisingEdge(dut.clk)
     dut.write_enable.value = 0
-    theorical_regs[address3] = 0
+    theorical_regs[0] = 0
 
     await Timer(1, units="ns") # wait a ns to test async read
     dut.address1.value = 0
@@ -516,7 +516,7 @@ async def random_write_read_test(dut):
     raw_data = random_junk | imm
     await Timer(1, units="ns")
     dut.raw_src.value = raw_data
-    dut.imm_source = source
+    dut.imm_source.value = source
     await Timer(1, units="ns") # let it propagate ...
     assert dut.immediate.value == "00000000000000000000000001111011"
     assert int(dut.immediate.value) == 123
@@ -531,7 +531,7 @@ async def random_write_read_test(dut):
     raw_data = random_junk | imm
     await Timer(1, units="ns")
     dut.raw_src.value = raw_data
-    dut.imm_source = source
+    dut.imm_source.value = source
     await Timer(1, units="ns") # let it propagate ...
     assert dut.immediate.value == "11111111111111111111111111010110"
     # Python interprets int as uint. we sub 1<<32 as int to get corresponding negative value
@@ -798,6 +798,7 @@ logic [4:0] dest_reg;
 assign dest_reg = instruction[11:7];
 wire [31:0] read_reg1;
 wire [31:0] read_reg2;
+wire [31:0] mem_read;
 
 logic [31:0] write_back_data;
 always_comb begin : wbSelect
@@ -857,7 +858,6 @@ alu alu_inst(
 /**
 * DATA MEMORY
 */
-wire [31:0] mem_read;
 
 memory #(
     .mem_init("./test_dmemory.hex")
@@ -1166,7 +1166,7 @@ async def signext_s_type_test(dut):
         raw_data = (imm_11_5 << 18) | (imm_4_0) # the 25 bits of data
         source = 0b01
         dut.raw_src.value = raw_data
-        dut.imm_source = source
+        dut.imm_source.value = source
         await Timer(1, units="ns") # let it propagate ...
         assert int(dut.immediate.value) == imm
 
@@ -1179,7 +1179,7 @@ async def signext_s_type_test(dut):
         source = 0b01
         await Timer(1, units="ns")
         dut.raw_src.value = raw_data
-        dut.imm_source = source
+        dut.imm_source.value = source
         await Timer(1, units="ns") # let it propagate ...
         # print(bin(imm),dut.raw_src.value)
         # print(int(dut.immediate.value), imm)
@@ -1280,7 +1280,6 @@ Globally in the datapath, nothing much changes, we just link the signals we prev
 /**
 * DATA MEMORY
 */
-wire [31:0] mem_read;
 
 memory #(
     .mem_init("./test_dmemory.hex")
@@ -1476,10 +1475,12 @@ always_comb begin
             mem_write = 1'b1;
             alu_op = 2'b00;
             alu_source = 1'b1; //imm
+            write_back_source = 1'b0; //don't care (no reg write)
         end
         // R-Type
         7'b0110011 : begin
             reg_write = 1'b1;
+            imm_source = 2'b00; //don't care (no imm)
             mem_write = 1'b0;
             alu_op = 2'b10;
             alu_source = 1'b0; //reg2
@@ -1491,6 +1492,8 @@ always_comb begin
             imm_source = 2'b00;
             mem_write = 1'b0;
             alu_op = 2'b00;
+            alu_source = 1'b0;
+            write_back_source = 1'b0;
         end
     endcase
 end
@@ -1674,6 +1677,8 @@ logic [4:0] dest_reg;
 assign dest_reg = instruction[11:7];
 wire [31:0] read_reg1;
 wire [31:0] read_reg2;
+wire [31:0] alu_result;
+wire [31:0] mem_read;
 
 logic [31:0] write_back_data;
 always_comb begin : write_back_source_select
@@ -1717,7 +1722,6 @@ signext sign_extender(
 /**
 * ALU
 */
-wire [31:0] alu_result;
 logic [31:0] alu_src2;
 
 always_comb begin : alu_source_select
@@ -1738,7 +1742,6 @@ alu alu_inst(
 /**
 * DATA MEMORY
 */
-wire [31:0] mem_read;
 
 memory #(
     .mem_init("./test_dmemory.hex")
@@ -2244,6 +2247,7 @@ always_comb begin
             alu_source = 1'b0;
             mem_write = 1'b0;
             alu_op = 2'b01;
+            write_back_source = 1'b0; //don't care (no reg write)
             branch = 1'b1;
         end
         // EVERYTHING ELSE
@@ -2251,7 +2255,12 @@ always_comb begin
             // Updated this too, but has nothing to
             // do with beq.
             reg_write = 1'b0;
+            imm_source = 2'b00;
+            alu_source = 1'b0;
             mem_write = 1'b0;
+            alu_op = 2'b00;
+            write_back_source = 1'b0;
+            branch = 1'b0;
         end
     endcase
 end
@@ -2748,7 +2757,7 @@ always_comb begin
         2'b10 : immediate = {{20{raw_src[24]}},raw_src[0],raw_src[23:18],raw_src[4:1],1'b0};
         // For J-types
         2'b11 : immediate = {{12{raw_src[24]}}, 
-                            aw_src[12:5],
+                            raw_src[12:5],
                             raw_src[13],
                             raw_src[23:14],
                             1'b0};
@@ -2976,6 +2985,7 @@ always_comb begin : write_back_source_select
         2'b00: write_back_data = alu_result;
         2'b01: write_back_data = mem_read;
         2'b10: write_back_data = pc_plus_four; // NEW !
+        default: write_back_data = 32'b0;
     endcase
 end
 
@@ -3734,6 +3744,8 @@ always_comb begin
                 3'b110 : alu_control = 3'b011;
                 // SLTI
                 3'b010 : alu_control = 3'b101; // NEW !
+                // ALL THE OTHERS
+                default: alu_control = 3'b111;
             endcase
         end
         // BEQ
@@ -3918,6 +3930,8 @@ always_comb begin
                 3'b010 : alu_control = 3'b101;
                 // SLTIU
                 3'b011 : alu_control = 3'b111; // NEW !
+                // ALL THE OTHERS
+                default: alu_control = 3'b111;
             endcase
         end
         // BEQ
@@ -4086,10 +4100,14 @@ always_comb begin
                 3'b011 : alu_control = 4'b0111;
                 // XOR
                 3'b100 : alu_control = 4'b1000;
+                // ALL THE OTHERS
+                default: alu_control = 4'b1111;
             endcase
         end
         // BEQ
         2'b01 : alu_control = 4'b0001;
+        // EVERYTHING ELSE
+        default: alu_control = 4'b1111;
     endcase
 end
 
@@ -4536,6 +4554,7 @@ always_comb begin
                 3'b000 : alu_control = 4'b0001;
                 // BLT
                 3'b100 : alu_control = 4'b0101;
+                default: alu_control = 4'b1111;
             endcase
         end
     endcase
@@ -5299,6 +5318,10 @@ logic [1:0] offset;
 assign offset = alu_result_address[1:0];
 
 always_comb begin
+    // defaults, so no output is left unassigned (avoids latches)
+    byte_enable = 4'b0000;
+    data = 32'b0;
+
     case (f3)
         3'b000: begin // SB
             case (offset)
@@ -5620,6 +5643,7 @@ always_comb begin : mask_apply
 end
 
 always_comb begin : shift_data
+    raw_data = 32'b0; // default, avoids latches
     case (f3)
         3'b010 : raw_data = masked_data; // masked data is full word in that case
 
@@ -5642,6 +5666,7 @@ always_comb begin : shift_data
 end
 
 always_comb begin : sign_extend_logic
+    wb_data = 32'b0; // default, avoids latches
     case (f3)
         // LW
         3'b010 : wb_data = raw_data;
@@ -5654,7 +5679,6 @@ always_comb begin : sign_extend_logic
     endcase
 
     valid = |be_mask;
-end
 end
     
 endmodule
